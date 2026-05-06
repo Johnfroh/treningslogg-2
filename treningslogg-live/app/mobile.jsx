@@ -358,6 +358,8 @@ function Toast({ T, children }) {
 
 // ─── Home screen ────────────────────────────────────────────────────
 function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
+  const [selectedDate, setSelectedDate] = React.useState(TODAY_M);
+
   // This week (mandag → søndag)
   const startOfWeek = (() => {
     const d = new Date(NOW);
@@ -379,10 +381,12 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
   const weekTotal = weekSessions.length + weekPlanned.length;
   const weekPct = weekTotal > 0 ? Math.round((weekSessions.length / weekTotal) * 100) : 0;
 
-  // Today's items
-  const todayItems = [
-    ...sessions.filter(s => s.date === TODAY_M).map(s => ({ ...s, kind: 'logged' })),
-    ...planned.filter(p => p.date === TODAY_M).map(p => ({ ...p, kind: 'planned' })),
+  // Selected day
+  const selectedDateObj = parseYmdM(selectedDate);
+  const isSelectedToday = selectedDate === TODAY_M;
+  const selectedItems = [
+    ...sessions.filter(s => s.date === selectedDate).map(s => ({ ...s, kind: 'logged' })),
+    ...planned.filter(p => p.date === selectedDate).map(p => ({ ...p, kind: 'planned' })),
   ].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   const recentLogged = sessions
@@ -404,9 +408,11 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
 
       {/* Hero — date */}
       <div style={{ padding: '8px 22px 12px' }}>
-        <div style={{ fontSize: 13, color: T.mid }}>{NORWAY_DAYS_LONG[NOW.getDay()]} 👋</div>
+        <div style={{ fontSize: 13, color: T.mid }}>
+          {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}{isSelectedToday ? ' 👋' : ''}
+        </div>
         <div style={{ fontSize: 32, fontWeight: 700, marginTop: 4, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
-          {NOW.getDate()}. {NORWAY_MONTHS[NOW.getMonth()]}
+          {selectedDateObj.getDate()}. {NORWAY_MONTHS[selectedDateObj.getMonth()]}
         </div>
       </div>
 
@@ -450,50 +456,57 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
         {weekDays.map((d, i) => {
           const ymd = ymdM(d);
           const isToday = ymd === TODAY_M;
+          const isSelected = ymd === selectedDate;
           const has = sessions.some(s => s.date === ymd);
           const planThis = planned.some(p => p.date === ymd);
           return (
-            <div key={i} style={{
+            <button key={i} onClick={() => setSelectedDate(ymd)} style={{
               padding: '8px 0', textAlign: 'center', borderRadius: T.radiusSm,
-              background: isToday ? T.accent : 'transparent',
-              color: isToday ? '#fff' : T.ink,
+              background: isSelected ? T.accent : 'transparent',
+              color: isSelected ? '#fff' : T.ink,
+              border: isToday && !isSelected ? `1.5px solid ${T.accent}` : '1.5px solid transparent',
               transition: 'background 0.12s',
+              fontFamily: 'inherit', cursor: 'pointer',
             }}>
               <div style={{ fontSize: 9, letterSpacing: 1.4, opacity: 0.7, textTransform: 'uppercase' }}>
                 {NORWAY_DAYS_INITIAL[d.getDay()]}
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{d.getDate()}</div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, height: 4 }}>
-                {has && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? '#fff' : T.accent2 }}></span>}
-                {planThis && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? '#fff' : T.amber }}></span>}
+                {has && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : T.accent2 }}></span>}
+                {planThis && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : T.amber }}></span>}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
 
-      {/* Today section */}
+      {/* Selected day section */}
       <div style={{ padding: '20px 22px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div style={{ fontSize: 17, fontWeight: 700 }}>I dag</div>
-        <div style={{ fontSize: 12, color: T.mid }}>{todayItems.length} {todayItems.length === 1 ? 'økt' : 'økter'}</div>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>
+          {isSelectedToday
+            ? 'I dag'
+            : `${NORWAY_DAYS_LONG[selectedDateObj.getDay()]} ${selectedDateObj.getDate()}.`}
+        </div>
+        <div style={{ fontSize: 12, color: T.mid }}>{selectedItems.length} {selectedItems.length === 1 ? 'økt' : 'økter'}</div>
       </div>
       <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {todayItems.length === 0 && (
+        {selectedItems.length === 0 && (
           <div style={{
             background: T.card, borderRadius: T.radius, padding: '20px 18px',
             textAlign: 'center', color: T.mid, fontSize: 13, boxShadow: T.shadow,
           }}>
-            ingen økter planlagt i dag.
+            {isSelectedToday ? 'ingen økter planlagt i dag.' : 'ingen økter denne dagen.'}
             <div style={{ marginTop: 12 }}>
-              <button onClick={() => onOpenLog(null, 'new')} style={{
+              <button onClick={() => onOpenLog({ date: selectedDate }, 'new')} style={{
                 background: T.accent, color: '#fff', border: 'none',
                 padding: '10px 18px', borderRadius: T.radius,
                 fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>+ logg en nå</button>
+              }}>+ logg {isSelectedToday ? 'en nå' : 'for denne dagen'}</button>
             </div>
           </div>
         )}
-        {todayItems.map((it, i) => (
+        {selectedItems.map((it, i) => (
           <SessionCard key={i} T={T} item={it}
             onClick={() => {
               if (it.kind === 'planned') onOpenLog(it, 'plan-fill');
