@@ -27,14 +27,17 @@ window.TL_API = (function () {
   }
 
   // ─── Lavnivå-fetch ──────────────────────────────────────────────
+  // Apps Script-responser blir ellers cached aggressivt av iOS PWA og
+  // av Chrome i offline-state — vi setter no-store + cache-bust query.
   async function get(action, extraParams) {
     const url = new URL(ENDPOINT);
     url.searchParams.set('action', action);
     url.searchParams.set('token', TOKEN);
+    url.searchParams.set('_ts', Date.now().toString());
     if (extraParams) {
       Object.entries(extraParams).forEach(([k, v]) => url.searchParams.set(k, v));
     }
-    const res = await fetch(url.toString(), { method: 'GET' });
+    const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw new Error('GET ' + action + ' failed: ' + res.status);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'unknown error');
@@ -48,6 +51,7 @@ window.TL_API = (function () {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ ...body, token: TOKEN }),
+      cache: 'no-store',
     });
     if (!res.ok) throw new Error('POST ' + body.action + ' failed: ' + res.status);
     const json = await res.json();
