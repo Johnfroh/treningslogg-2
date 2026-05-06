@@ -106,6 +106,7 @@ function MobileApp() {
   const [planned, setPlanned] = React.useState([]);
   const [trainers, setTrainers] = React.useState(TL_DATA.trainers); // overskrives ved bootstrap
   const [members, setMembers] = React.useState(TL_DATA.members);
+  const [attendance, setAttendance] = React.useState([]);
   const [toast, setToast] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [syncError, setSyncError] = React.useState(null);
@@ -154,6 +155,7 @@ function MobileApp() {
     if (Array.isArray(d.planned))  setPlanned(d.planned);
     if (Array.isArray(d.trainers) && d.trainers.length) setTrainers(d.trainers);
     if (Array.isArray(d.members)   && d.members.length) setMembers(d.members);
+    if (Array.isArray(d.attendance)) setAttendance(d.attendance);
   }
 
   const flashToast = (msg) => {
@@ -231,6 +233,24 @@ function MobileApp() {
     }
   };
 
+  const deleteSession = async (id) => {
+    if (!id) return;
+    const original = sessions.find(s => s.id === id);
+    setSessions(prev => prev.filter(s => s.id !== id));
+    setLogging(null);
+    flashToast('sletter økt …');
+    try {
+      await window.TL_API.deleteSession(id);
+      setSyncError(null);
+      flashToast('økt slettet');
+    } catch (err) {
+      console.error('[mobile] deleteSession feilet:', err);
+      if (original) setSessions(prev => [original, ...prev]);
+      setSyncError('kunne ikke slette');
+      flashToast('feil — prøv igjen');
+    }
+  };
+
   // Diagnose-funksjon (brukes fra tweaks-panel hvis nødvendig)
   const reloadFromServer = async () => {
     setLoading(true);
@@ -270,7 +290,7 @@ function MobileApp() {
         />
       )}
       {screen === 'people' && (
-        <PeopleScreen T={T} sessions={sessions} />
+        <PeopleScreen T={T} sessions={sessions} attendance={attendance} members={members} />
       )}
 
       {logging && (
@@ -280,6 +300,7 @@ function MobileApp() {
           initial={logging.initial}
           trainers={trainers}
           onSave={saveSession}
+          onDelete={deleteSession}
           onClose={() => setLogging(null)}
         />
       )}
@@ -675,29 +696,17 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
 }
 
 // ─── People screen ──────────────────────────────────────────────────
-// Generate demo attendance: deterministic so the same members map to the same
-// sessions on every load. On real device this would come from desktop import.
-function buildDemoAttendance(sessions) {
-  const map = {}; // sessionId -> [memberNames]
-  const members = TL_DATA.members || [];
-  sessions.forEach((s, sIdx) => {
-    const names = [];
-    members.forEach((name, mIdx) => {
-      // Mix in member-specific consistency + session-specific variation
-      const seed = (mIdx * 31 + sIdx * 17) % 100;
-      // member 0..3: ~70% attendance, 4..7: ~50%, rest: ~30%
-      const threshold = mIdx < 4 ? 70 : mIdx < 8 ? 50 : 30;
-      if (seed < threshold) names.push(name);
-    });
-    map[s.id] = names;
-  });
-  return map;
-}
-
-function PeopleScreen({ T, sessions }) {
+function PeopleScreen({ T, sessions, attendance, members }) {
   const [expanded, setExpanded] = React.useState(null);
   const [query, setQuery] = React.useState('');
-  const attendanceMap = React.useMemo(() => buildDemoAttendance(sessions), [sessions]);
+  const attendanceMap = React.useMemo(() => {
+    const map = {};
+    (attendance || []).forEach(a => {
+      if (!a.sessionId || !a.memberName) return;
+      (map[a.sessionId] || (map[a.sessionId] = [])).push(a.memberName);
+    });
+    return map;
+  }, [attendance]);
   const sessionsById = React.useMemo(() => Object.fromEntries(sessions.map(s => [s.id, s])), [sessions]);
 
   const memberStats = React.useMemo(() => {
@@ -757,7 +766,16 @@ function PeopleScreen({ T, sessions }) {
 
       {/* List */}
       <div style={{ padding: '8px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {filtered.length === 0 && (
+        {memberStats.length === 0 && (
+          <div style={{
+            background: T.card, borderRadius: T.radius, padding: '24px 18px',
+            textAlign: 'center', color: T.mid, fontSize: 13, boxShadow: T.shadow, lineHeight: 1.5,
+          }}>
+            ingen oppmøte registrert ennå.
+            <div style={{ fontSize: 11, marginTop: 6 }}>importer Spond-eksport fra desktop-siden.</div>
+          </div>
+        )}
+        {memberStats.length > 0 && filtered.length === 0 && (
           <div style={{
             background: T.card, borderRadius: T.radius, padding: '24px 18px',
             textAlign: 'center', color: T.mid, fontSize: 13, boxShadow: T.shadow,
@@ -1049,7 +1067,7 @@ function TabBar({ T, screen, onChange }) {
 }
 
 // ─── Log modal ──────────────────────────────────────────────────────
-function LogModal({ T, mode, initial, trainers, onSave, onClose }) {
+function LogModal({ T, mode, initial, trainers, onSave, onClose, onDelete }) {
   // Pre-fill from planned/initial
   const init = initial || {};
   const trainerList = (trainers && trainers.length) ? trainers : TL_DATA.trainers;
@@ -1254,15 +1272,28 @@ function LogModal({ T, mode, initial, trainers, onSave, onClose }) {
 
           {/* Save row */}
           {mode === 'edit' ? (
-            <button onClick={submit} disabled={!title} style={{
-              width: '100%', padding: '18px', marginTop: 8,
-              background: title ? T.ink : T.rule,
-              color: title ? '#fff' : T.mid,
-              border: 'none', borderRadius: T.radius,
-              fontFamily: 'inherit', fontSize: 16, fontWeight: 600,
-              cursor: title ? 'pointer' : 'not-allowed',
-              boxShadow: title ? '0 6px 20px rgba(31,26,20,0.18)' : 'none',
-            }}>lagre endringer</button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, marginTop: 8 }}>
+              <button onClick={() => {
+                if (!window.confirm('Slette denne økten? Dette kan ikke angres.')) return;
+                if (onDelete && initial?.id) onDelete(initial.id);
+              }} style={{
+                padding: '18px 16px',
+                background: 'transparent',
+                color: T.coral,
+                border: `1.5px solid ${T.coral}`, borderRadius: T.radius,
+                fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer',
+              }}>slett</button>
+              <button onClick={submit} disabled={!title} style={{
+                padding: '18px',
+                background: title ? T.ink : T.rule,
+                color: title ? '#fff' : T.mid,
+                border: 'none', borderRadius: T.radius,
+                fontFamily: 'inherit', fontSize: 16, fontWeight: 600,
+                cursor: title ? 'pointer' : 'not-allowed',
+                boxShadow: title ? '0 6px 20px rgba(31,26,20,0.18)' : 'none',
+              }}>lagre endringer</button>
+            </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
               <button onClick={submit} disabled={!title} style={{
