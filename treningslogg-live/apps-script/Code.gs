@@ -329,16 +329,24 @@ function findRowIndex(sh, id) {
 
 function ymd(v) {
   if (!v) return '';
-  if (v instanceof Date) {
-    const y = v.getFullYear(), m = pad2(v.getMonth() + 1), d = pad2(v.getDate());
-    return y + '-' + m + '-' + d;
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // Aksepter Date-objekt eller hvilken som helst parsable streng
+  // (f.eks. "Thu May 07 2026 00:00:00 GMT+0200" hvis cellen er lagret som tekst).
+  const d = (v instanceof Date) ? v : new Date(v);
+  if (!isNaN(d.getTime())) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
   return String(v);
 }
 
 function hm(v) {
   if (!v) return '';
-  if (v instanceof Date) return pad2(v.getHours()) + ':' + pad2(v.getMinutes());
+  if (typeof v === 'string' && /^\d{1,2}:\d{2}/.test(v)) {
+    const parts = v.split(':');
+    return pad2(parts[0]) + ':' + parts[1].slice(0, 2);
+  }
+  const d = (v instanceof Date) ? v : new Date(v);
+  if (!isNaN(d.getTime())) return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   return String(v);
 }
 

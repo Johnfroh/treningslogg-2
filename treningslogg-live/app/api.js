@@ -59,20 +59,54 @@ window.TL_API = (function () {
     return json.data;
   }
 
+  // ─── Normalisering ──────────────────────────────────────────────
+  // Forsvarslinje: hvis Apps Script (eller en celle som er lagret som tekst)
+  // returnerer date som "Thu May 07 2026 00:00:00 GMT+0200…" eller en ISO-streng,
+  // konverter til "YYYY-MM-DD". Samme for time → "HH:MM".
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function normalizeYmd(v) {
+    if (!v) return '';
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const d = (v instanceof Date) ? v : new Date(v);
+    if (!isNaN(d.getTime())) return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    return String(v);
+  }
+  function normalizeHm(v) {
+    if (!v) return '';
+    if (typeof v === 'string' && /^\d{1,2}:\d{2}/.test(v)) {
+      const [h, m] = v.split(':');
+      return pad2(h) + ':' + m.slice(0, 2);
+    }
+    const d = (v instanceof Date) ? v : new Date(v);
+    if (!isNaN(d.getTime())) return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    return String(v);
+  }
+  function normalizeListData(data) {
+    if (!data) return data;
+    const fix = (arr) => Array.isArray(arr)
+      ? arr.map(o => ({ ...o, date: normalizeYmd(o.date), time: normalizeHm(o.time) }))
+      : arr;
+    return { ...data, sessions: fix(data.sessions), planned: fix(data.planned) };
+  }
+
+  async function fetchList() {
+    return normalizeListData(await get('list'));
+  }
+
   // ─── Public API ─────────────────────────────────────────────────
 
   /** Hent all initial state. Bruker cache hvis nett er treigt. */
   async function bootstrap({ preferCache = true } = {}) {
     const cached = preferCache ? readCache() : null;
     const fresh = (async () => {
-      const data = await get('list');
+      const data = await fetchList();
       writeCache(data);
       return data;
     })();
     if (cached) {
       // Returner cache umiddelbart, men la fresh oppdatere bakgrunnen
       fresh.catch(err => console.warn('[api] bootstrap refresh feilet:', err.message));
-      return { initial: cached, refresh: fresh };
+      return { initial: normalizeListData(cached), refresh: fresh };
     }
     const data = await fresh;
     return { initial: data, refresh: Promise.resolve(data) };
@@ -80,7 +114,7 @@ window.TL_API = (function () {
 
   /** Re-hent state. Brukes ved fokus-bytte og periodisk. */
   async function refresh() {
-    const data = await get('list');
+    const data = await fetchList();
     writeCache(data);
     return data;
   }
