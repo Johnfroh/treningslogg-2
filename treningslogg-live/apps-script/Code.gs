@@ -78,11 +78,24 @@ function handle(e, method) {
 
 function listAll() {
   return {
-    sessions: readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow),
-    planned:  readSheet(SHEET_NAMES.planned,  PLANNED_COLS, parsePlannedRow),
-    trainers: readSheet(SHEET_NAMES.trainers, TRAINER_COLS, parseTrainerRow),
-    members:  readSheet(SHEET_NAMES.members,  MEMBER_COLS,  parseMemberRow),
+    sessions:   readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow),
+    planned:    readSheet(SHEET_NAMES.planned,  PLANNED_COLS, parsePlannedRow),
+    trainers:   readSheet(SHEET_NAMES.trainers, TRAINER_COLS, parseTrainerRow),
+    members:    readSheet(SHEET_NAMES.members,  MEMBER_COLS,  parseMemberRow),
+    attendance: readAttendance(),
   };
+}
+
+function readAttendance() {
+  const sh = sheet(SHEET_NAMES.attendance);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return [];
+  const range = sh.getRange(2, 1, lastRow - 1, ATTENDANCE_COLS.length).getValues();
+  return range.map(row => ({
+    sessionId: String(row[0] || ''),
+    memberName: String(row[1] || ''),
+    importedAt: row[2] instanceof Date ? row[2].toISOString() : (row[2] ? String(row[2]) : null),
+  })).filter(r => r.sessionId && r.memberName);
 }
 
 function readSheet(name, cols, parser) {
@@ -217,12 +230,49 @@ function deleteRow(sheetName, id) {
 
 function importAttendance(rows) {
   if (!Array.isArray(rows)) throw new Error('rows må være array');
+  if (rows.length === 0) return { count: 0, newMembers: 0 };
   const sh = sheet(SHEET_NAMES.attendance);
   const now = new Date().toISOString();
-  const data = rows.map(r => [r.sessionId, r.memberName, r.importedAt || now]);
-  if (data.length === 0) return { count: 0 };
-  sh.getRange(sh.getLastRow() + 1, 1, data.length, ATTENDANCE_COLS.length).setValues(data);
-  return { count: data.length };
+
+  // Erstatt eksisterende attendance for de session-id-ene som er i import
+  // (idempotent re-import: samme fil kan lastes opp på nytt uten dubletter)
+  const sessionIds = new Set(rows.map(r => String(r.sessionId)));
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const existing = sh.getRange(2, 1, lastRow - 1, ATTENDANCE_COLS.length).getValues();
+    const toKeep = existing.filter(row => !sessionIds.has(String(row[0])));
+    sh.getRange(2, 1, lastRow - 1, ATTENDANCE_COLS.length).clearContent();
+    if (toKeep.length) {
+      sh.getRange(2, 1, toKeep.length, ATTENDANCE_COLS.length).setValues(toKeep);
+    }
+  }
+
+  // Skriv nye rader
+  const data = rows.map(r => [String(r.sessionId), String(r.memberName), r.importedAt || now]);
+  const startRow = sh.getLastRow() + 1;
+  sh.getRange(startRow, 1, data.length, ATTENDANCE_COLS.length).setValues(data);
+
+  // Auto-registrer nye navn i members-arket
+  const memberSh = sheet(SHEET_NAMES.members);
+  const existingNames = memberSh.getLastRow() < 2 ? [] :
+    memberSh.getRange(2, 1, memberSh.getLastRow() - 1, 1).getValues().flat().map(v => String(v).trim().toLowerCase());
+  const existingSet = new Set(existingNames);
+  const seen = new Set();
+  const newNames = [];
+  rows.forEach(r => {
+    const n = String(r.memberName || '').trim();
+    if (!n) return;
+    const key = n.toLowerCase();
+    if (existingSet.has(key) || seen.has(key)) return;
+    seen.add(key);
+    newNames.push(n);
+  });
+  if (newNames.length) {
+    const memberData = newNames.map(name => [name, '', true]);
+    memberSh.getRange(memberSh.getLastRow() + 1, 1, memberData.length, MEMBER_COLS.length).setValues(memberData);
+  }
+
+  return { count: data.length, newMembers: newNames.length };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
