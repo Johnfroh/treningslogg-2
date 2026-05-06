@@ -1,0 +1,189 @@
+/* ============================================================
+   BODØ JIU-JITSU — Design System Tokens
+   Single typeface: Roboto Mono (Google Fonts)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap');
+
+/* ------------------------------------------------------------
+   BASE COLOR TOKENS
+   ------------------------------------------------------------ */
+:root {
+  /* Core Brand */
+  --color-anthracite:       #373F43;
+  --color-off-white:        #F5F0E8;
+
+  /* Dark / Poster Palette */
+  --color-deep-anthracite:  #121110;
+  --color-bone:             #C6BCA8;
+  --color-bone-muted:       #78726E;
+  --color-amber:            #AC7A34;
+  --color-green:            #306C48;
+  --color-coral:            #9E4430;
+  --color-grey-mid:         #76726A;
+  --color-grey-dim:         #48443E;
+  --color-grey-frame:       #2C2A26;
+
+  /* Neutrals */
+  --color-white:            #FFFFFF;
+  --color-black:            #000000;
+
+  /* ------------------------------------------------------------
+     SEMANTIC COLOR TOKENS
+     ------------------------------------------------------------ */
+
+  /* Backgrounds */
+  --bg-primary:             var(--color-off-white);
+  --bg-dark:                var(--color-anthracite);
+  --bg-deeper:              var(--color-deep-anthracite);
+  --bg-surface:             #F0EBE1;
+
+  /* Foregrounds */
+  --fg-primary:             var(--color-anthracite);
+  --fg-on-dark:             var(--color-bone);
+  --fg-secondary:           var(--color-grey-mid);
+  --fg-muted:               var(--color-grey-dim);
+  --fg-rule:                var(--color-grey-frame);
+
+  /* Accent / Highlight */
+  --accent-dominant:        var(--color-amber);
+  --accent-guard:           var(--color-green);
+  --accent-submission:      var(--color-coral);
+
+  /* Borders */
+  --border-color:           var(--color-anthracite);
+  --border-color-dark:      var(--color-bone-muted);
+  --border-width:           1px;
+
+  /* ------------------------------------------------------------
+     TYPOGRAPHY TOKENS
+     ------------------------------------------------------------ */
+
+  --font-mono:              'Roboto Mono', 'Courier New', monospace;
+
+  /* Scale */
+  --text-display:           clamp(2rem, 5vw, 3.5rem);
+  --text-title:             clamp(1.1rem, 2.5vw, 1.5rem);
+  --text-body:              0.9375rem;     /* ~15px */
+  --text-caption:           0.75rem;      /* ~12px */
+  --text-micro:             0.625rem;     /* ~10px */
+
+  /* Weight */
+  --weight-regular:         400;
+  --weight-medium:          500;
+  --weight-bold:            700;
+
+  /* Letter spacing */
+  --ls-display:             0.18em;
+  --ls-label:               0.12em;
+  --ls-body:                0.04em;
+
+  /* Line height */
+  --lh-display:             1.1;
+  --lh-body:                1.6;
+  --lh-tight:               1.3;
+
+  /* ------------------------------------------------------------
+     SPACING TOKENS
+     ------------------------------------------------------------ */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   24px;
+  --space-6:   32px;
+  --space-7:   48px;
+  --space-8:   64px;
+  --space-9:   96px;
+
+  /* ------------------------------------------------------------
+     BORDER RADIUS — always 0 for this brand
+     ------------------------------------------------------------ */
+  --radius:    0px;
+
+  /* ------------------------------------------------------------
+     SHADOWS — none (brand rule)
+     ------------------------------------------------------------ */
+  --shadow:    none;
+}
+
+/* ------------------------------------------------------------
+   SEMANTIC ELEMENT STYLES
+   ------------------------------------------------------------ */
+
+body {
+  font-family:      var(--font-mono);
+  font-size:        var(--text-body);
+  font-weight:      var(--weight-regular);
+  line-height:      var(--lh-body);
+  color:            var(--fg-primary);
+  background-color: var(--bg-primary);
+  letter-spacing:   var(--ls-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, .display {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-display);
+  font-weight:   var(--weight-bold);
+  line-height:   var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: lowercase;
+  margin: 0;
+}
+
+h2, .title {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-title);
+  font-weight:   var(--weight-bold);
+  line-height:   var(--lh-tight);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+h3, .subtitle {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-body);
+  font-weight:   var(--weight-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+p, .body {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-body);
+  font-weight:   var(--weight-regular);
+  line-height:   var(--lh-body);
+  letter-spacing: var(--ls-body);
+  margin: 0 0 var(--space-4);
+}
+
+.caption, small {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-caption);
+  font-weight:   var(--weight-regular);
+  letter-spacing: var(--ls-label);
+  color:         var(--fg-secondary);
+}
+
+.micro {
+  font-family:   var(--font-mono);
+  font-size:     var(--text-micro);
+  letter-spacing: var(--ls-body);
+  color:         var(--fg-muted);
+}
+
+/* Rules */
+hr {
+  border: none;
+  border-top: var(--border-width) solid var(--border-color);
+  margin: var(--space-5) 0;
+}
+
+/* Accent color helpers */
+.amber  { color: var(--accent-dominant); }
+.green  { color: var(--accent-guard); }
+.coral  { color: var(--accent-submission); }
+.muted  { color: var(--fg-muted); }
