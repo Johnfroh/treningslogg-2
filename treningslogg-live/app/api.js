@@ -91,6 +91,9 @@ window.TL_API = (function () {
   async function updatePlanned(id, payload) { return post({ action: 'updatePlanned', id, payload }); }
   async function deletePlanned(id) { return post({ action: 'deletePlanned', id }); }
 
+  // Attendance (Spond-import)
+  async function importAttendance(rows) { return post({ action: 'importAttendance', rows }); }
+
   // Helse-sjekk
   async function ping() { return get('ping'); }
 
@@ -108,6 +111,7 @@ window.TL_API = (function () {
     createPlanned,
     updatePlanned,
     deletePlanned,
+    importAttendance,
     ping,
     clearLocalCache,
     _config: { ENDPOINT, TOKEN }, // for debugging
