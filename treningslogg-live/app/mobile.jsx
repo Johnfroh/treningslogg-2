@@ -41,6 +41,19 @@ const ymdM = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate()
 const parseYmdM = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
 const sameMonth = (a, b) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
 
+// Lager en tag-id av fri tekst: "Closed Guard" → "closed-guard", "Åpen matte" → "apen-matte"
+const slugifyTag = (s) => String(s || '').trim().toLowerCase()
+  .replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a')
+  .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// Telle tag-bruk på tvers av økter
+const countTagUse = (sessions) => {
+  const c = {};
+  (sessions || []).forEach(s => (s.tags || []).forEach(t => { c[t] = (c[t] || 0) + 1; }));
+  return c;
+};
+
 const NOW = new Date();
 const TODAY_M = ymdM(NOW);
 
@@ -299,6 +312,7 @@ function MobileApp() {
           mode={logging.mode}
           initial={logging.initial}
           trainers={trainers}
+          sessions={sessions}
           onSave={saveSession}
           onDelete={deleteSession}
           onClose={() => setLogging(null)}
@@ -530,7 +544,103 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           </div>
         </>
       )}
+
+      {/* Tag-oversikt — klubbens emnedekning */}
+      <TagOverview T={T} sessions={sessions} />
     </div>
+  );
+}
+
+// ─── Tag overview ───────────────────────────────────────────────────
+function TagOverview({ T, sessions }) {
+  const [showAll, setShowAll] = React.useState(false);
+
+  const allCounts = React.useMemo(() => countTagUse(sessions), [sessions]);
+  const sortedAll = React.useMemo(() =>
+    Object.entries(allCounts).sort((a, b) => b[1] - a[1]),
+    [allCounts]
+  );
+  const maxCount = sortedAll[0]?.[1] || 1;
+
+  // "Kalde" tags: predefinerte som ikke har vært brukt på 30 dager
+  const cutoff = (() => {
+    const d = new Date(NOW); d.setDate(d.getDate() - 30);
+    return ymdM(d);
+  })();
+  const recentCounts = React.useMemo(() => {
+    const c = {};
+    (sessions || []).forEach(s => {
+      if (s.date >= cutoff) (s.tags || []).forEach(t => { c[t] = (c[t] || 0) + 1; });
+    });
+    return c;
+  }, [sessions, cutoff]);
+  const coldPredefined = TL_DATA.tags
+    .filter(t => !(recentCounts[t.id] > 0))
+    .map(t => t.id);
+
+  if (sortedAll.length === 0) return null;
+
+  const visible = showAll ? sortedAll : sortedAll.slice(0, 12);
+
+  return (
+    <>
+      <div style={{ padding: '24px 22px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>Tag-oversikt</div>
+        <div style={{ fontSize: 12, color: T.mid }}>{sortedAll.length} unike</div>
+      </div>
+      <div style={{ padding: '0 22px' }}>
+        <div style={{
+          background: T.card, borderRadius: T.radius, padding: '14px 16px',
+          boxShadow: T.shadow, display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          {visible.map(([id, c]) => {
+            const def = TL_DATA.tags.find(t => t.id === id);
+            const color = M_TAG_COLOR[def?.kind] || M_TAG_COLOR.custom;
+            const w = (c / maxCount) * 100;
+            return (
+              <div key={id} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 28px', gap: 10, alignItems: 'center' }}>
+                <div style={{ fontSize: 12, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {def?.label || id}
+                </div>
+                <div style={{ height: 6, background: T.bg, borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${w}%`, background: color }}></div>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, textAlign: 'right' }}>{c}</div>
+              </div>
+            );
+          })}
+          {sortedAll.length > 12 && (
+            <button onClick={() => setShowAll(s => !s)} style={{
+              marginTop: 4, padding: '8px',
+              background: 'transparent', color: T.mid,
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+            }}>
+              {showAll ? 'vis færre' : `vis alle ${sortedAll.length}`}
+            </button>
+          )}
+        </div>
+
+        {coldPredefined.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, color: T.mid, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+              ikke brukt siste 30 dager
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {coldPredefined.map(id => {
+                const def = TL_DATA.tags.find(t => t.id === id);
+                return (
+                  <span key={id} style={{
+                    padding: '5px 10px', borderRadius: 14, fontSize: 11,
+                    background: T.bg, color: T.mid,
+                    border: `1px dashed ${T.rule}`,
+                  }}>{def?.label || id}</span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1080,7 +1190,7 @@ function TabBar({ T, screen, onChange }) {
 }
 
 // ─── Log modal ──────────────────────────────────────────────────────
-function LogModal({ T, mode, initial, trainers, onSave, onClose, onDelete }) {
+function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDelete }) {
   // Pre-fill from planned/initial
   const init = initial || {};
   const trainerList = (trainers && trainers.length) ? trainers : TL_DATA.trainers;
@@ -1092,10 +1202,30 @@ function LogModal({ T, mode, initial, trainers, onSave, onClose, onDelete }) {
   const [title, setTitle] = React.useState(init.title || '');
   const [content, setContent] = React.useState(init.content || '');
   const [tags, setTags] = React.useState(init.tags || []);
+  const [newTagInput, setNewTagInput] = React.useState('');
 
   const toggleTag = (t) => {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
   };
+
+  const addCustomTag = () => {
+    const slug = slugifyTag(newTagInput);
+    if (!slug) return;
+    setTags(prev => prev.includes(slug) ? prev : [...prev, slug]);
+    setNewTagInput('');
+  };
+
+  // Tag-forslag fra historikk: alle distinkte tags brukt før, sortert på frekvens
+  const tagUseCounts = React.useMemo(() => countTagUse(sessions), [sessions]);
+  const predefinedTagIds = React.useMemo(() => new Set(TL_DATA.tags.map(t => t.id)), []);
+  const customTagsUsed = React.useMemo(() =>
+    Object.keys(tagUseCounts)
+      .filter(id => !predefinedTagIds.has(id))
+      .sort((a, b) => tagUseCounts[b] - tagUseCounts[a]),
+    [tagUseCounts, predefinedTagIds]
+  );
+  // Tags som er valgt på denne økten men ikke ennå er sett i historikk eller forhåndsdefinert
+  const draftCustomTags = tags.filter(id => !predefinedTagIds.has(id) && !customTagsUsed.includes(id));
 
   const buildPayload = () => ({
     date, time, group, trainer, title, content, tags,
@@ -1266,6 +1396,75 @@ function LogModal({ T, mode, initial, trainers, onSave, onClose, onDelete }) {
                   </div>
                 );
               })}
+
+              {/* Tidligere brukt — egne tags fra tidligere økter, sortert på frekvens */}
+              {customTagsUsed.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, color: T.mid, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+                    tidligere brukt
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {customTagsUsed.map(id => {
+                      const sel = tags.includes(id);
+                      const color = M_TAG_COLOR.custom;
+                      return (
+                        <span key={id} onClick={() => toggleTag(id)} style={{
+                          padding: '7px 12px', borderRadius: 16, fontSize: 12,
+                          background: sel ? color : T.card,
+                          color: sel ? '#fff' : T.ink,
+                          border: sel ? 'none' : `1px solid ${T.rule}`,
+                          cursor: 'pointer', fontWeight: sel ? 600 : 400,
+                          transition: 'all 0.12s',
+                        }}>
+                          {sel ? '✓ ' : ''}{id}
+                          <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 10 }}>· {tagUseCounts[id]}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Helt nye tags som ble lagt til i denne økten */}
+              {draftCustomTags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {draftCustomTags.map(id => (
+                    <span key={id} onClick={() => toggleTag(id)} style={{
+                      padding: '7px 12px', borderRadius: 16, fontSize: 12,
+                      background: M_TAG_COLOR.custom, color: '#fff',
+                      border: 'none', cursor: 'pointer', fontWeight: 600,
+                    }}>✓ {id}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Fritekst-input for ny tag */}
+              <div>
+                <div style={{ fontSize: 10, color: T.mid, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+                  legg til ny tag
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
+                    placeholder="f.eks. side-control"
+                    style={{
+                      flex: 1, padding: '10px 14px',
+                      background: T.card, border: 'none', borderRadius: T.radius,
+                      fontFamily: 'inherit', fontSize: 13, color: T.ink,
+                      boxShadow: T.shadow, boxSizing: 'border-box',
+                    }}
+                  />
+                  <button onClick={addCustomTag} disabled={!slugifyTag(newTagInput)} style={{
+                    padding: '0 16px', minWidth: 44,
+                    background: slugifyTag(newTagInput) ? T.ink : T.rule,
+                    color: '#fff', border: 'none', borderRadius: T.radius,
+                    fontFamily: 'inherit', fontSize: 18, fontWeight: 600,
+                    cursor: slugifyTag(newTagInput) ? 'pointer' : 'not-allowed',
+                  }}>+</button>
+                </div>
+              </div>
             </div>
           </Field>
 
