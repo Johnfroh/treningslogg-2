@@ -35,14 +35,14 @@ const M_TAG_COLOR = {
   custom: M.ink,
 };
 
-const TODAY_M = '2026-05-05';
-const NOW = new Date(2026, 4, 5);
-
 // ─── Util ──────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, '0');
 const ymdM = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseYmdM = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
 const sameMonth = (a, b) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+const NOW = new Date();
+const TODAY_M = ymdM(NOW);
 
 const NORWAY_MONTHS = ['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
 const NORWAY_DAYS_SHORT = ['søn','man','tir','ons','tor','fre','lør'];
