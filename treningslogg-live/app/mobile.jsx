@@ -562,22 +562,6 @@ function TagOverview({ T, sessions }) {
   );
   const maxCount = sortedAll[0]?.[1] || 1;
 
-  // "Kalde" tags: predefinerte som ikke har vært brukt på 30 dager
-  const cutoff = (() => {
-    const d = new Date(NOW); d.setDate(d.getDate() - 30);
-    return ymdM(d);
-  })();
-  const recentCounts = React.useMemo(() => {
-    const c = {};
-    (sessions || []).forEach(s => {
-      if (s.date >= cutoff) (s.tags || []).forEach(t => { c[t] = (c[t] || 0) + 1; });
-    });
-    return c;
-  }, [sessions, cutoff]);
-  const coldPredefined = TL_DATA.tags
-    .filter(t => !(recentCounts[t.id] > 0))
-    .map(t => t.id);
-
   if (sortedAll.length === 0) return null;
 
   const visible = showAll ? sortedAll : sortedAll.slice(0, 12);
@@ -619,26 +603,6 @@ function TagOverview({ T, sessions }) {
             </button>
           )}
         </div>
-
-        {coldPredefined.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 10, color: T.mid, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
-              ikke brukt siste 30 dager
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {coldPredefined.map(id => {
-                const def = TL_DATA.tags.find(t => t.id === id);
-                return (
-                  <span key={id} style={{
-                    padding: '5px 10px', borderRadius: 14, fontSize: 11,
-                    background: T.bg, color: T.mid,
-                    border: `1px dashed ${T.rule}`,
-                  }}>{def?.label || id}</span>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </>
   );
