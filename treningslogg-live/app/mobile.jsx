@@ -194,6 +194,7 @@ function MobileApp() {
   // Optimistisk oppdatering: bytt UI med en gang, rull tilbake hvis serveren feiler
   const saveSession = async (data, opts = {}) => {
     const keepOpen = !!opts.keepOpen;
+    const isPlanned = opts.type === 'planned';
     const mode = logging?.mode;
     const planId = logging?.initial?.id;
     const tempId = `tmp-${Date.now()}`;
@@ -204,6 +205,8 @@ function MobileApp() {
       setSessions(prev => [{ ...data, id: tempId }, ...prev]);
     } else if (mode === 'edit') {
       setSessions(prev => prev.map(s => s.id === planId ? { ...s, ...data } : s));
+    } else if (isPlanned) {
+      setPlanned(prev => [{ ...data, id: tempId }, ...prev]);
     } else {
       setSessions(prev => [{ ...data, id: tempId }, ...prev]);
     }
@@ -213,10 +216,13 @@ function MobileApp() {
         initial: { date: data.date, group: data.group, trainer: data.trainer },
         mode: 'new',
       });
-      flashToast('lagrer · ny økt klar');
+      flashToast(isPlanned ? 'planlagt · ny klar' : 'lagrer · ny økt klar');
     } else {
       setLogging(null);
-      flashToast(mode === 'edit' ? 'lagrer endringer …' : 'lagrer økt …');
+      flashToast(
+        mode === 'edit' ? 'lagrer endringer …' :
+        isPlanned ? 'lagrer planlagt …' : 'lagrer økt …'
+      );
     }
 
     // 2) Server-call
@@ -224,6 +230,9 @@ function MobileApp() {
       if (mode === 'edit') {
         const updated = await window.TL_API.updateSession(planId, data);
         setSessions(prev => prev.map(s => s.id === planId ? updated : s));
+      } else if (isPlanned) {
+        const created = await window.TL_API.createPlanned(data);
+        setPlanned(prev => prev.map(p => p.id === tempId ? created : p));
       } else {
         const created = await window.TL_API.createSession(data);
         setSessions(prev => prev.map(s => s.id === tempId ? created : s));
@@ -233,7 +242,10 @@ function MobileApp() {
         }
       }
       setSyncError(null);
-      flashToast(mode === 'edit' ? 'endringer lagret' : 'økt lagret');
+      flashToast(
+        mode === 'edit' ? 'endringer lagret' :
+        isPlanned ? 'planlagt lagret' : 'økt lagret'
+      );
     } catch (err) {
       console.error('[mobile] saveSession feilet:', err);
       setSyncError('kunne ikke lagre');
@@ -516,7 +528,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
                 background: T.accent, color: '#fff', border: 'none',
                 padding: '10px 18px', borderRadius: T.radius,
                 fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>+ logg {isSelectedToday ? 'en nå' : 'for denne dagen'}</button>
+              }}>{isSelectedToday ? '+ logg en nå' : '+ ny økt'}</button>
             </div>
           </div>
         )}
@@ -767,7 +779,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
                 background: T.accent, color: '#fff', border: 'none',
                 padding: '10px 18px', borderRadius: T.radius,
                 fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>+ logg en for denne datoen</button>
+              }}>+ ny økt</button>
             </div>
           </div>
         )}
@@ -777,6 +789,15 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
             else onOpenLog(it, 'edit');
           }} />
         ))}
+        {selectedItems.length > 0 && (
+          <button onClick={() => onOpenLog({ date: selected }, 'new')} style={{
+            background: 'transparent', color: T.mid,
+            border: `1.5px dashed ${T.rule}`, borderRadius: T.radius,
+            padding: '12px', marginTop: 4,
+            fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+            cursor: 'pointer',
+          }}>+ ny økt</button>
+        )}
       </div>
     </div>
   );
@@ -1168,6 +1189,16 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   const [tags, setTags] = React.useState(init.tags || []);
   const [newTagInput, setNewTagInput] = React.useState('');
 
+  // Type: 'logged' (full skjema) eller 'planned' (forenklet)
+  // - edit/plan-fill: alltid logged
+  // - new: framtidig dato → planned, ellers logged
+  const [type, setType] = React.useState(() => {
+    if (mode === 'edit' || mode === 'plan-fill') return 'logged';
+    return (init.date && init.date > TODAY_M) ? 'planned' : 'logged';
+  });
+  const isPlanned = type === 'planned';
+  const canToggleType = mode === 'new';
+
   const toggleTag = (t) => {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
   };
@@ -1191,12 +1222,11 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   // Tags som er valgt på denne økten men ikke ennå er sett i historikk eller forhåndsdefinert
   const draftCustomTags = tags.filter(id => !predefinedTagIds.has(id) && !customTagsUsed.includes(id));
 
-  const buildPayload = () => ({
-    date, time, group, trainer, title, content, tags,
-    attendance: init.attendance ?? null,
-  });
-  const submit = () => onSave(buildPayload());
-  const submitAndNew = () => onSave(buildPayload(), { keepOpen: true });
+  const buildPayload = () => isPlanned
+    ? { date, time, group, trainer, title }
+    : { date, time, group, trainer, title, content, tags, attendance: init.attendance ?? null };
+  const submit = () => onSave(buildPayload(), { type });
+  const submitAndNew = () => onSave(buildPayload(), { keepOpen: true, type });
 
   // Group tags by category for chip section
   const tagGroups = [
@@ -1211,7 +1241,8 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
 
   const titleLabel =
     mode === 'plan-fill' ? 'logg planlagt økt' :
-    mode === 'edit' ? 'rediger økt' : 'ny økt';
+    mode === 'edit' ? 'rediger økt' :
+    isPlanned ? 'planlegg økt' : 'ny økt';
 
   return (
     <div onClick={onClose} style={{
@@ -1244,12 +1275,35 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
           }}>✕</button>
         </div>
 
+        {/* Type toggle (only for new sessions) */}
+        {canToggleType && (
+          <div style={{ padding: '0 22px 14px', display: 'flex', gap: 6 }}>
+            {[
+              { id: 'logged', label: 'logg' },
+              { id: 'planned', label: 'planlegg' },
+            ].map(opt => {
+              const active = type === opt.id;
+              return (
+                <button key={opt.id} onClick={() => setType(opt.id)} style={{
+                  flex: 1, padding: '10px 14px',
+                  background: active ? T.ink : T.card,
+                  color: active ? '#fff' : T.mid,
+                  border: 'none', borderRadius: T.radius,
+                  fontFamily: 'inherit', fontSize: 13, fontWeight: active ? 600 : 400,
+                  boxShadow: active ? 'none' : T.shadow,
+                  cursor: 'pointer', transition: 'all 0.12s',
+                }}>{opt.label}</button>
+              );
+            })}
+          </div>
+        )}
+
         {/* form */}
         <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Title */}
-          <Field T={T} label="hva trente dere på?">
+          <Field T={T} label={isPlanned ? 'hva er planen?' : 'hva trente dere på?'}>
             <input value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="f.eks. closed guard — kimura"
+              placeholder={isPlanned ? 'f.eks. passing — knee cut' : 'f.eks. closed guard — kimura'}
               style={{
                 width: '100%', padding: '14px 16px',
                 background: T.card, border: 'none', borderRadius: T.radius,
@@ -1330,7 +1384,8 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
             </div>
           </Field>
 
-          {/* TAGS — front and center */}
+          {!isPlanned && (
+          /* TAGS — front and center */
           <Field T={T} label={`tags · ${tags.length} valgt`}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {tagGroups.map(tg => {
@@ -1431,8 +1486,10 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               </div>
             </div>
           </Field>
+          )}
 
-          {/* Notat (free text) */}
+          {!isPlanned && (
+          /* Notat (free text) */
           <Field T={T} label="notat (valgfritt)">
             <textarea value={content} onChange={(e) => setContent(e.target.value)}
               placeholder="kort beskrivelse, fokus, observasjoner…"
@@ -1445,6 +1502,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               }}
             />
           </Field>
+          )}
 
           {/* Save row */}
           {mode === 'edit' ? (
@@ -1480,7 +1538,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
                 cursor: title ? 'pointer' : 'not-allowed',
                 boxShadow: title ? '0 6px 20px rgba(31,26,20,0.18)' : 'none',
-              }}>lagre</button>
+              }}>{isPlanned ? 'lagre planlagt' : 'lagre'}</button>
               <button onClick={submitAndNew} disabled={!title} style={{
                 padding: '16px 8px',
                 background: 'transparent',
