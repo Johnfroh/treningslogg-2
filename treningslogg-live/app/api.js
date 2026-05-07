@@ -8,7 +8,11 @@
 
 window.TL_API = (function () {
   // ─── Konfigurasjon ──────────────────────────────────────────────
-  const ENDPOINT = 'https://script.google.com/macros/s/AKfycby1b40xgzhTyPuDjF0uuGPqr9pyYfEyS0OmLtei1Pjqihpadnz2XtwGixgZISpXNiUY/exec';
+  // Vi proxyer Apps Script-kall via /api så det blir same-origin —
+  // ellers blokkerer iOS PWA standalone-mode cross-origin-requestene
+  // til script.google.com. Proxy-en ligger i functions/api.js og
+  // forwarder query-params + body uendret til Apps Script.
+  const ENDPOINT = '/api';
   const TOKEN    = 'bjj-Hk8nQ2wT-2026';
 
   // Lokal lese-cache (raskere åpning, ikke source of truth).
@@ -30,7 +34,9 @@ window.TL_API = (function () {
   // Apps Script-responser blir ellers cached aggressivt av iOS PWA og
   // av Chrome i offline-state — vi setter no-store + cache-bust query.
   async function get(action, extraParams) {
-    const url = new URL(ENDPOINT);
+    // Bruk URL-konstruktor med base så både absolutte og relative endpoints virker
+    const base = (typeof window !== 'undefined') ? window.location.origin : 'http://localhost';
+    const url = new URL(ENDPOINT, base);
     url.searchParams.set('action', action);
     url.searchParams.set('token', TOKEN);
     url.searchParams.set('_ts', Date.now().toString());
