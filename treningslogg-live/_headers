@@ -1,0 +1,23 @@
+# Cloudflare Pages cache-policy
+# HTML, JSX og JS skal ALDRI caches lenge — vi vil at PWA-en skal
+# kunne plukke opp ny build raskt. Statiske assets (ikoner, logo)
+# kan caches normalt.
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/app/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.jsx
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Statiske assets med fingerprint-eller-stabile-paths kan caches
+/icons/*
+  Cache-Control: public, max-age=86400
+
+/logo.png
+  Cache-Control: public, max-age=86400

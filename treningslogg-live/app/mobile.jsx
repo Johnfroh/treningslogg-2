@@ -60,6 +60,28 @@ const countTagUse = (sessions) => {
   return c;
 };
 
+// Sjekker om en ny build er deployet ved å hente ETag/Last-Modified
+// fra index.html. Reloader appen hvis den endret seg siden sist.
+// Lagrer ETag i localStorage så vi vet hva "sist" var.
+const APP_ETAG_KEY = 'tl-app-etag';
+async function checkForUpdate() {
+  try {
+    const url = './?_v=' + Date.now();
+    const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    if (!res.ok) return;
+    const tag = res.headers.get('etag') || res.headers.get('last-modified');
+    if (!tag) return;
+    const stored = localStorage.getItem(APP_ETAG_KEY);
+    if (stored && stored !== tag) {
+      // Ny build! Lagre ny tag og last på nytt.
+      localStorage.setItem(APP_ETAG_KEY, tag);
+      window.location.reload();
+      return;
+    }
+    if (!stored) localStorage.setItem(APP_ETAG_KEY, tag);
+  } catch (_) { /* offline, ignorer */ }
+}
+
 // Expander recurring planlegging til en liste av YYYY-MM-DD-datoer.
 // dayOfWeeks bruker JS-konvensjon: 0=søndag, 1=mandag, …, 6=lørdag.
 const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
@@ -170,8 +192,10 @@ function MobileApp() {
   }, []);
 
   // Re-hent data når app får fokus (annen trener kan ha logget noe)
+  // + sjekk om ny build er deployet og last på nytt om så.
   React.useEffect(() => {
     const onFocus = async () => {
+      checkForUpdate(); // ikke await — kan kjøre i bakgrunnen
       try {
         const fresh = await window.TL_API.refresh();
         applyData(fresh);
@@ -184,6 +208,8 @@ function MobileApp() {
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) onFocus();
     });
+    // Sjekk én gang etter mount også (i tilfelle PWA-en sitter åpen)
+    checkForUpdate();
     return () => { window.removeEventListener('focus', onFocus); };
   }, []);
 
