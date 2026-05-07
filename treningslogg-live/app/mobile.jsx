@@ -297,7 +297,9 @@ function MobileApp() {
       } catch (err) {
         if (!alive) return;
         console.error('[mobile] bootstrap feilet:', err);
-        setSyncError('kunne ikke nå serveren');
+        // Vis den faktiske feilmeldingen så vi kan diagnostisere
+        const msg = String(err?.message || err || 'ukjent feil').slice(0, 80);
+        setSyncError('bootstrap: ' + msg);
         setLoading(false);
       }
     })();
@@ -314,7 +316,8 @@ function MobileApp() {
         applyData(fresh);
         setSyncError(null);
       } catch (err) {
-        setSyncError('offline');
+        const msg = String(err?.message || err || 'ukjent feil').slice(0, 80);
+        setSyncError('refresh: ' + msg);
       }
     };
     window.addEventListener('focus', onFocus);
