@@ -34,11 +34,9 @@ const M_GROUP = {
 };
 
 const M_TAG_COLOR = {
-  guard: M.accent2,
-  submission: M.coral,
-  dominant: M.amber,
-  method: M.mid,
-  custom: M.accent,
+  position: M.accent2,
+  action:   M.coral,
+  custom:   M.accent,
 };
 
 // ─── Util ──────────────────────────────────────────────────────────
@@ -1409,11 +1407,8 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
 
   // Group tags by category for chip section
   const tagGroups = [
-    { kind: 'guard', label: 'guard / passing' },
-    { kind: 'submission', label: 'submissions' },
-    { kind: 'dominant', label: 'control / takedown' },
-    { kind: 'method', label: 'metode' },
-    { kind: 'custom', label: 'spesifikt' },
+    { kind: 'position', label: 'posisjon' },
+    { kind: 'action',   label: 'handling' },
   ];
   const tagsByKind = {};
   TL_DATA.tags.forEach(t => (tagsByKind[t.kind] ||= []).push(t));
