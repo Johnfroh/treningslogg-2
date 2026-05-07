@@ -98,6 +98,117 @@ const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
   return out;
 };
 
+// Aggregerer rådata til dashboard-tall. Bruker kun core-tags i tema-balanse.
+const computeDashboard = (sessions, planned, attendance) => {
+  const today = new Date();
+  const cutoff30 = new Date(today); cutoff30.setDate(cutoff30.getDate() - 30);
+  const cutoff60 = new Date(today); cutoff60.setDate(cutoff60.getDate() - 60);
+  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+  const cy30 = ymdM(cutoff30);
+  const cy60 = ymdM(cutoff60);
+  const cy90 = ymdM(cutoff90);
+  const todayY = ymdM(today);
+
+  const last30 = sessions.filter(s => s.date >= cy30 && s.date <= todayY);
+  const prev30 = sessions.filter(s => s.date >= cy60 && s.date < cy30);
+  const last90 = sessions.filter(s => s.date >= cy90 && s.date <= todayY);
+
+  // Oppmøte: bruk attendance-feltet hvis satt, ellers attendance-rader
+  const attMap = {};
+  (attendance || []).forEach(a => {
+    if (!a.sessionId) return;
+    attMap[a.sessionId] = (attMap[a.sessionId] || 0) + 1;
+  });
+  const attCount = (s) => (s.attendance != null && s.attendance !== '' ? Number(s.attendance) : (attMap[s.id] || 0));
+  const avgAtt = (arr) => arr.length ? arr.reduce((sum, s) => sum + attCount(s), 0) / arr.length : 0;
+
+  const avg30 = avgAtt(last30);
+  const avgPrev = avgAtt(prev30);
+  const trendPct = avgPrev > 0 ? Math.round(((avg30 - avgPrev) / avgPrev) * 100) : 0;
+
+  const plannedFuture = (planned || []).filter(p => p.date >= todayY);
+
+  // Aktive medlemmer = unike navn med oppmøte siste 30d
+  const activeSet = new Set();
+  (attendance || []).forEach(a => {
+    const s = sessions.find(x => x.id === a.sessionId);
+    if (s && s.date >= cy30) activeSet.add(a.memberName);
+  });
+
+  // Per gruppe: snitt + trend (siste 30d vs forrige 30d)
+  const groupStats = TL_DATA.groups.map(g => {
+    const cur = last30.filter(s => s.group === g);
+    const prev = prev30.filter(s => s.group === g);
+    const avgCur = avgAtt(cur);
+    const avgPrev = avgAtt(prev);
+    const trend = Math.round((avgCur - avgPrev) * 10) / 10;
+    return { g, sessions: cur.length, avg: avgCur, trend };
+  }).filter(s => s.sessions > 0).sort((a, b) => b.avg - a.avg);
+
+  // Tema-balanse: kun core-tags
+  const coreTags = TL_DATA.tags.filter(t => t.core);
+  const tagCount = {};
+  coreTags.forEach(t => { tagCount[t.id] = 0; });
+  last30.forEach(s => (s.tags || []).forEach(t => {
+    if (tagCount[t] != null) tagCount[t]++;
+  }));
+  // sist drillet (per core-tag)
+  const tagLastDrilled = {};
+  coreTags.forEach(t => {
+    const sess = sessions.filter(s => (s.tags || []).includes(t.id))
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    tagLastDrilled[t.id] = sess?.date || null;
+  });
+  const maxTag = Math.max(1, ...Object.values(tagCount));
+  const tagBalance = coreTags.map(t => ({
+    id: t.id, label: t.label, kind: t.kind,
+    count: tagCount[t.id], pct: tagCount[t.id] / maxTag,
+    lastDrilled: tagLastDrilled[t.id],
+  })).sort((a, b) => b.count - a.count);
+
+  // Per ukedag: snitt 90d
+  const dowStats = [1, 2, 3, 4, 5, 6, 0].map(dow => {
+    const matching = last90.filter(s => parseYmdM(s.date).getDay() === dow);
+    return { dow, avg: avgAtt(matching), count: matching.length };
+  });
+
+  // Hull i planen: planlagte uten tittel
+  const gaps = plannedFuture.filter(p => !p.title || !String(p.title).trim())
+    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
+
+  // Forslag: lavest core-tag i siste 30d
+  const lowest = [...tagBalance].sort((a, b) => a.count - b.count)[0];
+  let suggestion = null;
+  if (lowest) {
+    const daysSince = lowest.lastDrilled
+      ? Math.floor((today - parseYmdM(lowest.lastDrilled)) / 86400000)
+      : null;
+    suggestion = {
+      tagId: lowest.id, tagLabel: lowest.label, tagKind: lowest.kind,
+      count: lowest.count,
+      reason: lowest.count === 0
+        ? `${lowest.label} er ikke drillet siste 30 dager${daysSince != null ? ` · sist for ${daysSince} dager siden` : ''}`
+        : `${lowest.label} er drillet ${lowest.count} ${lowest.count === 1 ? 'gang' : 'ganger'} siste 30 dager${daysSince != null ? ` · sist ${daysSince}d siden` : ''}`,
+      group: groupStats[0]?.g || 'grunnleggende',
+    };
+  }
+
+  return {
+    summary: {
+      avg30: Math.round(avg30 * 10) / 10,
+      trendPct,
+      sessionsLogged: last30.length,
+      sessionsPlanned: plannedFuture.length,
+      activeMembers: activeSet.size,
+    },
+    groupStats,
+    tagBalance,
+    dowStats,
+    gaps,
+    suggestion,
+  };
+};
+
 const NOW = new Date();
 const TODAY_M = ymdM(NOW);
 
@@ -157,7 +268,7 @@ function downloadCsv(sessions) {
 // ─── App ───────────────────────────────────────────────────────────
 function MobileApp() {
   const [tweaks, setTweak] = useTweaks(MOBIL_TWEAKS);
-  const [screen, setScreen] = React.useState('home'); // home | month | people
+  const [screen, setScreen] = React.useState('home'); // home | dash | month | people
   const [logging, setLogging] = React.useState(null); // null or { initial, mode }
   const [sessions, setSessions] = React.useState([]);
   const [planned, setPlanned] = React.useState([]);
@@ -387,6 +498,13 @@ function MobileApp() {
           onOpenLog={openLog}
         />
       )}
+      {screen === 'dash' && (
+        <Dashboard
+          T={T}
+          sessions={sessions} planned={planned} attendance={attendance}
+          onOpenLog={openLog}
+        />
+      )}
       {screen === 'month' && (
         <MonthScreen
           T={T}
@@ -432,6 +550,7 @@ function MobileApp() {
         </TweakSection>
         <TweakSection title="hopp til">
           <TweakButton onClick={() => setScreen('home')}>i dag</TweakButton>
+          <TweakButton onClick={() => setScreen('dash')}>dashbord</TweakButton>
           <TweakButton onClick={() => setScreen('month')}>kalender</TweakButton>
           <TweakButton onClick={() => setScreen('people')}>deltakere</TweakButton>
           <TweakButton onClick={() => openLog(null, 'new')}>logg-modal</TweakButton>
@@ -732,6 +851,280 @@ function TagOverview({ T, sessions }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Dashboard ──────────────────────────────────────────────────────
+function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
+  const data = React.useMemo(
+    () => computeDashboard(sessions, planned, attendance),
+    [sessions, planned, attendance]
+  );
+  const { summary, groupStats, tagBalance, dowStats, gaps, suggestion } = data;
+  const dowMax = Math.max(1, ...dowStats.map(d => d.avg));
+  const groupMax = Math.max(1, ...groupStats.map(g => g.avg));
+
+  return (
+    <div>
+      <Topbar T={T} />
+
+      {/* Section: PULS */}
+      <div style={{ padding: '14px 18px 8px' }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.mid, fontWeight: 700 }}>
+          dashboard · planlegging
+        </div>
+      </div>
+
+      <div style={{
+        margin: '0 16px 14px', padding: '14px 16px',
+        background: `linear-gradient(180deg, ${T.cardHi}, ${T.card})`,
+        border: `1px solid ${T.rule}`, position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: 0, right: 18, width: 4, height: 32, background: T.accent }} />
+        <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+          siste 30 dager · puls
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
+          <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
+            {summary.avg30 || '—'}
+          </span>
+          <span style={{ fontSize: 9, color: T.mid, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            snitt på matta
+          </span>
+          {summary.trendPct !== 0 && (
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: 11, fontWeight: 700,
+              color: summary.trendPct >= 0 ? T.accent2 : T.coral,
+              letterSpacing: '0.08em', fontVariantNumeric: 'tabular-nums',
+            }}>
+              {summary.trendPct >= 0 ? '▲' : '▼'} {Math.abs(summary.trendPct)}%
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, marginTop: 14, background: T.rule }}>
+          {[
+            { n: summary.sessionsLogged, l: 'logget', c: T.accent2 },
+            { n: summary.sessionsPlanned, l: 'planlagt', c: T.copperHi },
+            { n: summary.activeMembers, l: 'aktive', c: T.ink },
+          ].map((s, i) => (
+            <div key={i} style={{ background: T.card, padding: '8px 10px' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: s.c, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                {String(s.n).padStart(2, '0')}
+              </div>
+              <div style={{ fontSize: 8, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+                {s.l}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section: FORSLAG */}
+      {suggestion && (
+        <>
+          <DashSectionHead T={T} left="forslag · neste økt" right="bygd på data" />
+          <div style={{ margin: '0 16px 14px' }}>
+            <div style={{
+              background: T.card, border: `1px solid ${T.accent}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: T.accent }} />
+              <div style={{ padding: '12px 14px 12px 18px' }}>
+                <div style={{ fontSize: 7, letterSpacing: '0.24em', color: T.accent, textTransform: 'uppercase', fontWeight: 700 }}>
+                  ↳ {suggestion.group}
+                </div>
+                <div style={{ fontSize: 14, color: T.ink, marginTop: 6, fontWeight: 500 }}>
+                  prioritér <span style={{ color: T.accent, fontWeight: 700 }}>{suggestion.tagLabel}</span>
+                </div>
+                <div style={{ fontSize: 10, color: T.mid, marginTop: 6, lineHeight: 1.5 }}>
+                  {suggestion.reason}
+                </div>
+              </div>
+              <div
+                onClick={() => onOpenLog({ group: suggestion.group, tags: [suggestion.tagId] }, 'new')}
+                style={{
+                  padding: '10px 0', textAlign: 'center',
+                  background: T.accent, color: '#0B0A09',
+                  fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700,
+                  borderTop: `1px solid ${T.rule}`, cursor: 'pointer',
+                }}
+              >
+                planlegg denne
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Section: PER GRUPPE */}
+      {groupStats.length > 0 && (
+        <>
+          <DashSectionHead T={T} left="oppmøte · per gruppe" right="snitt 30d" />
+          <div style={{ margin: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {groupStats.map((s, i) => {
+              const w = (s.avg / groupMax) * 100;
+              const trendColor = s.trend > 0 ? T.accent2 : s.trend < 0 ? T.coral : T.mid;
+              const color = M_GROUP[s.g] || T.mid;
+              return (
+                <div key={i} style={{
+                  background: T.card, border: `1px solid ${T.rule}`,
+                  padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10,
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
+                  <div style={{ marginLeft: 4, flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: 9, letterSpacing: '0.18em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
+                        {s.g}
+                      </span>
+                      <span style={{ fontSize: 8, letterSpacing: '0.16em', color: T.mid, textTransform: 'uppercase' }}>
+                        {s.sessions} {s.sessions === 1 ? 'økt' : 'økter'}
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: T.rule, marginTop: 6, position: 'relative' }}>
+                      <div style={{ position: 'absolute', inset: 0, width: `${w}%`, background: color }} />
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', minWidth: 52 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                      {s.avg.toFixed(1)}
+                    </div>
+                    <div style={{ fontSize: 8, letterSpacing: '0.12em', color: trendColor, textTransform: 'uppercase', marginTop: 3, fontWeight: 700 }}>
+                      {s.trend > 0 ? `▲ +${s.trend}` : s.trend < 0 ? `▼ ${s.trend}` : '— flat'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Section: TEMA-BALANSE (kun core-tags) */}
+      <DashSectionHead T={T} left="tema-balanse" right="↓ trenger fokus" />
+      <div style={{ margin: '0 16px 14px' }}>
+        <div style={{ background: T.card, border: `1px solid ${T.rule}`, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {tagBalance.map(t => {
+              const color = M_TAG_COLOR[t.kind] || T.mid;
+              const low = t.count <= 1;
+              return (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    fontSize: 10, color: T.ink,
+                    minWidth: 90, fontWeight: low ? 700 : 400,
+                  }}>{t.label}</span>
+                  <div style={{ flex: 1, height: 6, background: T.rule, position: 'relative' }}>
+                    <div style={{ position: 'absolute', inset: 0, width: `${Math.max(2, t.pct * 100)}%`, background: color }} />
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, color: low ? T.accent : T.ink,
+                    fontVariantNumeric: 'tabular-nums', minWidth: 18, textAlign: 'right',
+                  }}>{t.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Section: PER UKEDAG */}
+      <DashSectionHead T={T} left="oppmøte · per ukedag" right="snitt 90d" />
+      <div style={{ margin: '0 16px 14px' }}>
+        <div style={{ background: T.card, border: `1px solid ${T.rule}`, padding: '14px 12px 12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, alignItems: 'end', height: 80 }}>
+            {dowStats.map((d, i) => {
+              const empty = d.avg === 0;
+              const h = empty ? 8 : (d.avg / dowMax) * 70 + 10;
+              const isBest = !empty && d.avg === dowMax;
+              return (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
+                  <div style={{
+                    fontSize: 9, fontWeight: 700,
+                    color: empty ? T.mid : T.ink,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {empty ? '—' : d.avg.toFixed(1)}
+                  </div>
+                  <div style={{
+                    width: '100%', height: h,
+                    background: empty ? T.rule : (isBest ? T.accent : T.cardHi),
+                    border: `1px solid ${empty ? T.rule : T.ruleHi}`,
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginTop: 6 }}>
+            {dowStats.map((d, i) => (
+              <div key={i} style={{
+                textAlign: 'center', fontSize: 8, letterSpacing: '0.18em',
+                color: d.avg === 0 ? T.mid : T.ink, textTransform: 'uppercase', fontWeight: 700,
+              }}>{NORWAY_DAYS_INITIAL[d.dow]}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Section: HULL */}
+      {gaps.length > 0 && (
+        <>
+          <DashSectionHead T={T} left="planlagt · uten tema" right={`${gaps.length} hull`} />
+          <div style={{ margin: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {gaps.map((g, i) => {
+              const d = parseYmdM(g.date);
+              const color = M_GROUP[g.group] || T.mid;
+              return (
+                <div key={i} onClick={() => onOpenLog(g, 'plan-fill')} style={{
+                  background: T.card, border: `1px solid ${T.rule}`,
+                  padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 12,
+                  position: 'relative', overflow: 'hidden', cursor: 'pointer',
+                }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
+                  <div style={{ marginLeft: 4, minWidth: 56 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                      {String(d.getDate()).padStart(2, '0')}.{pad(d.getMonth() + 1)}
+                    </div>
+                    <div style={{ fontSize: 7, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+                      {NORWAY_DAYS_SHORT[d.getDay()]} · {g.time || '—'}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, letterSpacing: '0.18em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
+                      {g.group}
+                    </div>
+                    <div style={{ fontSize: 10, color: T.mid, marginTop: 4, fontStyle: 'italic' }}>
+                      mangler tema
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '6px 10px', border: `1px solid ${T.accent}`,
+                    color: T.accent, fontSize: 9, letterSpacing: '0.18em',
+                    textTransform: 'uppercase', fontWeight: 700,
+                  }}>
+                    fyll
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DashSectionHead({ T, left, right }) {
+  return (
+    <div style={{ padding: '20px 18px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.ink, fontWeight: 700 }}>
+        {left}
+      </div>
+      <div style={{ fontSize: 8, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.mid }}>
+        {right}
+      </div>
+    </div>
   );
 }
 
@@ -1268,6 +1661,7 @@ function FAB({ T, onClick }) {
 function TabBar({ T, screen, onChange }) {
   const tabs = [
     { id: 'home',   label: 'i dag',     icon: '◉' },
+    { id: 'dash',   label: 'dashbord',  icon: '◈' },
     { id: 'month',  label: 'kalender',  icon: '▦' },
     { id: 'people', label: 'deltakere', icon: '◌' },
   ];
@@ -1276,9 +1670,9 @@ function TabBar({ T, screen, onChange }) {
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: T.tabBg,
       borderTop: `1px solid ${T.ruleHi}`,
-      paddingTop: 10, paddingLeft: 10, paddingRight: 10,
+      paddingTop: 10, paddingLeft: 8, paddingRight: 8,
       paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
-      display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, gap: 8,
+      display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, gap: 6,
       maxWidth: 480, margin: '0 auto',
       zIndex: 20,
     }}>
@@ -1286,8 +1680,8 @@ function TabBar({ T, screen, onChange }) {
         const active = screen === t.id;
         return (
           <button key={t.id} onClick={() => onChange(t.id)} style={{
-            position: 'relative', padding: '10px 8px 8px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            position: 'relative', padding: '8px 4px 6px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
             background: active ? T.accent : 'transparent',
             border: active ? `1px solid ${T.accent}` : `1px solid ${T.rule}`,
             borderRadius: 0,
@@ -1300,15 +1694,15 @@ function TabBar({ T, screen, onChange }) {
               }} />
             )}
             <div style={{
-              width: 26, height: 26,
+              width: 24, height: 24,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, fontWeight: 700,
+              fontSize: 14, fontWeight: 700,
               color: active ? '#0B0A09' : T.ink,
               background: active ? 'rgba(11,10,9,0.12)' : T.card,
               border: active ? '1px solid rgba(11,10,9,0.3)' : `1px solid ${T.rule}`,
             }}>{t.icon}</div>
             <div style={{
-              fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+              fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase',
               fontWeight: active ? 700 : 500,
               color: active ? '#0B0A09' : T.ink,
             }}>{t.label}</div>
