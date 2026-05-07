@@ -1,30 +1,36 @@
-// Treningslogg — mobil-versjon (retning B: soft & rund)
+// Treningslogg — mobil-versjon (Steel-tema: mørk, brutalist, kobber-aksent)
 // Bruker samme TL_DATA som desktop. Tre hovedskjermer:
 //   home  · I dag + uke-strip + denne uka stats
 //   month · full kalender
 //   log   · rask logg-modal m/ chip-tags
 
+const STEEL_FONT = "'Roboto Mono', 'Courier New', monospace";
+
 const M = {
-  bg: '#FFF7EE',
-  card: '#FFFFFF',
-  ink: '#1F1A14',
-  inkSoft: '#3D352B',
-  mid: '#7A6F5F',
-  rule: '#EDE3D2',
-  accent: '#E0723F',
-  accent2: '#3F8B5E',
-  amber: '#E0A04B',
-  coral: '#C95A3D',
-  shadow: '0 4px 14px rgba(31,26,20,0.06)',
-  shadowLg: '0 10px 28px rgba(31,26,20,0.12)',
+  bg:        '#141210',
+  card:      '#1F1C19',
+  cardHi:    '#28241F',
+  ink:       '#F0EAE0',
+  inkSoft:   '#F0EAE0',
+  mid:       '#8C8278',
+  rule:      '#332E28',
+  ruleHi:    '#4A4239',
+  accent:    '#CC7A3D',
+  accent2:   '#5E9E6E',
+  amber:     '#D9933A',
+  coral:     '#C46B53',
+  copperHi:  '#E89859',
+  tabBg:     '#0B0A09',
+  shadow:    'none',
+  shadowLg:  'none',
 };
 
 const M_GROUP = {
-  'junior':         M.amber,
+  'junior':         M.copperHi,
   'grunnleggende':  M.accent2,
   'erfaren':        M.coral,
-  'alle nivåer':    '#7A6F5F',
-  'åpen matte':     '#A89A82',
+  'alle nivåer':    M.mid,
+  'åpen matte':     M.amber,
 };
 
 const M_TAG_COLOR = {
@@ -32,7 +38,7 @@ const M_TAG_COLOR = {
   submission: M.coral,
   dominant: M.amber,
   method: M.mid,
-  custom: M.ink,
+  custom: M.accent,
 };
 
 // ─── Util ──────────────────────────────────────────────────────────
@@ -195,7 +201,7 @@ function MobileApp() {
   };
 
   const accent = ACCENT_OPTIONS[tweaks.accent] || ACCENT_OPTIONS.oransje;
-  const radius = tweaks.radius === 'firkantet' ? 6 : tweaks.radius === 'lett' ? 12 : 22;
+  const radius = 0; // Steel — skarpe hjørner overalt
 
   // theme overrides
   const T = {
@@ -347,8 +353,8 @@ function MobileApp() {
     <div style={{
       maxWidth: 480, margin: '0 auto',
       minHeight: '100vh', background: T.bg, color: T.ink,
-      fontFamily: 'Inter, system-ui, sans-serif',
-      paddingBottom: 120, position: 'relative',
+      fontFamily: STEEL_FONT,
+      paddingBottom: 110, position: 'relative',
     }}>
       {screen === 'home' && (
         <HomeScreen
@@ -421,14 +427,44 @@ function MobileApp() {
 function Toast({ T, children }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-      background: T.ink, color: '#fff',
-      padding: '10px 18px', borderRadius: 999,
-      fontSize: 12, fontWeight: 500, letterSpacing: 0.2,
-      boxShadow: '0 8px 24px rgba(31,26,20,0.28)',
+      position: 'fixed', bottom: 130, left: '50%', transform: 'translateX(-50%)',
+      background: T.card, color: T.ink,
+      border: `1px solid ${T.ruleHi}`,
+      padding: '10px 18px', borderRadius: 0,
+      fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase',
       zIndex: 200, pointerEvents: 'none',
       animation: 'tlToastIn 0.18s ease-out',
     }}>{children}</div>
+  );
+}
+
+// ─── Topbar (Steel) ─────────────────────────────────────────────────
+function Topbar({ T }) {
+  return (
+    <div style={{
+      padding: '14px 18px 12px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      borderBottom: `1px solid ${T.rule}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <img src="logo.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+        <div>
+          <div style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.16em',
+            color: T.ink, textTransform: 'lowercase', lineHeight: 1,
+          }}>treningslogg</div>
+          <div style={{
+            fontSize: 7, letterSpacing: '0.24em',
+            color: T.accent, textTransform: 'uppercase', marginTop: 4,
+          }}>BODØ BJJ · TRENINGSLOGG</div>
+        </div>
+      </div>
+      <div style={{
+        width: 30, height: 30, background: T.card, border: `1px solid ${T.rule}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 10, fontWeight: 700, color: T.accent,
+      }}>M</div>
+    </div>
   );
 }
 
@@ -472,62 +508,65 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
 
   return (
     <div>
-      {/* Top bar — clean, soft */}
-      <div style={{ padding: '14px 22px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 13, color: T.mid, letterSpacing: '0.02em' }}>treningslogg</div>
-        <div style={{
-          width: 36, height: 36, borderRadius: '50%', background: T.card,
-          boxShadow: T.shadow, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, color: T.inkSoft,
-        }}>M</div>
-      </div>
+      <Topbar T={T} />
 
-      {/* Hero — date */}
-      <div style={{ padding: '8px 22px 12px' }}>
-        <div style={{ fontSize: 13, color: T.mid }}>
-          {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}{isSelectedToday ? ' 👋' : ''}
-        </div>
-        <div style={{ fontSize: 32, fontWeight: 700, marginTop: 4, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
-          {selectedDateObj.getDate()}. {NORWAY_MONTHS[selectedDateObj.getMonth()]}
-        </div>
-      </div>
-
-      {/* Week stat bubble */}
-      {tweaks.showWeekStat && (
+      {/* Hero card */}
+      <div style={{
+        margin: '16px 16px 0', padding: '16px 18px 14px',
+        background: `linear-gradient(180deg, ${T.cardHi}, ${T.card})`,
+        border: `1px solid ${T.rule}`, borderRadius: 0,
+        position: 'relative', overflow: 'hidden',
+      }}>
         <div style={{
-          margin: '12px 22px',
-          padding: '20px 22px',
-          background: T.card, borderRadius: T.radiusLg,
-          boxShadow: T.shadow,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          position: 'absolute', top: 0, right: 18, width: 4, height: 32,
+          background: T.accent,
+        }} />
+        <div style={{
+          fontSize: 8, letterSpacing: '0.24em', textTransform: 'uppercase',
+          color: T.mid, fontWeight: 700,
         }}>
-          <div>
-            <div style={{ fontSize: 12, color: T.mid }}>denne uken</div>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 2 }}>
-              {weekSessions.length} <span style={{ color: T.mid, fontWeight: 400, fontSize: 18 }}>av {weekTotal}</span>
-            </div>
-            <div style={{ fontSize: 11, color: T.mid, marginTop: 2 }}>
-              økter logget · {weekPlanned.length} planlagt
-            </div>
+          uke {(() => { const d = new Date(selectedDateObj); const onejan = new Date(d.getFullYear(), 0, 1); const w = Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7); return String(w).padStart(2, '0'); })()} · {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
+          <div style={{ fontSize: 36, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.01em' }}>
+            {selectedDateObj.getDate()}
           </div>
-          <div style={{
-            width: 64, height: 64, borderRadius: '50%',
-            background: `conic-gradient(${T.accent2} 0 ${weekPct}%, ${T.rule} ${weekPct}% 100%)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <div style={{
-              width: 50, height: 50, borderRadius: '50%', background: T.card,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700, color: T.inkSoft,
-            }}>{weekPct}%</div>
+          <div style={{ fontSize: 13, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.accent, fontWeight: 700 }}>
+            {NORWAY_MONTHS[selectedDateObj.getMonth()]}
           </div>
         </div>
-      )}
+        {/* Mini-stats */}
+        {tweaks.showWeekStat && (
+          <div style={{
+            marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 1, background: T.rule, border: `1px solid ${T.rule}`,
+          }}>
+            {[
+              { label: 'logget', value: weekSessions.length, color: T.accent2 },
+              { label: 'plan',   value: weekPlanned.length,  color: T.copperHi },
+              { label: 'total',  value: weekTotal,           color: T.accent },
+            ].map(s => (
+              <div key={s.label} style={{
+                background: T.card, padding: '8px 10px',
+                display: 'flex', flexDirection: 'column', gap: 4,
+              }}>
+                <div style={{ fontSize: 7, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.mid }}>
+                  {s.label}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums' }}>
+                  {String(s.value).padStart(2, '0')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Week strip */}
       <div style={{
-        margin: '8px 22px', padding: 6, background: T.card, borderRadius: T.radius,
-        boxShadow: T.shadow, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2,
+        margin: '12px 16px 0', padding: 4,
+        background: T.card, border: `1px solid ${T.rule}`,
+        display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2,
       }}>
         {weekDays.map((d, i) => {
           const ymd = ymdM(d);
@@ -537,20 +576,25 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           const planThis = planned.some(p => p.date === ymd);
           return (
             <button key={i} onClick={() => setSelectedDate(ymd)} style={{
-              padding: '8px 0', textAlign: 'center', borderRadius: T.radiusSm,
+              padding: '8px 0', textAlign: 'center', borderRadius: 0,
               background: isSelected ? T.accent : 'transparent',
-              color: isSelected ? '#fff' : T.ink,
-              border: isToday && !isSelected ? `1.5px solid ${T.accent}` : '1.5px solid transparent',
+              color: isSelected ? '#0B0A09' : T.ink,
+              border: isToday && !isSelected ? `1px solid ${T.accent}` : '1px solid transparent',
               transition: 'background 0.12s',
               fontFamily: 'inherit', cursor: 'pointer',
             }}>
-              <div style={{ fontSize: 9, letterSpacing: 1.4, opacity: 0.7, textTransform: 'uppercase' }}>
+              <div style={{
+                fontSize: 8, letterSpacing: '0.20em',
+                opacity: isSelected ? 1 : 0.7, textTransform: 'uppercase', fontWeight: 700,
+              }}>
                 {NORWAY_DAYS_INITIAL[d.getDay()]}
               </div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{d.getDate()}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+                {String(d.getDate()).padStart(2, '0')}
+              </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, height: 4 }}>
-                {has && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : T.accent2 }}></span>}
-                {planThis && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : T.amber }}></span>}
+                {has && <span style={{ width: 4, height: 4, borderRadius: 0, background: isSelected ? '#0B0A09' : T.accent2 }}></span>}
+                {planThis && <span style={{ width: 4, height: 4, borderRadius: 0, background: isSelected ? '#0B0A09' : T.copperHi }}></span>}
               </div>
             </button>
           );
@@ -677,45 +721,52 @@ function SessionCard({ T, item, onClick, compact }) {
   const dateLabel = item.date === TODAY_M
     ? 'i dag'
     : `${NORWAY_DAYS_SHORT[date.getDay()]} ${date.getDate()}.${pad(date.getMonth()+1)}`;
+  // Kort 3-bokstavers gruppe-kode
+  const groupShort = (TL_DATA.groupShort && TL_DATA.groupShort[item.group]) || item.group;
   return (
     <div onClick={onClick} style={{
-      background: T.card, borderRadius: T.radius, padding: '14px 16px',
-      boxShadow: T.shadow, display: 'flex', alignItems: 'center', gap: 14,
-      cursor: 'pointer',
+      background: T.card, borderRadius: 0, padding: '10px 12px',
+      border: `1px solid ${T.rule}`,
+      display: 'flex', alignItems: 'center', gap: 12,
+      position: 'relative', overflow: 'hidden', cursor: 'pointer',
     }}>
+      {/* Gruppefarge som 3px venstre-strek */}
       <div style={{
-        width: 48, height: 48, borderRadius: T.radius, background: color, color: '#fff',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        {item.time ? (
-          <>
-            <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>{item.time.split(':')[0]}</div>
-            <div style={{ fontSize: 9, opacity: 0.85, marginTop: 2 }}>:{item.time.split(':')[1]}</div>
-          </>
-        ) : (
-          <div style={{ fontSize: 18, fontWeight: 700 }}>?</div>
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: T.mid }}>
-          {compact ? `${dateLabel} · ${item.group}` : item.group}
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+        background: color,
+      }} />
+      <div style={{ marginLeft: 4, minWidth: 50 }}>
+        <div style={{
+          fontSize: 14, fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums', color: T.ink, lineHeight: 1,
+        }}>
+          {item.time || '—'}
         </div>
         <div style={{
-          fontSize: 14, fontWeight: 600, marginTop: 2,
+          fontSize: 7, letterSpacing: '0.20em', textTransform: 'uppercase',
+          color: color, fontWeight: 700, marginTop: 4,
+        }}>
+          {compact ? dateLabel : groupShort}
+        </div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 11, color: item.title ? T.ink : T.mid,
+          fontStyle: item.title ? 'normal' : 'italic', fontWeight: 500,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          color: item.title ? T.ink : T.mid,
-          fontStyle: item.title ? 'normal' : 'italic',
         }}>
           {item.title || (item.kind === 'planned' ? 'planlagt — uten innhold' : 'uten tittel')}
         </div>
-        <div style={{ fontSize: 11, color: T.mid, marginTop: 4 }}>
-          {item.kind === 'logged'
-            ? `✓ logget · ${item.attendance ?? 0} oppmøtt`
-            : 'planlagt — trykk for å logge'}
-        </div>
+        {(item.tags && item.tags.length > 0) && (
+          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.mid, marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.tags.slice(0, 3).join(' · ')}
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: 18, color: T.mid }}>›</div>
+      <div style={{
+        fontSize: 14,
+        color: item.kind === 'logged' ? T.accent2 : T.accent,
+      }}>{item.kind === 'logged' ? '●' : '○'}</div>
     </div>
   );
 }
@@ -743,29 +794,30 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ padding: '14px 22px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 13, color: T.mid }}>kalender</div>
-        <div style={{ fontSize: 13, color: T.mid }}>{NOW.getFullYear()}</div>
-      </div>
-      <div style={{ padding: '4px 22px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Topbar T={T} />
+
+      {/* Month header */}
+      <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth()-1, 1))} style={{
-          width: 36, height: 36, borderRadius: '50%', border: 'none', background: T.card,
-          boxShadow: T.shadow, fontSize: 18, color: T.ink, cursor: 'pointer',
+          width: 30, height: 30, borderRadius: 0, border: `1px solid ${T.rule}`,
+          background: T.card, fontSize: 14, color: T.ink, cursor: 'pointer', fontFamily: 'inherit',
         }}>‹</button>
-        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', textTransform: 'capitalize' }}>
-          {NORWAY_MONTHS[month.getMonth()]}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 11, color: T.mid, fontVariantNumeric: 'tabular-nums' }}>{month.getFullYear()}</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: T.accent, textTransform: 'lowercase' }}>
+            {NORWAY_MONTHS[month.getMonth()]}
+          </span>
         </div>
         <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth()+1, 1))} style={{
-          width: 36, height: 36, borderRadius: '50%', border: 'none', background: T.card,
-          boxShadow: T.shadow, fontSize: 18, color: T.ink, cursor: 'pointer',
+          width: 30, height: 30, borderRadius: 0, border: `1px solid ${T.rule}`,
+          background: T.card, fontSize: 14, color: T.ink, cursor: 'pointer', fontFamily: 'inherit',
         }}>›</button>
       </div>
 
       {/* Calendar */}
       <div style={{
         margin: '0 22px', padding: '12px 8px',
-        background: T.card, borderRadius: T.radiusLg, boxShadow: T.shadow,
+        background: T.card, borderRadius: 0, boxShadow: T.shadow,
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 8 }}>
           {['M','T','O','T','F','L','S'].map((d, i) => (
@@ -781,7 +833,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
             const items = sessionsByDate[ymd] || [];
             return (
               <div key={i} onClick={() => setSelected(ymd)} style={{
-                height: 44, borderRadius: T.radiusSm, cursor: 'pointer',
+                height: 44, borderRadius: 0, cursor: 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 background: isSelected ? T.accent : (isToday ? T.bg : 'transparent'),
                 color: isSelected ? '#fff' : T.ink,
@@ -893,11 +945,16 @@ function PeopleScreen({ T, sessions, attendance, members }) {
 
   return (
     <div>
+      <Topbar T={T} />
+
       {/* Header */}
-      <div style={{ padding: '14px 22px 4px' }}>
-        <div style={{ fontSize: 13, color: T.mid }}>deltakere</div>
-        <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4, letterSpacing: '-0.02em' }}>
-          {memberStats.length} medlemmer
+      <div style={{ padding: '16px 18px 8px' }}>
+        <div style={{ fontSize: 8, color: T.mid, letterSpacing: '0.24em', textTransform: 'uppercase' }}>deltakere</div>
+        <div style={{ fontSize: 28, fontWeight: 700, marginTop: 6, color: T.accent, fontVariantNumeric: 'tabular-nums' }}>
+          {memberStats.length}
+          <span style={{ fontSize: 11, color: T.mid, marginLeft: 8, fontWeight: 400, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+            medlemmer
+          </span>
         </div>
       </div>
 
@@ -983,11 +1040,12 @@ function PersonCard({ T, member, expanded, onToggle }) {
         display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', cursor: 'pointer',
       }}>
         <div style={{
-          width: 44, height: 44, borderRadius: '50%',
-          background: T.bg, color: T.inkSoft,
+          width: 36, height: 36, borderRadius: 0,
+          background: T.bg, color: T.ink,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, flexShrink: 0,
-          border: `2px solid ${statusColor}`,
+          fontSize: 11, fontWeight: 700, flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+          border: `1px solid ${statusColor}`,
+          letterSpacing: '0.08em',
         }}>{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1104,7 +1162,7 @@ function PersonDetail({ T, member }) {
               const color = M_TAG_COLOR[def?.kind] || T.ink;
               return (
                 <span key={tagId} style={{
-                  fontSize: 11, padding: '5px 10px', borderRadius: 14,
+                  fontSize: 11, padding: '5px 10px', borderRadius: 0,
                   background: T.bg, color: T.ink,
                   border: `1px solid ${color}`,
                 }}>
@@ -1152,7 +1210,7 @@ function PersonDetail({ T, member }) {
 function SmallStat({ T, label, value }) {
   return (
     <div style={{
-      background: T.bg, borderRadius: T.radiusSm, padding: '10px 12px',
+      background: T.bg, borderRadius: 0, padding: '10px 12px',
       display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
     }}>
       <div style={{ fontSize: 9, letterSpacing: 1.4, color: T.mid }}>{label}</div>
@@ -1173,51 +1231,66 @@ function SectionLabel({ T, children }) {
 function FAB({ T, onClick }) {
   return (
     <button onClick={onClick} style={{
-      position: 'fixed', bottom: 96, right: 24,
-      width: 60, height: 60, borderRadius: '50%',
-      background: T.ink, color: '#fff', border: 'none',
-      fontSize: 26, fontFamily: 'inherit',
-      boxShadow: '0 8px 24px rgba(31,26,20,0.28)',
+      position: 'fixed', bottom: 110, right: 18,
+      width: 52, height: 52, borderRadius: 0,
+      background: `linear-gradient(180deg, ${T.copperHi}, ${T.accent})`,
+      color: '#0B0A09', border: 'none',
+      fontSize: 24, fontWeight: 700, fontFamily: 'inherit',
+      boxShadow: '0 4px 12px rgba(204,122,61,0.35)',
       cursor: 'pointer', zIndex: 30,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>＋</button>
+    }}>+</button>
   );
 }
 
 // ─── Tab bar ────────────────────────────────────────────────────────
 function TabBar({ T, screen, onChange }) {
   const tabs = [
-    { id: 'home',   label: 'Hjem',    icon: '◉' },
-    { id: 'month',  label: 'Måned',   icon: '▦' },
-    { id: 'people', label: 'Folk',    icon: '◌' },
+    { id: 'home',   label: 'i dag',     icon: '◉' },
+    { id: 'month',  label: 'kalender',  icon: '▦' },
+    { id: 'people', label: 'deltakere', icon: '◌' },
   ];
   return (
     <div style={{
-      position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)',
-      width: 'min(440px, calc(100% - 32px))', height: 64,
-      background: T.card, borderRadius: 32, boxShadow: T.shadowLg,
-      display: 'grid', gridTemplateColumns: `repeat(${tabs.length},1fr)`,
-      alignItems: 'center', zIndex: 20,
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      background: T.tabBg,
+      borderTop: `1px solid ${T.ruleHi}`,
+      padding: '10px 10px 14px',
+      display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, gap: 8,
+      maxWidth: 480, margin: '0 auto',
+      zIndex: 20,
     }}>
       {tabs.map(t => {
         const active = screen === t.id;
         return (
-          <div key={t.id} onClick={() => onChange(t.id)} style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            cursor: 'pointer',
+          <button key={t.id} onClick={() => onChange(t.id)} style={{
+            position: 'relative', padding: '10px 8px 8px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            background: active ? T.accent : 'transparent',
+            border: active ? `1px solid ${T.accent}` : `1px solid ${T.rule}`,
+            borderRadius: 0,
+            cursor: 'pointer', fontFamily: 'inherit',
           }}>
+            {active && (
+              <div style={{
+                position: 'absolute', top: -1, left: -1, right: -1, height: 3,
+                background: T.copperHi,
+              }} />
+            )}
             <div style={{
-              width: 30, height: 30, borderRadius: 10,
-              background: active ? T.accent : 'transparent',
-              color: active ? '#fff' : T.mid,
+              width: 26, height: 26,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, transition: 'all 0.12s',
+              fontSize: 16, fontWeight: 700,
+              color: active ? '#0B0A09' : T.ink,
+              background: active ? 'rgba(11,10,9,0.12)' : T.card,
+              border: active ? '1px solid rgba(11,10,9,0.3)' : `1px solid ${T.rule}`,
             }}>{t.icon}</div>
             <div style={{
-              fontSize: 10, color: active ? T.ink : T.mid,
-              fontWeight: active ? 600 : 400,
+              fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+              fontWeight: active ? 700 : 500,
+              color: active ? '#0B0A09' : T.ink,
             }}>{t.label}</div>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -1328,14 +1401,14 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
 
   return (
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(31,26,20,0.45)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
       zIndex: 100, display: 'flex', alignItems: 'flex-end',
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480, margin: '0 auto',
-        background: T.bg, borderTopLeftRadius: T.radiusLg * 1.4, borderTopRightRadius: T.radiusLg * 1.4,
+        background: T.bg, borderRadius: 0,
+        borderTop: `1px solid ${T.ruleHi}`,
         maxHeight: '92vh', overflowY: 'auto',
-        boxShadow: '0 -8px 30px rgba(0,0,0,0.25)',
       }}>
         {/* drag handle */}
         <div style={{ padding: '12px 0 6px', display: 'flex', justifyContent: 'center' }}>
@@ -1351,9 +1424,9 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
             )}
           </div>
           <button onClick={onClose} style={{
-            width: 32, height: 32, borderRadius: '50%', border: 'none',
-            background: T.card, color: T.ink, fontSize: 18, cursor: 'pointer',
-            boxShadow: T.shadow,
+            width: 28, height: 28, borderRadius: 0, border: `1px solid ${T.rule}`,
+            background: T.card, color: T.ink, fontSize: 14, cursor: 'pointer',
+            fontFamily: 'inherit',
           }}>✕</button>
         </div>
 
@@ -1388,7 +1461,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               placeholder={isPlanned ? 'f.eks. passing — knee cut' : 'f.eks. closed guard — kimura'}
               style={{
                 width: '100%', padding: '14px 16px',
-                background: T.card, border: 'none', borderRadius: T.radius,
+                background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                 fontFamily: 'inherit', fontSize: 16, color: T.ink,
                 boxShadow: T.shadow, boxSizing: 'border-box',
               }}
@@ -1401,7 +1474,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 style={{
                   width: '100%', padding: '12px 14px',
-                  background: T.card, border: 'none', borderRadius: T.radius,
+                  background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                   fontFamily: 'inherit', fontSize: 14, color: T.ink,
                   boxShadow: T.shadow, boxSizing: 'border-box',
                 }}
@@ -1411,7 +1484,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
                 style={{
                   width: '100%', padding: '12px 14px',
-                  background: T.card, border: 'none', borderRadius: T.radius,
+                  background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                   fontFamily: 'inherit', fontSize: 14, color: T.ink,
                   boxShadow: T.shadow, boxSizing: 'border-box',
                 }}
@@ -1454,7 +1527,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                             flex: 1, padding: '10px 0',
                             background: sel ? T.accent : T.card,
                             color: sel ? '#fff' : T.ink,
-                            border: 'none', borderRadius: T.radiusSm,
+                            border: 'none', borderRadius: 0,
                             fontFamily: 'inherit', fontSize: 12, fontWeight: sel ? 700 : 500,
                             boxShadow: sel ? 'none' : T.shadow,
                             cursor: 'pointer',
@@ -1469,7 +1542,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                         onChange={(e) => setRecurUntil(e.target.value)}
                         style={{
                           width: '100%', padding: '12px 14px',
-                          background: T.card, border: 'none', borderRadius: T.radius,
+                          background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                           fontFamily: 'inherit', fontSize: 14, color: T.ink,
                           boxShadow: T.shadow, boxSizing: 'border-box',
                         }}
@@ -1477,7 +1550,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                     </div>
 
                     <div style={{
-                      padding: '10px 14px', borderRadius: T.radiusSm,
+                      padding: '10px 14px', borderRadius: 0,
                       background: recurringPreview.length > 0 ? T.bg : 'transparent',
                       border: `1px dashed ${T.rule}`,
                       fontSize: 12, color: recurringPreview.length > 0 ? T.ink : T.mid,
@@ -1502,7 +1575,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 const sel = group === g;
                 return (
                   <span key={g} onClick={() => setGroup(g)} style={{
-                    padding: '8px 14px', borderRadius: 18,
+                    padding: '8px 14px', borderRadius: 0,
                     background: sel ? M_GROUP[g] : T.card,
                     color: sel ? '#fff' : T.ink,
                     boxShadow: sel ? 'none' : T.shadow,
@@ -1521,7 +1594,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 const sel = trainer === t.id;
                 return (
                   <span key={t.id} onClick={() => setTrainer(t.id)} style={{
-                    padding: '8px 14px', borderRadius: 18,
+                    padding: '8px 14px', borderRadius: 0,
                     background: sel ? T.ink : T.card,
                     color: sel ? '#fff' : T.ink,
                     boxShadow: sel ? 'none' : T.shadow,
@@ -1532,7 +1605,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               })}
               {/* Tom-knapp for åpen matte */}
               <span onClick={() => setTrainer('')} style={{
-                padding: '8px 14px', borderRadius: 18,
+                padding: '8px 14px', borderRadius: 0,
                 background: trainer === '' ? T.mid : T.card,
                 color: trainer === '' ? '#fff' : T.mid,
                 boxShadow: trainer === '' ? 'none' : T.shadow,
@@ -1560,7 +1633,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                         const color = M_TAG_COLOR[t.kind] || T.ink;
                         return (
                           <span key={t.id} onClick={() => toggleTag(t.id)} style={{
-                            padding: '7px 12px', borderRadius: 16, fontSize: 12,
+                            padding: '7px 12px', borderRadius: 0, fontSize: 12,
                             background: sel ? color : T.card,
                             color: sel ? '#fff' : T.ink,
                             border: sel ? 'none' : `1px solid ${T.rule}`,
@@ -1586,7 +1659,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                       const color = M_TAG_COLOR.custom;
                       return (
                         <span key={id} onClick={() => toggleTag(id)} style={{
-                          padding: '7px 12px', borderRadius: 16, fontSize: 12,
+                          padding: '7px 12px', borderRadius: 0, fontSize: 12,
                           background: sel ? color : T.card,
                           color: sel ? '#fff' : T.ink,
                           border: sel ? 'none' : `1px solid ${T.rule}`,
@@ -1607,7 +1680,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {draftCustomTags.map(id => (
                     <span key={id} onClick={() => toggleTag(id)} style={{
-                      padding: '7px 12px', borderRadius: 16, fontSize: 12,
+                      padding: '7px 12px', borderRadius: 0, fontSize: 12,
                       background: M_TAG_COLOR.custom, color: '#fff',
                       border: 'none', cursor: 'pointer', fontWeight: 600,
                     }}>✓ {id}</span>
@@ -1628,7 +1701,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                     placeholder="f.eks. side-control"
                     style={{
                       flex: 1, padding: '10px 14px',
-                      background: T.card, border: 'none', borderRadius: T.radius,
+                      background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                       fontFamily: 'inherit', fontSize: 13, color: T.ink,
                       boxShadow: T.shadow, boxSizing: 'border-box',
                     }}
@@ -1654,7 +1727,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               rows={3}
               style={{
                 width: '100%', padding: '12px 14px',
-                background: T.card, border: 'none', borderRadius: T.radius,
+                background: T.card, border: `1px solid ${T.rule}`, borderRadius: T.radius,
                 fontFamily: 'inherit', fontSize: 14, color: T.ink, lineHeight: 1.5,
                 boxShadow: T.shadow, resize: 'vertical', boxSizing: 'border-box',
               }}
@@ -1669,40 +1742,42 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 if (!window.confirm('Slette denne økten? Dette kan ikke angres.')) return;
                 if (onDelete && initial?.id) onDelete(initial.id);
               }} style={{
-                padding: '18px 16px',
+                padding: '14px',
                 background: 'transparent',
                 color: T.coral,
-                border: `1.5px solid ${T.coral}`, borderRadius: T.radius,
-                fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                border: `1px solid ${T.coral}`, borderRadius: 0,
+                fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: 'pointer',
               }}>slett</button>
               <button onClick={submit} disabled={!title} style={{
-                padding: '18px',
-                background: title ? T.ink : T.rule,
-                color: title ? '#fff' : T.mid,
-                border: 'none', borderRadius: T.radius,
-                fontFamily: 'inherit', fontSize: 16, fontWeight: 600,
+                padding: '14px',
+                background: title ? T.accent : T.rule,
+                color: title ? '#0B0A09' : T.mid,
+                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: 0,
+                fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
-                boxShadow: title ? '0 6px 20px rgba(31,26,20,0.18)' : 'none',
               }}>lagre endringer</button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
               <button onClick={submit} disabled={!title} style={{
-                padding: '16px 8px',
-                background: title ? T.ink : T.rule,
-                color: title ? '#fff' : T.mid,
-                border: 'none', borderRadius: T.radius,
-                fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                padding: '14px',
+                background: title ? T.accent : T.rule,
+                color: title ? '#0B0A09' : T.mid,
+                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: 0,
+                fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
-                boxShadow: title ? '0 6px 20px rgba(31,26,20,0.18)' : 'none',
-              }}>{isPlanned ? 'lagre planlagt' : 'lagre'}</button>
+              }}>{isPlanned ? 'lagre plan' : 'lagre'}</button>
               <button onClick={submitAndNew} disabled={!title} style={{
-                padding: '16px 8px',
+                padding: '14px',
                 background: 'transparent',
                 color: title ? T.ink : T.mid,
-                border: `1.5px solid ${title ? T.ink : T.rule}`, borderRadius: T.radius,
-                fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                border: `1px solid ${T.rule}`, borderRadius: 0,
+                fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
               }}>lagre & ny</button>
             </div>
@@ -1716,7 +1791,10 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
 function Field({ T, label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 11, color: T.mid, marginBottom: 6, letterSpacing: 0.4, paddingLeft: 4 }}>
+      <div style={{
+        fontSize: 9, color: T.mid, marginBottom: 8, letterSpacing: '0.20em',
+        textTransform: 'uppercase', fontWeight: 700,
+      }}>
         {label}
       </div>
       {children}

@@ -7,21 +7,22 @@
 
 <!-- PWA / iOS-ikon-config -->
 <meta name="description" content="Logg og planlegg økter for Bodø Jiu Jitsu">
-<meta name="theme-color" content="#1F1A14">
+<meta name="theme-color" content="#141210">
 <link rel="manifest" href="manifest.webmanifest">
 
 <!-- iOS-spesifikt: gjør "Legg til på Hjemskjerm" til en ekte fullskjerm-app -->
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Treningslogg">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
 <!-- Vanlig favicon -->
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 
 <style>
-  html, body { margin: 0; background: #FFF7EE; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; background: #141210; font-family: 'Roboto Mono', 'Courier New', monospace; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
   input, button, textarea, select { font-family: inherit; }
   input[type=time]::-webkit-calendar-picker-indicator { opacity: 0.6; }
@@ -30,14 +31,14 @@
   /* Loading-skjerm før app er klar */
   #__tl_boot {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-    background: #FFF7EE; color: #7A6F5F; font-size: 14px; z-index: 9999;
+    background: #141210; color: #8C8278; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; z-index: 9999;
   }
   #__tl_boot.hidden { display: none; }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
