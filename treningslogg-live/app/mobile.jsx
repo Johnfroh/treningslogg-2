@@ -354,7 +354,7 @@ function MobileApp() {
       maxWidth: 480, margin: '0 auto',
       minHeight: '100vh', background: T.bg, color: T.ink,
       fontFamily: STEEL_FONT,
-      paddingBottom: 110, position: 'relative',
+      paddingBottom: 'calc(110px + env(safe-area-inset-bottom))', position: 'relative',
     }}>
       {screen === 'home' && (
         <HomeScreen
@@ -427,7 +427,7 @@ function MobileApp() {
 function Toast({ T, children }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 130, left: '50%', transform: 'translateX(-50%)',
+      position: 'fixed', bottom: 'calc(130px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
       background: T.card, color: T.ink,
       border: `1px solid ${T.ruleHi}`,
       padding: '10px 18px', borderRadius: 0,
@@ -442,9 +442,11 @@ function Toast({ T, children }) {
 function Topbar({ T }) {
   return (
     <div style={{
-      padding: '14px 18px 12px',
+      paddingTop: 'calc(14px + env(safe-area-inset-top))',
+      paddingLeft: 18, paddingRight: 18, paddingBottom: 12,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       borderBottom: `1px solid ${T.rule}`,
+      background: T.bg,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <img src="logo.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
@@ -1231,7 +1233,7 @@ function SectionLabel({ T, children }) {
 function FAB({ T, onClick }) {
   return (
     <button onClick={onClick} style={{
-      position: 'fixed', bottom: 110, right: 18,
+      position: 'fixed', bottom: 'calc(110px + env(safe-area-inset-bottom))', right: 18,
       width: 52, height: 52, borderRadius: 0,
       background: `linear-gradient(180deg, ${T.copperHi}, ${T.accent})`,
       color: '#0B0A09', border: 'none',
@@ -1255,7 +1257,8 @@ function TabBar({ T, screen, onChange }) {
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: T.tabBg,
       borderTop: `1px solid ${T.ruleHi}`,
-      padding: '10px 10px 14px',
+      paddingTop: 10, paddingLeft: 10, paddingRight: 10,
+      paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
       display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`, gap: 8,
       maxWidth: 480, margin: '0 auto',
       zIndex: 20,
