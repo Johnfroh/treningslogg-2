@@ -60,10 +60,14 @@ const countTagUse = (sessions) => {
 
 // Sjekker om en ny build er deployet ved å hente ETag/Last-Modified
 // fra index.html. Reloader appen hvis den endret seg siden sist.
-// Lagrer ETag i localStorage så vi vet hva "sist" var.
+// Anti-loop: bruk sessionStorage som flagg så vi ikke reloader mer
+// enn én gang per session (hindrer iOS PWA-loop hvis snapshot ikke
+// blir fornyet ved reload).
 const APP_ETAG_KEY = 'tl-app-etag';
+const RELOAD_FLAG_KEY = 'tl-just-reloaded';
 async function checkForUpdate() {
   try {
+    if (sessionStorage.getItem(RELOAD_FLAG_KEY)) return; // allerede reloaded denne session
     const url = './?_v=' + Date.now();
     const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
     if (!res.ok) return;
@@ -71,8 +75,8 @@ async function checkForUpdate() {
     if (!tag) return;
     const stored = localStorage.getItem(APP_ETAG_KEY);
     if (stored && stored !== tag) {
-      // Ny build! Lagre ny tag og last på nytt.
       localStorage.setItem(APP_ETAG_KEY, tag);
+      sessionStorage.setItem(RELOAD_FLAG_KEY, '1');
       window.location.reload();
       return;
     }
@@ -484,13 +488,16 @@ function MobileApp() {
     }
   };
 
+  const totalItems = sessions.length + planned.length;
   return (
     <div style={{
       maxWidth: 480, margin: '0 auto',
       minHeight: '100vh', background: T.bg, color: T.ink,
       fontFamily: STEEL_FONT,
+      paddingTop: 'env(safe-area-inset-top)',
       paddingBottom: 'calc(110px + env(safe-area-inset-bottom))', position: 'relative',
     }}>
+      <StatusBar T={T} loading={loading} syncError={syncError} totalItems={totalItems} onRetry={reloadFromServer} />
       {screen === 'home' && (
         <HomeScreen
           T={T} tweaks={tweaks}
@@ -581,11 +588,41 @@ function Toast({ T, children }) {
   );
 }
 
+// ─── Status-bar (synlig laste-/feilmelding på toppen) ──────────────
+function StatusBar({ T, loading, syncError, totalItems, onRetry }) {
+  // Vis laster-status i 2 sek først, så kun ved faktisk feil eller tom data
+  const [showLoading, setShowLoading] = React.useState(false);
+  React.useEffect(() => {
+    if (loading) {
+      const t = setTimeout(() => setShowLoading(true), 1500);
+      return () => clearTimeout(t);
+    }
+    setShowLoading(false);
+  }, [loading]);
+
+  const message = syncError ? `⚠ ${syncError}`
+    : (showLoading && loading) ? 'henter data fra Sheets …'
+    : (!loading && totalItems === 0) ? 'ingen data — trykk for å hente på nytt'
+    : null;
+  if (!message) return null;
+
+  const color = syncError ? T.coral : (totalItems === 0 && !loading) ? T.copperHi : T.mid;
+  return (
+    <div onClick={onRetry} style={{
+      padding: '10px 18px',
+      background: T.tabBg, borderBottom: `1px solid ${T.rule}`,
+      fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+      color, fontWeight: 700, cursor: onRetry ? 'pointer' : 'default',
+      textAlign: 'center',
+    }}>{message}</div>
+  );
+}
+
 // ─── Topbar (Steel) ─────────────────────────────────────────────────
 function Topbar({ T }) {
   return (
     <div style={{
-      paddingTop: 'calc(14px + env(safe-area-inset-top))',
+      paddingTop: 14,
       paddingLeft: 18, paddingRight: 18, paddingBottom: 12,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       borderBottom: `1px solid ${T.rule}`,
