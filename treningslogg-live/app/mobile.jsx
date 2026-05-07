@@ -461,11 +461,6 @@ function Topbar({ T }) {
           }}>BODØ BJJ · TRENINGSLOGG</div>
         </div>
       </div>
-      <div style={{
-        width: 30, height: 30, background: T.card, border: `1px solid ${T.rule}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 10, fontWeight: 700, color: T.accent,
-      }}>M</div>
     </div>
   );
 }
