@@ -54,6 +54,24 @@ const countTagUse = (sessions) => {
   return c;
 };
 
+// Expander recurring planlegging til en liste av YYYY-MM-DD-datoer.
+// dayOfWeeks bruker JS-konvensjon: 0=søndag, 1=mandag, …, 6=lørdag.
+const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
+  if (!startYmd || !untilYmd || !dayOfWeeks?.length) return [];
+  const start = parseYmdM(startYmd);
+  const until = parseYmdM(untilYmd);
+  if (until < start) return [];
+  const dowSet = new Set(dayOfWeeks);
+  const out = [];
+  const cur = new Date(start);
+  // Vakthund: maks 365 iterasjoner = ~ett år
+  for (let i = 0; i < 365 && cur <= until; i++) {
+    if (dowSet.has(cur.getDay())) out.push(ymdM(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+};
+
 const NOW = new Date();
 const TODAY_M = ymdM(NOW);
 
@@ -191,8 +209,40 @@ function MobileApp() {
 
   const openLog = (initial = null, mode = 'new') => setLogging({ initial, mode });
 
+  // Batch-lagring av planlagte økter (recurring). Optimistisk + parallelle server-kall.
+  const savePlanBatch = async (payloads) => {
+    if (!Array.isArray(payloads) || payloads.length === 0) return;
+    const tempIds = payloads.map((_, i) => `tmp-${Date.now()}-${i}`);
+    const optimistic = payloads.map((p, i) => ({ ...p, id: tempIds[i] }));
+    setPlanned(prev => [...optimistic, ...prev]);
+    setLogging(null);
+    flashToast(`lagrer ${payloads.length} planlagte …`);
+
+    const results = await Promise.allSettled(
+      payloads.map(p => window.TL_API.createPlanned(p))
+    );
+    const tempToReal = {};
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') tempToReal[tempIds[i]] = r.value;
+    });
+    setPlanned(prev => prev.map(p => tempToReal[p.id] || p));
+
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed === 0) {
+      flashToast(`${payloads.length} planlagte lagret`);
+      setSyncError(null);
+    } else {
+      flashToast(`${payloads.length - failed} av ${payloads.length} lagret`);
+      setSyncError('noen kunne ikke lagres');
+      try { applyData(await window.TL_API.refresh()); } catch (_) {}
+    }
+  };
+
   // Optimistisk oppdatering: bytt UI med en gang, rull tilbake hvis serveren feiler
   const saveSession = async (data, opts = {}) => {
+    // Batch-flyt: array av planlagte payloads (recurring)
+    if (Array.isArray(data)) return savePlanBatch(data);
+
     const keepOpen = !!opts.keepOpen;
     const isPlanned = opts.type === 'planned';
     const mode = logging?.mode;
@@ -1199,6 +1249,30 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   const isPlanned = type === 'planned';
   const canToggleType = mode === 'new';
 
+  // Recurring: bare relevant når planned + new
+  const [recurring, setRecurring] = React.useState(false);
+  const [recurDays, setRecurDays] = React.useState([]);  // JS-dager 0..6
+  const [recurUntil, setRecurUntil] = React.useState(() => {
+    const d = parseYmdM(init.date || TODAY_M);
+    d.setDate(d.getDate() + 56); // +8 uker
+    return ymdM(d);
+  });
+  // Når recurring slås på første gang, seed med start-datoens ukedag
+  const enableRecurring = () => {
+    setRecurring(true);
+    if (!recurDays.length) {
+      const dow = parseYmdM(date).getDay();
+      setRecurDays([dow]);
+    }
+  };
+  const toggleRecurDay = (dow) => {
+    setRecurDays(prev => prev.includes(dow) ? prev.filter(x => x !== dow) : [...prev, dow].sort());
+  };
+  const recurringPreview = React.useMemo(() => {
+    if (!recurring) return [];
+    return expandRecurring(date, recurUntil, recurDays);
+  }, [recurring, date, recurUntil, recurDays]);
+
   const toggleTag = (t) => {
     setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
   };
@@ -1225,7 +1299,15 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   const buildPayload = () => isPlanned
     ? { date, time, group, trainer, title }
     : { date, time, group, trainer, title, content, tags, attendance: init.attendance ?? null };
-  const submit = () => onSave(buildPayload(), { type });
+  const submit = () => {
+    if (isPlanned && recurring && recurringPreview.length > 0) {
+      const base = buildPayload();
+      const payloads = recurringPreview.map(d => ({ ...base, date: d }));
+      onSave(payloads, { type });
+    } else {
+      onSave(buildPayload(), { type });
+    }
+  };
   const submitAndNew = () => onSave(buildPayload(), { keepOpen: true, type });
 
   // Group tags by category for chip section
@@ -1315,7 +1397,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
 
           {/* Time + date row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field T={T} label="dato">
+            <Field T={T} label={isPlanned && recurring ? 'starter' : 'dato'}>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
                 style={{
                   width: '100%', padding: '12px 14px',
@@ -1336,6 +1418,82 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               />
             </Field>
           </div>
+
+          {/* Recurring (kun ved planlegging av ny økt) */}
+          {isPlanned && canToggleType && (
+            <Field T={T} label="gjenta">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setRecurring(false)} style={{
+                    flex: 1, padding: '10px',
+                    background: !recurring ? T.ink : T.card,
+                    color: !recurring ? '#fff' : T.mid,
+                    border: 'none', borderRadius: T.radius,
+                    fontFamily: 'inherit', fontSize: 13, fontWeight: !recurring ? 600 : 400,
+                    boxShadow: !recurring ? 'none' : T.shadow,
+                    cursor: 'pointer',
+                  }}>én gang</button>
+                  <button onClick={enableRecurring} style={{
+                    flex: 1, padding: '10px',
+                    background: recurring ? T.ink : T.card,
+                    color: recurring ? '#fff' : T.mid,
+                    border: 'none', borderRadius: T.radius,
+                    fontFamily: 'inherit', fontSize: 13, fontWeight: recurring ? 600 : 400,
+                    boxShadow: recurring ? 'none' : T.shadow,
+                    cursor: 'pointer',
+                  }}>hver uke</button>
+                </div>
+
+                {recurring && (
+                  <>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[1, 2, 3, 4, 5, 6, 0].map(dow => {
+                        const sel = recurDays.includes(dow);
+                        return (
+                          <button key={dow} onClick={() => toggleRecurDay(dow)} style={{
+                            flex: 1, padding: '10px 0',
+                            background: sel ? T.accent : T.card,
+                            color: sel ? '#fff' : T.ink,
+                            border: 'none', borderRadius: T.radiusSm,
+                            fontFamily: 'inherit', fontSize: 12, fontWeight: sel ? 700 : 500,
+                            boxShadow: sel ? 'none' : T.shadow,
+                            cursor: 'pointer',
+                          }}>{NORWAY_DAYS_INITIAL[dow]}</button>
+                        );
+                      })}
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, color: T.mid, marginBottom: 6, paddingLeft: 4 }}>til og med</div>
+                      <input type="date" value={recurUntil} min={date}
+                        onChange={(e) => setRecurUntil(e.target.value)}
+                        style={{
+                          width: '100%', padding: '12px 14px',
+                          background: T.card, border: 'none', borderRadius: T.radius,
+                          fontFamily: 'inherit', fontSize: 14, color: T.ink,
+                          boxShadow: T.shadow, boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{
+                      padding: '10px 14px', borderRadius: T.radiusSm,
+                      background: recurringPreview.length > 0 ? T.bg : 'transparent',
+                      border: `1px dashed ${T.rule}`,
+                      fontSize: 12, color: recurringPreview.length > 0 ? T.ink : T.mid,
+                      textAlign: 'center',
+                    }}>
+                      {recurDays.length === 0
+                        ? 'velg én eller flere dager'
+                        : recurringPreview.length === 0
+                          ? 'ingen datoer i dette intervallet'
+                          : `lager ${recurringPreview.length} planlagte økter`}
+                    </div>
+                  </>
+                )}
+              </div>
+            </Field>
+          )}
 
           {/* Group chips */}
           <Field T={T} label="gruppe">
