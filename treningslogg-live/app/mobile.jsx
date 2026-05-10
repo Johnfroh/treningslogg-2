@@ -830,67 +830,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           </div>
         </>
       )}
-
-      {/* Tag-oversikt — klubbens emnedekning */}
-      <TagOverview T={T} sessions={sessions} />
     </div>
-  );
-}
-
-// ─── Tag overview ───────────────────────────────────────────────────
-function TagOverview({ T, sessions }) {
-  const [showAll, setShowAll] = React.useState(false);
-
-  const allCounts = React.useMemo(() => countTagUse(sessions), [sessions]);
-  const sortedAll = React.useMemo(() =>
-    Object.entries(allCounts).sort((a, b) => b[1] - a[1]),
-    [allCounts]
-  );
-  const maxCount = sortedAll[0]?.[1] || 1;
-
-  if (sortedAll.length === 0) return null;
-
-  const visible = showAll ? sortedAll : sortedAll.slice(0, 12);
-
-  return (
-    <>
-      <div style={{ padding: '24px 22px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div style={{ fontSize: 17, fontWeight: 700 }}>Tag-oversikt</div>
-        <div style={{ fontSize: 12, color: T.mid }}>{sortedAll.length} unike</div>
-      </div>
-      <div style={{ padding: '0 22px' }}>
-        <div style={{
-          background: T.card, borderRadius: T.radius, padding: '14px 16px',
-          boxShadow: T.shadow, display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          {visible.map(([id, c]) => {
-            const def = TL_DATA.tags.find(t => t.id === id);
-            const color = M_TAG_COLOR[def?.kind] || M_TAG_COLOR.custom;
-            const w = (c / maxCount) * 100;
-            return (
-              <div key={id} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 28px', gap: 10, alignItems: 'center' }}>
-                <div style={{ fontSize: 12, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {def?.label || id}
-                </div>
-                <div style={{ height: 6, background: T.bg, borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${w}%`, background: color }}></div>
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 700, textAlign: 'right' }}>{c}</div>
-              </div>
-            );
-          })}
-          {sortedAll.length > 12 && (
-            <button onClick={() => setShowAll(s => !s)} style={{
-              marginTop: 4, padding: '8px',
-              background: 'transparent', color: T.mid,
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
-            }}>
-              {showAll ? 'vis færre' : `vis alle ${sortedAll.length}`}
-            </button>
-          )}
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -1733,16 +1673,23 @@ function PersonDetail({ T, member }) {
       {/* Tag-historikk: tags personen har vært på, sortert etter sist sett */}
       <div>
         <SectionLabel T={T}>tag-historikk</SectionLabel>
-        {tagHistory.length === 0 ? (
-          <div style={{
-            padding: '12px', marginTop: 4,
-            border: `1px dashed ${T.rule}`,
-            color: T.mid, fontSize: 10, textAlign: 'center',
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-          }}>
-            ingen tagger registrert ennå
-          </div>
-        ) : (
+        {tagHistory.length === 0 ? (() => {
+          const tagged = attended.filter(s => (s.tags || []).length > 0).length;
+          return (
+            <div style={{
+              padding: '14px 12px', marginTop: 4,
+              border: `1px dashed ${T.rule}`,
+              color: T.mid, fontSize: 10, textAlign: 'center',
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              lineHeight: 1.6,
+            }}>
+              ingen tagger registrert ennå
+              <div style={{ marginTop: 6, color: T.mid, fontSize: 9, letterSpacing: '0.10em' }}>
+                {attended.length} {attended.length === 1 ? 'økt' : 'økter'} · {tagged} har tagger
+              </div>
+            </div>
+          );
+        })() : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 4 }}>
             {tagHistory.map((t, i) => {
               const def = TL_DATA.tags.find(x => x.id === t.id);
