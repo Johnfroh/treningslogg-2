@@ -904,6 +904,8 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
   const dowMax = Math.max(1, ...dowStats.map(d => d.avg));
   const groupMax = Math.max(1, ...groupStats.map(g => g.avg));
 
+  const [tagDrill, setTagDrill] = React.useState(null); // tag-id som er åpnet
+
   return (
     <div>
       <Topbar T={T} />
@@ -1050,7 +1052,11 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
               const color = M_TAG_COLOR[t.kind] || T.mid;
               const low = t.count <= 1;
               return (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button key={t.id} onClick={() => setTagDrill(t.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '4px 0', background: 'transparent', border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}>
                   <span style={{
                     fontSize: 10, color: T.ink,
                     minWidth: 90, fontWeight: low ? 700 : 400,
@@ -1062,7 +1068,8 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                     fontSize: 10, fontWeight: 700, color: low ? T.accent : T.ink,
                     fontVariantNumeric: 'tabular-nums', minWidth: 18, textAlign: 'right',
                   }}>{t.count}</span>
-                </div>
+                  <span style={{ fontSize: 10, color: T.mid, marginLeft: 4 }}>›</span>
+                </button>
               );
             })}
           </div>
@@ -1151,6 +1158,104 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
           </div>
         </>
       )}
+
+      {tagDrill && (
+        <TagDrillSheet T={T} tagId={tagDrill} sessions={sessions} onClose={() => setTagDrill(null)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Tag drill-down: økter som har taggen, sortert nyeste først ─────
+function TagDrillSheet({ T, tagId, sessions, onClose }) {
+  const def = TL_DATA.tags.find(x => x.id === tagId);
+  const label = def?.label || tagId;
+  const matching = (sessions || [])
+    .filter(s => (s.tags || []).includes(tagId))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+      zIndex: 100, display: 'flex', alignItems: 'flex-end',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 480, margin: '0 auto',
+        background: T.bg, borderTop: `1px solid ${T.ruleHi}`,
+        maxHeight: '80vh', overflowY: 'auto',
+      }}>
+        <div style={{ padding: '12px 0 6px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: 40, height: 4, background: T.rule }} />
+        </div>
+
+        <div style={{ padding: '4px 18px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+              tag-historikk
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: T.accent, marginTop: 4, textTransform: 'lowercase' }}>
+              {label}
+            </div>
+            <div style={{ fontSize: 9, color: T.mid, marginTop: 4, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+              {matching.length} {matching.length === 1 ? 'økt' : 'økter'} logget
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 28, height: 28, border: `1px solid ${T.rule}`,
+            background: T.card, color: T.ink, fontSize: 14, cursor: 'pointer',
+            fontFamily: 'inherit', borderRadius: 0,
+          }}>✕</button>
+        </div>
+
+        {matching.length === 0 ? (
+          <div style={{
+            margin: '8px 16px 24px', padding: '20px',
+            background: T.card, border: `1px solid ${T.rule}`,
+            color: T.mid, fontSize: 11, textAlign: 'center',
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+          }}>
+            ingen økter funnet
+          </div>
+        ) : (
+          <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {matching.map((s, i) => {
+              const d = parseYmdM(s.date);
+              const days = Math.floor((NOW - d) / 86400000);
+              const ago = days === 0 ? 'i dag' : days === 1 ? '1 dag' : days < 7 ? `${days} dager` : days < 30 ? `${Math.floor(days/7)} uker` : `${Math.floor(days/30)} mnd`;
+              const color = M_GROUP[s.group] || T.mid;
+              return (
+                <div key={s.id || i} style={{
+                  background: T.card, border: `1px solid ${T.rule}`,
+                  padding: '10px 12px', display: 'grid',
+                  gridTemplateColumns: '70px 1fr', gap: 12, alignItems: 'center',
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
+                  <div style={{ marginLeft: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
+                      {ago}
+                    </div>
+                    <div style={{ fontSize: 7, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+                      {s.date}
+                    </div>
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 8, letterSpacing: '0.20em', color, textTransform: 'uppercase', fontWeight: 700 }}>
+                      {s.group}
+                    </div>
+                    <div style={{
+                      fontSize: 11, color: T.ink, marginTop: 4, fontWeight: 500,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {s.title || '—'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1537,9 +1642,15 @@ function PersonDetail({ T, member }) {
   const months = Object.keys(monthCounts).sort().slice(-6);
   const maxMonth = Math.max(1, ...months.map(m => monthCounts[m]));
 
-  // Top tags (limit to 8)
-  const tagSorted = Object.entries(tagCounts).sort((a,b) => b[1]-a[1]).slice(0, 8);
-  const maxTag = tagSorted[0]?.[1] || 1;
+  // Tag-historikk: sortert etter sist sett, kun tags personen har vært på
+  // attended er allerede sortert desc, så første treff på en tag er sist sett
+  const tagLastDate = {};
+  attended.forEach(s => (s.tags || []).forEach(t => {
+    if (!tagLastDate[t]) tagLastDate[t] = s.date;
+  }));
+  const tagHistory = Object.keys(tagCounts)
+    .map(id => ({ id, count: tagCounts[id], lastDate: tagLastDate[id] }))
+    .sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || ''));
 
   // Recent sessions
   const recent = attended.slice(0, 4);
@@ -1606,22 +1717,33 @@ function PersonDetail({ T, member }) {
         </div>
       )}
 
-      {/* Tag focus */}
-      {tagSorted.length > 0 && (
+      {/* Tag-historikk: tags personen har vært på, sortert etter sist sett */}
+      {tagHistory.length > 0 && (
         <div>
-          <SectionLabel T={T}>tag-fokus</SectionLabel>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-            {tagSorted.map(([tagId, c]) => {
-              const def = TL_DATA.tags.find(t => t.id === tagId);
-              const color = M_TAG_COLOR[def?.kind] || T.ink;
+          <SectionLabel T={T}>tag-historikk</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 4 }}>
+            {tagHistory.map((t, i) => {
+              const def = TL_DATA.tags.find(x => x.id === t.id);
+              const color = M_TAG_COLOR[def?.kind] || T.mid;
+              const days = Math.floor((NOW - parseYmdM(t.lastDate)) / 86400000);
+              const ago = days === 0 ? 'i dag' : days === 1 ? '1d' : `${days}d`;
               return (
-                <span key={tagId} style={{
-                  fontSize: 11, padding: '5px 10px', borderRadius: 0,
-                  background: T.bg, color: T.ink,
-                  border: `1px solid ${color}`,
+                <div key={t.id} style={{
+                  padding: '8px 0', display: 'grid',
+                  gridTemplateColumns: '12px 1fr auto auto', gap: 10, alignItems: 'center',
+                  borderBottom: i === tagHistory.length - 1 ? 'none' : `1px solid ${T.rule}`,
                 }}>
-                  {def?.label || tagId} <span style={{ color, fontWeight: 700, marginLeft: 4 }}>{c}</span>
-                </span>
+                  <div style={{ width: 8, height: 8, background: color }} />
+                  <div style={{ fontSize: 11, color: T.ink, fontWeight: 500 }}>
+                    {def?.label || t.id}
+                  </div>
+                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.14em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
+                    sist {ago}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', minWidth: 24, textAlign: 'right' }}>
+                    {t.count}
+                  </div>
+                </div>
               );
             })}
           </div>
