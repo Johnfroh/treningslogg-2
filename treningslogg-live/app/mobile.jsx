@@ -1733,16 +1733,23 @@ function PersonDetail({ T, member }) {
       {/* Tag-historikk: tags personen har vært på, sortert etter sist sett */}
       <div>
         <SectionLabel T={T}>tag-historikk</SectionLabel>
-        {tagHistory.length === 0 ? (
-          <div style={{
-            padding: '12px', marginTop: 4,
-            border: `1px dashed ${T.rule}`,
-            color: T.mid, fontSize: 10, textAlign: 'center',
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-          }}>
-            ingen tagger registrert ennå
-          </div>
-        ) : (
+        {tagHistory.length === 0 ? (() => {
+          const tagged = attended.filter(s => (s.tags || []).length > 0).length;
+          return (
+            <div style={{
+              padding: '14px 12px', marginTop: 4,
+              border: `1px dashed ${T.rule}`,
+              color: T.mid, fontSize: 10, textAlign: 'center',
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              lineHeight: 1.6,
+            }}>
+              ingen tagger registrert ennå
+              <div style={{ marginTop: 6, color: T.mid, fontSize: 9, letterSpacing: '0.10em' }}>
+                {attended.length} {attended.length === 1 ? 'økt' : 'økter'} · {tagged} har tagger
+              </div>
+            </div>
+          );
+        })() : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 4 }}>
             {tagHistory.map((t, i) => {
               const def = TL_DATA.tags.find(x => x.id === t.id);
