@@ -1216,45 +1216,86 @@ function TagDrillSheet({ T, tagId, sessions, onClose }) {
           }}>
             ingen økter funnet
           </div>
-        ) : (
-          <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {matching.map((s, i) => {
-              const d = parseYmdM(s.date);
-              const days = Math.floor((NOW - d) / 86400000);
-              const ago = days === 0 ? 'i dag' : days === 1 ? '1 dag' : days < 7 ? `${days} dager` : days < 30 ? `${Math.floor(days/7)} uker` : `${Math.floor(days/30)} mnd`;
-              const color = M_GROUP[s.group] || T.mid;
-              return (
-                <div key={s.id || i} style={{
-                  background: T.card, border: `1px solid ${T.rule}`,
-                  padding: '10px 12px', display: 'grid',
-                  gridTemplateColumns: '70px 1fr', gap: 12, alignItems: 'center',
-                  position: 'relative', overflow: 'hidden',
-                }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
-                  <div style={{ marginLeft: 4 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
-                      {ago}
-                    </div>
-                    <div style={{ fontSize: 7, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
-                      {s.date}
-                    </div>
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 8, letterSpacing: '0.20em', color, textTransform: 'uppercase', fontWeight: 700 }}>
-                      {s.group}
-                    </div>
+        ) : (() => {
+          // Gruppér øktene per gruppe; sortér gruppene etter "lengst siden sist drillet"
+          // (gruppen som trenger temaet mest kommer øverst)
+          const byGroup = {};
+          matching.forEach(s => {
+            const g = s.group || '—';
+            (byGroup[g] || (byGroup[g] = [])).push(s);
+          });
+          const groupRows = Object.entries(byGroup).map(([g, sess]) => {
+            // sess er allerede sortert nyeste først (matching var sortert)
+            const lastDate = sess[0].date;
+            const days = Math.floor((NOW - parseYmdM(lastDate)) / 86400000);
+            return { g, sess, lastDate, days };
+          }).sort((a, b) => b.days - a.days);
+
+          const fmtAgo = (days) =>
+            days === 0 ? 'i dag' :
+            days === 1 ? '1 dag siden' :
+            days < 7   ? `${days} dager siden` :
+            days < 30  ? `${Math.floor(days/7)} uker siden` :
+                         `${Math.floor(days/30)} mnd siden`;
+
+          return (
+            <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {groupRows.map(({ g, sess, days }) => {
+                const color = M_GROUP[g] || T.mid;
+                return (
+                  <div key={g}>
+                    {/* Gruppe-header */}
                     <div style={{
-                      fontSize: 11, color: T.ink, marginTop: 4, fontWeight: 500,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                      paddingBottom: 6, marginBottom: 6,
+                      borderBottom: `1px solid ${T.rule}`,
                     }}>
-                      {s.title || '—'}
+                      <span style={{
+                        fontSize: 10, letterSpacing: '0.20em', color, textTransform: 'uppercase', fontWeight: 700,
+                      }}>{g}</span>
+                      <span style={{
+                        fontSize: 8, letterSpacing: '0.18em', color: T.mid, textTransform: 'uppercase', fontWeight: 700,
+                      }}>
+                        sist {fmtAgo(days)} · {sess.length} {sess.length === 1 ? 'økt' : 'økter'}
+                      </span>
+                    </div>
+                    {/* Økter i gruppen */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {sess.map((s, i) => {
+                        const d = parseYmdM(s.date);
+                        const ds = Math.floor((NOW - d) / 86400000);
+                        return (
+                          <div key={s.id || i} style={{
+                            background: T.card, border: `1px solid ${T.rule}`,
+                            padding: '8px 12px', display: 'grid',
+                            gridTemplateColumns: '70px 1fr', gap: 12, alignItems: 'center',
+                            position: 'relative', overflow: 'hidden',
+                          }}>
+                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
+                            <div style={{ marginLeft: 4 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
+                                {fmtAgo(ds).replace(' siden', '')}
+                              </div>
+                              <div style={{ fontSize: 7, letterSpacing: '0.18em', color: T.mid, textTransform: 'uppercase', marginTop: 3, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                {s.date}
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: 11, color: T.ink, fontWeight: 500,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {s.title || '—'}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

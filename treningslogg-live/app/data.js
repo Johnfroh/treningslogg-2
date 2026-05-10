@@ -27,6 +27,8 @@ window.TL_DATA = (function () {
     { id: 'escapes',      label: 'escapes',      kind: 'action',   core: true },
     { id: 'submissions',  label: 'submissions',  kind: 'action',   core: true },
     { id: 'takedowns',    label: 'takedowns',    kind: 'action',   core: true },
+    { id: 'sweeps',       label: 'sweeps',       kind: 'action',   core: true },
+    { id: 'pins',         label: 'pins',         kind: 'action',   core: true },
   ];
 
   // sessions: dato (YYYY-MM-DD), tid, gruppe, trener, tittel, innhold, tags, oppmøte
