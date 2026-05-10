@@ -904,7 +904,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
   const dowMax = Math.max(1, ...dowStats.map(d => d.avg));
   const groupMax = Math.max(1, ...groupStats.map(g => g.avg));
 
-  const [tagDrill, setTagDrill] = React.useState(null); // tag-id som er åpnet
+  const [groupDrill, setGroupDrill] = React.useState(null); // gruppe-id som er åpnet
 
   return (
     <div>
@@ -1009,10 +1009,12 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
               const trendColor = s.trend > 0 ? T.accent2 : s.trend < 0 ? T.coral : T.mid;
               const color = M_GROUP[s.g] || T.mid;
               return (
-                <div key={i} style={{
+                <button key={i} onClick={() => setGroupDrill(s.g)} style={{
                   background: T.card, border: `1px solid ${T.rule}`,
                   padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10,
                   position: 'relative', overflow: 'hidden',
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  width: '100%',
                 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
                   <div style={{ marginLeft: 4, flex: 1, minWidth: 0 }}>
@@ -1036,7 +1038,8 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                       {s.trend > 0 ? `▲ +${s.trend}` : s.trend < 0 ? `▼ ${s.trend}` : '— flat'}
                     </div>
                   </div>
-                </div>
+                  <span style={{ fontSize: 14, color: T.mid, marginLeft: 4 }}>›</span>
+                </button>
               );
             })}
           </div>
@@ -1052,11 +1055,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
               const color = M_TAG_COLOR[t.kind] || T.mid;
               const low = t.count <= 1;
               return (
-                <button key={t.id} onClick={() => setTagDrill(t.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '4px 0', background: 'transparent', border: 'none',
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
                     fontSize: 10, color: T.ink,
                     minWidth: 90, fontWeight: low ? 700 : 400,
@@ -1068,8 +1067,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                     fontSize: 10, fontWeight: 700, color: low ? T.accent : T.ink,
                     fontVariantNumeric: 'tabular-nums', minWidth: 18, textAlign: 'right',
                   }}>{t.count}</span>
-                  <span style={{ fontSize: 10, color: T.mid, marginLeft: 4 }}>›</span>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1159,20 +1157,42 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
         </>
       )}
 
-      {tagDrill && (
-        <TagDrillSheet T={T} tagId={tagDrill} sessions={sessions} onClose={() => setTagDrill(null)} />
+      {groupDrill && (
+        <GroupDrillSheet T={T} groupId={groupDrill} sessions={sessions} onClose={() => setGroupDrill(null)} />
       )}
     </div>
   );
 }
 
-// ─── Tag drill-down: økter som har taggen, sortert nyeste først ─────
-function TagDrillSheet({ T, tagId, sessions, onClose }) {
-  const def = TL_DATA.tags.find(x => x.id === tagId);
-  const label = def?.label || tagId;
-  const matching = (sessions || [])
-    .filter(s => (s.tags || []).includes(tagId))
+// ─── Group drill-down: tag-historikk for én gruppe ─────────────────
+// Viser hvilke core-tags gruppen har drillet, sortert etter sist sett.
+// Trener bruker dette til å se "hva har grunnleggende vært gjennom?"
+function GroupDrillSheet({ T, groupId, sessions, onClose }) {
+  const groupSessions = (sessions || [])
+    .filter(s => s.group === groupId)
     .sort((a, b) => b.date.localeCompare(a.date));
+
+  // Bygger tag-historikk for kun core-tags
+  const coreTags = TL_DATA.tags.filter(t => t.core);
+  const tagLastDate = {};
+  const tagCount = {};
+  groupSessions.forEach(s => (s.tags || []).forEach(t => {
+    tagCount[t] = (tagCount[t] || 0) + 1;
+    if (!tagLastDate[t]) tagLastDate[t] = s.date;
+  }));
+  const seenCore = coreTags
+    .filter(t => tagCount[t.id])
+    .map(t => ({ ...t, count: tagCount[t.id], lastDate: tagLastDate[t.id] }))
+    .sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || ''));
+
+  const fmtAgo = (days) =>
+    days === 0 ? 'i dag' :
+    days === 1 ? '1 dag siden' :
+    days < 7   ? `${days} dager siden` :
+    days < 30  ? `${Math.floor(days/7)} uker siden` :
+                 `${Math.floor(days/30)} mnd siden`;
+
+  const color = M_GROUP[groupId] || T.mid;
 
   return (
     <div onClick={onClose} style={{
@@ -1191,13 +1211,13 @@ function TagDrillSheet({ T, tagId, sessions, onClose }) {
         <div style={{ padding: '4px 18px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
-              tag-historikk
+              gruppe-historikk
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: T.accent, marginTop: 4, textTransform: 'lowercase' }}>
-              {label}
+            <div style={{ fontSize: 18, fontWeight: 700, color, marginTop: 4, textTransform: 'lowercase' }}>
+              {groupId}
             </div>
             <div style={{ fontSize: 9, color: T.mid, marginTop: 4, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-              {matching.length} {matching.length === 1 ? 'økt' : 'økter'} logget
+              {groupSessions.length} {groupSessions.length === 1 ? 'økt' : 'økter'} totalt
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -1207,95 +1227,47 @@ function TagDrillSheet({ T, tagId, sessions, onClose }) {
           }}>✕</button>
         </div>
 
-        {matching.length === 0 ? (
+        {seenCore.length === 0 ? (
           <div style={{
             margin: '8px 16px 24px', padding: '20px',
             background: T.card, border: `1px solid ${T.rule}`,
             color: T.mid, fontSize: 11, textAlign: 'center',
             letterSpacing: '0.14em', textTransform: 'uppercase',
           }}>
-            ingen økter funnet
+            ingen kjernetags registrert ennå
           </div>
-        ) : (() => {
-          // Gruppér øktene per gruppe; sortér gruppene etter "lengst siden sist drillet"
-          // (gruppen som trenger temaet mest kommer øverst)
-          const byGroup = {};
-          matching.forEach(s => {
-            const g = s.group || '—';
-            (byGroup[g] || (byGroup[g] = [])).push(s);
-          });
-          const groupRows = Object.entries(byGroup).map(([g, sess]) => {
-            // sess er allerede sortert nyeste først (matching var sortert)
-            const lastDate = sess[0].date;
-            const days = Math.floor((NOW - parseYmdM(lastDate)) / 86400000);
-            return { g, sess, lastDate, days };
-          }).sort((a, b) => b.days - a.days);
-
-          const fmtAgo = (days) =>
-            days === 0 ? 'i dag' :
-            days === 1 ? '1 dag siden' :
-            days < 7   ? `${days} dager siden` :
-            days < 30  ? `${Math.floor(days/7)} uker siden` :
-                         `${Math.floor(days/30)} mnd siden`;
-
-          return (
-            <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {groupRows.map(({ g, sess, days }) => {
-                const color = M_GROUP[g] || T.mid;
-                return (
-                  <div key={g}>
-                    {/* Gruppe-header */}
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                      paddingBottom: 6, marginBottom: 6,
-                      borderBottom: `1px solid ${T.rule}`,
-                    }}>
-                      <span style={{
-                        fontSize: 10, letterSpacing: '0.20em', color, textTransform: 'uppercase', fontWeight: 700,
-                      }}>{g}</span>
-                      <span style={{
-                        fontSize: 8, letterSpacing: '0.18em', color: T.mid, textTransform: 'uppercase', fontWeight: 700,
-                      }}>
-                        sist {fmtAgo(days)} · {sess.length} {sess.length === 1 ? 'økt' : 'økter'}
-                      </span>
-                    </div>
-                    {/* Økter i gruppen */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {sess.map((s, i) => {
-                        const d = parseYmdM(s.date);
-                        const ds = Math.floor((NOW - d) / 86400000);
-                        return (
-                          <div key={s.id || i} style={{
-                            background: T.card, border: `1px solid ${T.rule}`,
-                            padding: '8px 12px', display: 'grid',
-                            gridTemplateColumns: '70px 1fr', gap: 12, alignItems: 'center',
-                            position: 'relative', overflow: 'hidden',
-                          }}>
-                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
-                            <div style={{ marginLeft: 4 }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
-                                {fmtAgo(ds).replace(' siden', '')}
-                              </div>
-                              <div style={{ fontSize: 7, letterSpacing: '0.18em', color: T.mid, textTransform: 'uppercase', marginTop: 3, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                                {s.date}
-                              </div>
-                            </div>
-                            <div style={{
-                              fontSize: 11, color: T.ink, fontWeight: 500,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {s.title || '—'}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+        ) : (
+          <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <div style={{
+              fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700,
+              marginBottom: 8,
+            }}>
+              tags drillet · sortert nyeste først
             </div>
-          );
-        })()}
+            {seenCore.map((t, i) => {
+              const days = Math.floor((NOW - parseYmdM(t.lastDate)) / 86400000);
+              const tagColor = M_TAG_COLOR[t.kind] || T.mid;
+              return (
+                <div key={t.id} style={{
+                  padding: '10px 0', display: 'grid',
+                  gridTemplateColumns: '12px 1fr auto auto', gap: 10, alignItems: 'center',
+                  borderBottom: i === seenCore.length - 1 ? 'none' : `1px solid ${T.rule}`,
+                }}>
+                  <div style={{ width: 8, height: 8, background: tagColor }} />
+                  <div style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
+                    {t.label}
+                  </div>
+                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.14em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
+                    sist {fmtAgo(days).replace(' siden', '')}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', minWidth: 24, textAlign: 'right' }}>
+                    {t.count}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1759,9 +1731,18 @@ function PersonDetail({ T, member }) {
       )}
 
       {/* Tag-historikk: tags personen har vært på, sortert etter sist sett */}
-      {tagHistory.length > 0 && (
-        <div>
-          <SectionLabel T={T}>tag-historikk</SectionLabel>
+      <div>
+        <SectionLabel T={T}>tag-historikk</SectionLabel>
+        {tagHistory.length === 0 ? (
+          <div style={{
+            padding: '12px', marginTop: 4,
+            border: `1px dashed ${T.rule}`,
+            color: T.mid, fontSize: 10, textAlign: 'center',
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+          }}>
+            ingen tagger registrert ennå
+          </div>
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 4 }}>
             {tagHistory.map((t, i) => {
               const def = TL_DATA.tags.find(x => x.id === t.id);
@@ -1788,8 +1769,8 @@ function PersonDetail({ T, member }) {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Recent sessions */}
       {recent.length > 0 && (
