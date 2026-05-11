@@ -103,18 +103,27 @@ const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
 };
 
 // Aggregerer rådata til dashboard-tall. Bruker kun core-tags i tema-balanse.
-const computeDashboard = (sessions, planned, attendance) => {
+// periodDays styrer alle "snitt i periode"-tall (puls, gruppe-trend, tema-balanse).
+// Ukedag-statistikken er alltid på 90 dager (uavhengig av periode-velger).
+const PERIOD_OPTIONS = [
+  { id: '7d',     label: '7 d',     days: 7   },
+  { id: '30d',    label: '30 d',    days: 30  },
+  { id: '90d',    label: '90 d',    days: 90  },
+  { id: 'sesong', label: 'sesong',  days: 180 },
+];
+
+const computeDashboard = (sessions, planned, attendance, periodDays = 30) => {
   const today = new Date();
-  const cutoff30 = new Date(today); cutoff30.setDate(cutoff30.getDate() - 30);
-  const cutoff60 = new Date(today); cutoff60.setDate(cutoff60.getDate() - 60);
-  const cutoff90 = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
-  const cy30 = ymdM(cutoff30);
-  const cy60 = ymdM(cutoff60);
-  const cy90 = ymdM(cutoff90);
+  const cutoffCur  = new Date(today); cutoffCur.setDate(cutoffCur.getDate() - periodDays);
+  const cutoffPrev = new Date(today); cutoffPrev.setDate(cutoffPrev.getDate() - periodDays * 2);
+  const cutoff90   = new Date(today); cutoff90.setDate(cutoff90.getDate() - 90);
+  const cyCur  = ymdM(cutoffCur);
+  const cyPrev = ymdM(cutoffPrev);
+  const cy90   = ymdM(cutoff90);
   const todayY = ymdM(today);
 
-  const last30 = sessions.filter(s => s.date >= cy30 && s.date <= todayY);
-  const prev30 = sessions.filter(s => s.date >= cy60 && s.date < cy30);
+  const last = sessions.filter(s => s.date >= cyCur && s.date <= todayY);
+  const prev = sessions.filter(s => s.date >= cyPrev && s.date < cyCur);
   const last90 = sessions.filter(s => s.date >= cy90 && s.date <= todayY);
 
   // Oppmøte: bruk attendance-feltet hvis satt, ellers attendance-rader
@@ -126,37 +135,37 @@ const computeDashboard = (sessions, planned, attendance) => {
   const attCount = (s) => (s.attendance != null && s.attendance !== '' ? Number(s.attendance) : (attMap[s.id] || 0));
   const avgAtt = (arr) => arr.length ? arr.reduce((sum, s) => sum + attCount(s), 0) / arr.length : 0;
 
-  const avg30 = avgAtt(last30);
-  const avgPrev = avgAtt(prev30);
-  const trendPct = avgPrev > 0 ? Math.round(((avg30 - avgPrev) / avgPrev) * 100) : 0;
+  const avgCur = avgAtt(last);
+  const avgPrev = avgAtt(prev);
+  const trendPct = avgPrev > 0 ? Math.round(((avgCur - avgPrev) / avgPrev) * 100) : 0;
 
   const plannedFuture = (planned || []).filter(p => p.date >= todayY);
 
-  // Aktive medlemmer = unike navn med oppmøte siste 30d
+  // Aktive medlemmer = unike navn med oppmøte i valgt periode
   const activeSet = new Set();
   (attendance || []).forEach(a => {
     const s = sessions.find(x => x.id === a.sessionId);
-    if (s && s.date >= cy30) activeSet.add(a.memberName);
+    if (s && s.date >= cyCur) activeSet.add(a.memberName);
   });
 
-  // Per gruppe: snitt + trend (siste 30d vs forrige 30d)
+  // Per gruppe: snitt + trend (current vs prev av valgt periode)
   const groupStats = TL_DATA.groups.map(g => {
-    const cur = last30.filter(s => s.group === g);
-    const prev = prev30.filter(s => s.group === g);
-    const avgCur = avgAtt(cur);
-    const avgPrev = avgAtt(prev);
-    const trend = Math.round((avgCur - avgPrev) * 10) / 10;
-    return { g, sessions: cur.length, avg: avgCur, trend };
+    const cur = last.filter(s => s.group === g);
+    const prv = prev.filter(s => s.group === g);
+    const ag = avgAtt(cur);
+    const ap = avgAtt(prv);
+    const trend = Math.round((ag - ap) * 10) / 10;
+    return { g, sessions: cur.length, avg: ag, trend };
   }).filter(s => s.sessions > 0).sort((a, b) => b.avg - a.avg);
 
-  // Tema-balanse: kun core-tags
+  // Tema-balanse: kun core-tags, i valgt periode
   const coreTags = TL_DATA.tags.filter(t => t.core);
   const tagCount = {};
   coreTags.forEach(t => { tagCount[t.id] = 0; });
-  last30.forEach(s => (s.tags || []).forEach(t => {
+  last.forEach(s => (s.tags || []).forEach(t => {
     if (tagCount[t] != null) tagCount[t]++;
   }));
-  // sist drillet (per core-tag)
+  // sist drillet (per core-tag, over hele historikken)
   const tagLastDrilled = {};
   coreTags.forEach(t => {
     const sess = sessions.filter(s => (s.tags || []).includes(t.id))
@@ -170,7 +179,7 @@ const computeDashboard = (sessions, planned, attendance) => {
     lastDrilled: tagLastDrilled[t.id],
   })).sort((a, b) => b.count - a.count);
 
-  // Per ukedag: snitt 90d
+  // Per ukedag: snitt 90d (uavhengig av periode-velger)
   const dowStats = [1, 2, 3, 4, 5, 6, 0].map(dow => {
     const matching = last90.filter(s => parseYmdM(s.date).getDay() === dow);
     return { dow, avg: avgAtt(matching), count: matching.length };
@@ -180,30 +189,31 @@ const computeDashboard = (sessions, planned, attendance) => {
   const gaps = plannedFuture.filter(p => !p.title || !String(p.title).trim())
     .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
 
-  // Forslag: lavest core-tag i siste 30d
+  // Forslag: lavest core-tag i valgt periode
   const lowest = [...tagBalance].sort((a, b) => a.count - b.count)[0];
   let suggestion = null;
   if (lowest) {
-    const daysSince = lowest.lastDrilled
+    const daysSinceTag = lowest.lastDrilled
       ? Math.floor((today - parseYmdM(lowest.lastDrilled)) / 86400000)
       : null;
     suggestion = {
       tagId: lowest.id, tagLabel: lowest.label, tagKind: lowest.kind,
       count: lowest.count,
       reason: lowest.count === 0
-        ? `${lowest.label} er ikke drillet siste 30 dager${daysSince != null ? ` · sist for ${daysSince} dager siden` : ''}`
-        : `${lowest.label} er drillet ${lowest.count} ${lowest.count === 1 ? 'gang' : 'ganger'} siste 30 dager${daysSince != null ? ` · sist ${daysSince}d siden` : ''}`,
+        ? `${lowest.label} er ikke drillet siste ${periodDays} dager${daysSinceTag != null ? ` · sist for ${daysSinceTag} dager siden` : ''}`
+        : `${lowest.label} er drillet ${lowest.count} ${lowest.count === 1 ? 'gang' : 'ganger'} siste ${periodDays} dager${daysSinceTag != null ? ` · sist ${daysSinceTag}d siden` : ''}`,
       group: groupStats[0]?.g || 'grunnleggende',
     };
   }
 
   return {
     summary: {
-      avg30: Math.round(avg30 * 10) / 10,
+      avgAtt: Math.round(avgCur * 10) / 10,
       trendPct,
-      sessionsLogged: last30.length,
+      sessionsLogged: last.length,
       sessionsPlanned: plannedFuture.length,
       activeMembers: activeSet.size,
+      periodDays,
     },
     groupStats,
     tagBalance,
@@ -836,9 +846,12 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
 
 // ─── Dashboard ──────────────────────────────────────────────────────
 function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
+  const [periodId, setPeriodId] = React.useState('30d');
+  const period = PERIOD_OPTIONS.find(p => p.id === periodId) || PERIOD_OPTIONS[1];
+
   const data = React.useMemo(
-    () => computeDashboard(sessions, planned, attendance),
-    [sessions, planned, attendance]
+    () => computeDashboard(sessions, planned, attendance, period.days),
+    [sessions, planned, attendance, period.days]
   );
   const { summary, groupStats, tagBalance, dowStats, gaps, suggestion } = data;
   const dowMax = Math.max(1, ...dowStats.map(d => d.avg));
@@ -850,10 +863,26 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
     <div>
       <Topbar T={T} />
 
-      {/* Section: PULS */}
-      <div style={{ padding: '14px 18px 8px' }}>
+      {/* Section: PULS — header + periode-velger */}
+      <div style={{ padding: '14px 18px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 8, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.mid, fontWeight: 700 }}>
           dashboard · planlegging
+        </div>
+        <div style={{ display: 'flex', gap: 0 }}>
+          {PERIOD_OPTIONS.map((p, i) => {
+            const sel = p.id === periodId;
+            return (
+              <button key={p.id} onClick={() => setPeriodId(p.id)} style={{
+                padding: '5px 10px', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase',
+                fontWeight: sel ? 700 : 500,
+                background: sel ? T.accent : T.card,
+                color: sel ? '#0B0A09' : T.ink,
+                border: `1px solid ${sel ? T.accent : T.rule}`,
+                borderLeftWidth: i === 0 ? 1 : (sel ? 1 : 0),
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{p.label}</button>
+            );
+          })}
         </div>
       </div>
 
@@ -864,11 +893,11 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
       }}>
         <div style={{ position: 'absolute', top: 0, right: 18, width: 4, height: 32, background: T.accent }} />
         <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
-          siste 30 dager · puls
+          siste {summary.periodDays} dager · puls
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
           <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
-            {summary.avg30 || '—'}
+            {summary.avgAtt || '—'}
           </span>
           <span style={{ fontSize: 9, color: T.mid, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
             snitt på matta
@@ -1434,6 +1463,11 @@ function PeopleScreen({ T, sessions, attendance, members }) {
   const memberStats = React.useMemo(() => {
     const memberSet = new Set();
     for (const names of Object.values(attendanceMap)) for (const n of names) memberSet.add(n);
+    // For trend-beregning: dato 30 og 60 dager tilbake
+    const cutoff30 = new Date(NOW); cutoff30.setDate(cutoff30.getDate() - 30);
+    const cutoff60 = new Date(NOW); cutoff60.setDate(cutoff60.getDate() - 60);
+    const cy30 = ymdM(cutoff30);
+    const cy60 = ymdM(cutoff60);
     return [...memberSet].map(name => {
       const attended = [];
       for (const [sid, names] of Object.entries(attendanceMap)) {
@@ -1443,9 +1477,29 @@ function PeopleScreen({ T, sessions, attendance, members }) {
       const tagCounts = {};
       attended.forEach(s => (s.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
       const top = Object.entries(tagCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+      // Trend: siste 30d vs forrige 30d
+      const last30 = attended.filter(s => s.date >= cy30).length;
+      const prev30 = attended.filter(s => s.date >= cy60 && s.date < cy30).length;
+      const trend = last30 - prev30;
+      // 6-ukers sparkline: økt-tellinger per uke (oldest first → newest last)
+      const weekBuckets = [0, 0, 0, 0, 0, 0];
+      attended.forEach(s => {
+        const days = Math.floor((NOW - parseYmdM(s.date)) / 86400000);
+        if (days < 0 || days >= 42) return;
+        const idx = 5 - Math.floor(days / 7);
+        if (idx >= 0 && idx < 6) weekBuckets[idx]++;
+      });
+      // Days since last attendance
+      const daysSince = attended[0] ? Math.floor((NOW - parseYmdM(attended[0].date)) / 86400000) : 999;
+      const status = daysSince <= 14 ? 'aktiv'
+        : daysSince <= 28 ? 'stille'
+        : daysSince <= 60 ? 'risiko'
+        : 'frafall';
       return {
         name, total: attended.length, top,
         lastDate: attended[0]?.date,
+        daysSince, status,
+        last30, prev30, trend, weekBuckets,
         attended, tagCounts,
       };
     }).sort((a,b) => b.total - a.total);
@@ -1537,19 +1591,34 @@ function PersonCard({ T, member, expanded, onToggle }) {
     ? `${NORWAY_DAYS_SHORT[lastDate.getDay()]} ${lastDate.getDate()}.${pad(lastDate.getMonth()+1)}`
     : '—';
 
-  // Recency-based status
-  const daysSince = lastDate ? Math.floor((NOW - lastDate) / 86400000) : 999;
-  const statusColor = daysSince <= 7 ? T.accent2 : daysSince <= 21 ? T.amber : T.mid;
+  // Status-fargen kommer fra frafall-statusen
+  const statusColor = member.status === 'aktiv' ? T.accent2
+    : member.status === 'stille' ? T.amber
+    : member.status === 'risiko' ? T.accent
+    : T.coral; // frafall
+  const statusLabel = member.status === 'aktiv' ? null
+    : member.status === 'stille' ? `${member.daysSince}d`
+    : member.status === 'risiko' ? `${member.daysSince}d`
+    : `${member.daysSince}d`;
+
+  // Trend-pil
+  const trendColor = member.trend > 0 ? T.accent2 : member.trend < 0 ? T.coral : T.mid;
+  const trendGlyph = member.trend > 0 ? '▲' : member.trend < 0 ? '▼' : '—';
+  const trendText = member.trend === 0 ? 'flat' : `${member.trend > 0 ? '+' : ''}${member.trend}`;
+
+  // 6-ukers sparkline
+  const weekMax = Math.max(1, ...member.weekBuckets);
 
   return (
     <div style={{
-      background: T.card, borderRadius: T.radius,
-      boxShadow: T.shadow, overflow: 'hidden',
+      background: T.card, borderRadius: 0,
+      border: `1px solid ${T.rule}`,
       transition: 'all 0.15s',
     }}>
       {/* Row */}
       <div onClick={onToggle} style={{
-        display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', cursor: 'pointer',
+        display: 'grid', gridTemplateColumns: '36px 1fr auto 28px auto', gap: 12,
+        padding: '12px 14px', cursor: 'pointer', alignItems: 'center',
       }}>
         <div style={{
           width: 36, height: 36, borderRadius: 0,
@@ -1559,18 +1628,43 @@ function PersonCard({ T, member, expanded, onToggle }) {
           border: `1px solid ${statusColor}`,
           letterSpacing: '0.08em',
         }}>{initials}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, textTransform: 'capitalize',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.ink,
+          }}>
             {member.name}
           </div>
-          <div style={{ fontSize: 11, color: T.mid, marginTop: 2 }}>
-            {member.total} økter · sist {lastLabel}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+            <span style={{
+              fontSize: 9, color: trendColor, fontWeight: 700,
+              letterSpacing: '0.08em', fontVariantNumeric: 'tabular-nums',
+            }}>{trendGlyph} {trendText}</span>
+            <span style={{
+              fontSize: 8, letterSpacing: '0.16em', color: T.mid, textTransform: 'uppercase',
+            }}>siste 30d · sist {lastLabel}</span>
+            {statusLabel && (
+              <span style={{
+                fontSize: 7, letterSpacing: '0.18em', color: statusColor,
+                fontWeight: 700, textTransform: 'uppercase', marginLeft: 'auto',
+              }}>● {member.status}</span>
+            )}
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: T.ink }}>{member.total}</div>
-          <div style={{ fontSize: 10, color: T.mid }}>{expanded ? '▾' : '▸'}</div>
+        {/* 6-ukers sparkline */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 24 }}>
+          {member.weekBuckets.map((v, i) => (
+            <div key={i} style={{
+              width: 4, height: Math.max(2, (v / weekMax) * 22),
+              background: v > 0 ? trendColor : T.rule,
+            }} />
+          ))}
         </div>
+        <div style={{
+          fontSize: 18, fontWeight: 700, color: T.ink, lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums', textAlign: 'right',
+        }}>{member.total}</div>
+        <div style={{ fontSize: 10, color: T.mid }}>{expanded ? '▾' : '▸'}</div>
       </div>
 
       {expanded && <PersonDetail T={T} member={member} />}
