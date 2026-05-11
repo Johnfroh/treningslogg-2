@@ -2,8 +2,86 @@
 // Tre-kolonne layout: sidebar (220px) + topbar + main grid.
 // Bruker shared.js for tema, util og computeDashboard.
 //
-// Fase 3 (denne fila): Hjem + Deltakere + Kalender + Logg-modal.
-// Fase 4: drag-zone-import erstatter /import.html.
+// Fase 4 (denne fila): Hjem + Deltakere + Kalender + Logg-modal + Import-overlay.
+
+// ─── Spond-import: parse-helpers (port fra app/import.jsx) ─────────
+const _excelSerialToDate = (serial) => {
+  const n = Number(serial);
+  if (!Number.isFinite(n)) return null;
+  const ms = (n - 25569) * 86400 * 1000;
+  const d = new Date(ms);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+};
+
+const _mapClassToGroup = (raw) => {
+  if (!raw) return null;
+  const s = String(raw).toLowerCase().replace(/\*+\s*$/, '').trim();
+  if (s.includes('junior')) return 'junior';
+  if (s.includes('nogi') || s.includes('no-gi') || s.includes('erfaren')) return 'erfaren';
+  if (s.includes('grunn') || s.includes('intro') || s.includes('fundamental')) return 'grunnleggende';
+  if (s.includes('åpen') || s.includes('open mat')) return 'åpen matte';
+  if (s.includes('ekstra')) return 'erfaren';
+  if (s.includes('alle')) return 'alle nivåer';
+  if (s.startsWith('gi')) return 'alle nivåer';
+  return 'alle nivåer';
+};
+
+const _parseWorkbook = (arrayBuffer) => {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+  if (rows.length < 3) throw new Error('Fant ingen rader.');
+  const dateRow = rows[0];
+  const classRow = rows[1];
+  const sessionCols = [];
+  for (let c = 0; c < dateRow.length; c++) {
+    const dateCell = dateRow[c];
+    const classCell = classRow[c];
+    if (!dateCell || !classCell) continue;
+    const date = _excelSerialToDate(dateCell);
+    if (!date) continue;
+    const rawClass = String(classCell);
+    sessionCols.push({
+      colIdx: c, date,
+      ymd: `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`,
+      rawClass: rawClass.replace(/\*+\s*$/, '').trim(),
+      group: _mapClassToGroup(rawClass),
+    });
+  }
+  const members = [];
+  for (let r = 2; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row || !row[0]) continue;
+    const name = String(row[0]).trim();
+    if (!name) continue;
+    const attended = sessionCols
+      .filter(sc => row[sc.colIdx] && String(row[sc.colIdx]).trim() === '1')
+      .map(sc => sc.colIdx);
+    members.push({ name, attendedCols: attended });
+  }
+  return { sessionCols, members };
+};
+
+const _buildAttendance = (parsed) => {
+  const byCol = {};
+  for (const sc of parsed.sessionCols) byCol[sc.colIdx] = [];
+  for (const m of parsed.members) for (const colIdx of m.attendedCols) byCol[colIdx].push(m.name);
+  return byCol;
+};
+
+const _buildMatches = (parsed, existingSessions) => {
+  const byKey = new Map();
+  for (const s of existingSessions) {
+    const k = `${s.date}|${s.group}`;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(s);
+  }
+  return parsed.sessionCols.map(sc => {
+    const key = `${sc.ymd}|${sc.group}`;
+    const candidates = byKey.get(key) || [];
+    return { ...sc, match: candidates[0] || null, candidates };
+  });
+};
 
 function DesktopApp() {
   const [screen, setScreen] = React.useState('home');
@@ -16,6 +94,7 @@ function DesktopApp() {
   const [syncError, setSyncError] = React.useState(null);
   const [logging, setLogging] = React.useState(null); // null eller { mode, initial }
   const [toast, setToast] = React.useState(null);
+  const [importOpen, setImportOpen] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -49,8 +128,58 @@ function DesktopApp() {
     setTimeout(() => setToast(null), 2200);
   };
 
-  const handleImport = () => {
-    window.location.href = '/import.html';
+  const handleImport = () => setImportOpen(true);
+
+  // Spond-import apply: opprett nye økter + oppdater attendance på matchede + send attendance-rader
+  const applyImport = async ({ newSessions, updatedAttendance, attendanceMap }) => {
+    setImportOpen(false);
+    flashToast('importerer …');
+
+    const idMap = {};
+    for (const ns of newSessions) {
+      try {
+        const created = await window.TL_API.createSession({
+          date: ns.date, time: ns.time || '', group: ns.group,
+          trainer: ns.trainer || '', title: ns.title || '',
+          content: ns.content || '', tags: ns.tags || [],
+          attendance: ns.attendance,
+        });
+        idMap[ns.id] = created.id;
+      } catch (err) {
+        console.error('createSession feilet:', err, ns);
+      }
+    }
+
+    for (const [sessionId, count] of Object.entries(updatedAttendance)) {
+      try {
+        await window.TL_API.updateSession(sessionId, { attendance: count });
+      } catch (err) {
+        console.error('updateSession feilet:', err, sessionId);
+      }
+    }
+
+    const rows = [];
+    for (const [origId, names] of Object.entries(attendanceMap)) {
+      const sessionId = idMap[origId] || origId;
+      for (const name of names) rows.push({ sessionId, memberName: name });
+    }
+
+    let importResult = { count: 0, newMembers: 0 };
+    if (rows.length) {
+      try {
+        importResult = await window.TL_API.importAttendance(rows);
+      } catch (err) {
+        flashToast('feil ved import — sjekk konsollen');
+        return;
+      }
+    }
+
+    flashToast(
+      `ferdig · ${importResult.count} oppmøter` +
+      (importResult.newMembers ? ` · ${importResult.newMembers} nye medlemmer` : '') +
+      (newSessions.length ? ` · ${newSessions.length} nye økter` : '')
+    );
+    try { applyData(await window.TL_API.refresh()); } catch (_) {}
   };
 
   const openLog = (initial = null, mode = 'new') => setLogging({ initial, mode });
@@ -169,6 +298,14 @@ function DesktopApp() {
           onSave={saveSession}
           onDelete={deleteSession}
           onClose={() => setLogging(null)}
+        />
+      )}
+
+      {importOpen && (
+        <ImportOverlay
+          existingSessions={sessions}
+          onClose={() => setImportOpen(false)}
+          onApply={applyImport}
         />
       )}
 
@@ -1538,4 +1675,274 @@ function DBtn(variant, disabled) {
     cursor: disabled ? 'not-allowed' : 'pointer',
     ...styles[variant],
   };
+}
+
+// ─── Import-overlay (Steel-stil drag-zone for Spond .xlsx) ─────────
+function ImportOverlay({ existingSessions, onClose, onApply }) {
+  const [stage, setStage] = React.useState('drop'); // drop · preview
+  const [filename, setFilename] = React.useState('');
+  const [error, setError] = React.useState(null);
+  const [parsed, setParsed] = React.useState(null);
+  const [matches, setMatches] = React.useState([]);
+  const [createMissing, setCreateMissing] = React.useState(true);
+  const [overrideAtt, setOverrideAtt] = React.useState(true);
+  const fileRef = React.useRef(null);
+
+  React.useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleFile = async (file) => {
+    setError(null);
+    setFilename(file.name);
+    try {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('XLSX-biblioteket er ikke lastet — last siden på nytt.');
+      }
+      const buf = await file.arrayBuffer();
+      const p = _parseWorkbook(buf);
+      const m = _buildMatches(p, existingSessions);
+      setParsed(p);
+      setMatches(m);
+      setStage('preview');
+    } catch (e) {
+      setError(e.message || 'Klarte ikke lese fila.');
+    }
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleFile(file);
+  };
+  const onPick = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const stats = React.useMemo(() => {
+    if (!matches.length || !parsed) return null;
+    const matched = matches.filter(m => m.match).length;
+    const totalAttendance = parsed.members.reduce((s, m) => s + m.attendedCols.length, 0);
+    return {
+      totalSessions: matches.length, matched,
+      missing: matches.length - matched,
+      members: parsed.members.length, totalAttendance,
+    };
+  }, [matches, parsed]);
+
+  const matchesByMonth = React.useMemo(() => {
+    const map = {};
+    for (const m of matches) {
+      const k = m.ymd.slice(0, 7);
+      (map[k] || (map[k] = [])).push(m);
+    }
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [matches]);
+
+  const apply = () => {
+    const attMap = _buildAttendance(parsed);
+    const updatedAttendance = {};
+    const attendanceMap = {};
+    const newSessions = [];
+    matches.forEach((m, idx) => {
+      const names = attMap[m.colIdx] || [];
+      if (m.match) {
+        attendanceMap[m.match.id] = names;
+        if (overrideAtt) updatedAttendance[m.match.id] = names.length;
+      } else if (createMissing) {
+        const id = `imp-${m.ymd}-${m.group}-${idx}`;
+        newSessions.push({
+          id, date: m.ymd, time: '', group: m.group,
+          trainer: '', title: m.rawClass, content: '', tags: [],
+          attendance: names.length, imported: true,
+        });
+        attendanceMap[id] = names;
+      }
+    });
+    onApply({ newSessions, updatedAttendance, attendanceMap });
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 150,
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      paddingTop: 60, paddingBottom: 40, overflowY: 'auto',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: 'min(900px, 94vw)', background: M.bg,
+        border: `1px solid ${M.accent}`, color: M.ink, fontFamily: STEEL_FONT,
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '14px 22px', borderBottom: `1px solid ${M.rule}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontSize: 8, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', fontWeight: 700 }}>
+              verktøy
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: M.ink, marginTop: 4, textTransform: 'lowercase' }}>
+              {stage === 'drop' ? 'importer spond-eksport' : `forhåndsvis · ${filename}`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 28, height: 28, border: `1px solid ${M.rule}`,
+            background: M.card, color: M.ink, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+          }}>✕</button>
+        </div>
+
+        {stage === 'drop' && (
+          <div style={{ padding: 28 }}>
+            <div style={{ fontSize: 11, color: M.mid, lineHeight: 1.7, marginBottom: 18 }}>
+              dra og slipp en .xlsx fra Spond → Oppmøtehistorikk, eller klikk for å velge fil.
+              datoer + klassetyper leses fra header og matches mot eksisterende økter på dato + gruppe.
+            </div>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={onDrop}
+              onClick={() => fileRef.current?.click()}
+              className="tl-card-clickable"
+              style={{
+                padding: 48, border: `1px dashed ${M.accent}`, background: M.card,
+                textAlign: 'center', cursor: 'pointer',
+              }}>
+              <div style={{ fontSize: 28, color: M.accent, marginBottom: 12 }}>↑</div>
+              <div style={{
+                fontSize: 11, letterSpacing: '0.20em', color: M.ink,
+                textTransform: 'uppercase', fontWeight: 700,
+              }}>slipp .xlsx-fil her</div>
+              <div style={{ fontSize: 9, color: M.mid, marginTop: 8, letterSpacing: '0.14em' }}>
+                eller klikk for å velge
+              </div>
+            </div>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={onPick} style={{ display: 'none' }} />
+            {error && (
+              <div style={{
+                marginTop: 16, padding: 12, border: `1px solid ${M.coral}`,
+                color: M.coral, fontSize: 11, letterSpacing: '0.14em',
+              }}>
+                {error}
+              </div>
+            )}
+            <div style={{ marginTop: 24, fontSize: 9, color: M.mid, lineHeight: 1.8, letterSpacing: '0.08em' }}>
+              <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
+                hva skjer med fila
+              </div>
+              <div>↳ matchede økter får oppmøte-liste lagt til (navn knyttes til økt)</div>
+              <div>↳ økter som ikke finnes kan opprettes som skeleton (uten tags eller innhold)</div>
+              <div>↳ idempotent — samme fil kan lastes opp på nytt uten dubletter</div>
+              <div>↳ ingenting lagres før du bekrefter</div>
+            </div>
+          </div>
+        )}
+
+        {stage === 'preview' && stats && (
+          <div>
+            {/* Stats-rad */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: M.rule }}>
+              <KPICard label="økter i fil"     value={stats.totalSessions} color={M.ink} />
+              <KPICard label="matchet"         value={stats.matched}       color={M.accent2} />
+              <KPICard label="umatchet"        value={stats.missing}       color={stats.missing ? M.amber : M.mid} />
+              <KPICard label="deltakere"       value={stats.members}       color={M.ink} />
+              <KPICard label="oppmøter totalt" value={stats.totalAttendance} color={M.accent} />
+            </div>
+
+            {/* Options */}
+            <div style={{
+              padding: '14px 22px', borderBottom: `1px solid ${M.rule}`,
+              display: 'flex', gap: 24, fontSize: 11, color: M.ink, flexWrap: 'wrap',
+            }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={createMissing}
+                  onChange={(e) => setCreateMissing(e.target.checked)} />
+                <span>opprett skeleton-økter for {stats.missing} umatchede</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={overrideAtt}
+                  onChange={(e) => setOverrideAtt(e.target.checked)} />
+                <span>overskriv oppmøte-tall på matchede økter</span>
+              </label>
+            </div>
+
+            {/* Match-liste */}
+            <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+              {matchesByMonth.map(([ym, list]) => (
+                <div key={ym}>
+                  <div style={{
+                    padding: '8px 22px', background: M.cardHi,
+                    fontSize: 8, letterSpacing: '0.24em', color: M.mid,
+                    textTransform: 'uppercase', fontWeight: 700,
+                    borderBottom: `1px solid ${M.rule}`, borderTop: `1px solid ${M.rule}`,
+                  }}>{ym}</div>
+                  {list.map((m, i) => {
+                    const names = (parsed && _buildAttendance(parsed)[m.colIdx]) || [];
+                    const groupColor = M_GROUP[m.group] || M.mid;
+                    return (
+                      <div key={i} style={{
+                        padding: '10px 22px', display: 'grid',
+                        gridTemplateColumns: '70px 110px 1fr 80px 80px', gap: 12,
+                        alignItems: 'center', fontSize: 11,
+                        borderBottom: `1px solid ${M.rule}`,
+                      }}>
+                        <span style={{ color: M.mid, fontVariantNumeric: 'tabular-nums' }}>{m.ymd.slice(5)}</span>
+                        <span style={{
+                          color: groupColor, fontSize: 9, letterSpacing: '0.18em',
+                          textTransform: 'uppercase', fontWeight: 700,
+                        }}>{m.group}</span>
+                        <span style={{
+                          color: M.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>{m.rawClass}</span>
+                        <span style={{ textAlign: 'right', color: M.mid, fontVariantNumeric: 'tabular-nums' }}>
+                          {names.length} delt.
+                        </span>
+                        <span style={{
+                          textAlign: 'right', fontSize: 9, letterSpacing: '0.18em',
+                          color: m.match ? M.accent2 : M.amber, fontWeight: 700,
+                        }}>
+                          {m.match ? '● MATCH' : '○ NY'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '14px 22px', borderTop: `1px solid ${M.rule}`,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: M.cardHi,
+            }}>
+              <button onClick={() => { setStage('drop'); setParsed(null); setMatches([]); }} style={{
+                padding: '10px 16px', background: 'transparent', color: M.ink,
+                border: `1px solid ${M.rule}`, fontFamily: 'inherit',
+                fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                cursor: 'pointer',
+              }}>← bytt fil</button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={onClose} style={{
+                  padding: '10px 16px', background: 'transparent', color: M.ink,
+                  border: `1px solid ${M.rule}`, fontFamily: 'inherit',
+                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                  cursor: 'pointer',
+                }}>avbryt</button>
+                <button onClick={apply} style={{
+                  padding: '10px 20px', background: M.accent, color: '#0B0A09',
+                  border: `1px solid ${M.accent}`, fontFamily: 'inherit',
+                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                  cursor: 'pointer',
+                }}>
+                  importer {stats.matched} match{createMissing && stats.missing ? ` + ${stats.missing} ny` : ''}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
