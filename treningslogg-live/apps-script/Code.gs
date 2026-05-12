@@ -54,7 +54,7 @@ function handle(e, method) {
     const token  = params.token  || body.token;
 
     if (token !== SHARED_TOKEN) {
-      return json({ ok: false, error: 'unauthorized' }, 401);
+      return json({ ok: false, error: 'unauthorized' });
     }
 
     switch (action) {
@@ -67,10 +67,10 @@ function handle(e, method) {
       case 'deletePlanned':   return json({ ok: true, data: deleteRow(SHEET_NAMES.planned, body.id) });
       case 'importAttendance':return json({ ok: true, data: importAttendance(body.rows) });
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
-      default:                return json({ ok: false, error: 'unknown action: ' + action }, 400);
+      default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
   } catch (err) {
-    return json({ ok: false, error: String(err && err.message || err) }, 500);
+    return json({ ok: false, error: String(err && err.message || err) });
   }
 }
 
@@ -364,7 +364,8 @@ function serializeTags(v) {
   return String(v);
 }
 
-function json(payload, status) {
+// Apps Script ContentService kan ikke sette HTTP-status — klienten må sjekke payload.ok.
+function json(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
