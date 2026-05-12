@@ -4,7 +4,7 @@
 //
 // Fase 4 (denne fila): Hjem + Deltakere + Kalender + Logg-modal + Import-overlay.
 
-// ─── Spond-import: parse-helpers (port fra app/import.jsx) ─────────
+// ─── Spond-import: parse-helpers ───────────────────────────────────
 const _excelSerialToDate = (serial) => {
   const n = Number(serial);
   if (!Number.isFinite(n)) return null;

@@ -207,9 +207,7 @@ Send dem URL-en i Spond/SMS:
 
 Når denne MVP-en har vært i drift et par uker og dere vet hva som fungerer:
 
-- Spond-import (desktop) — koden finnes i `app/import.jsx`, må kobles til ny endpoint i Code.gs (`importAttendance`)
 - Slett-knapp i UI (endpoint finnes allerede: `deleteSession`)
-- Service worker for offline-bruk
 - Søk og filtrering på tvers av økter
 
 ## Filstruktur
@@ -224,12 +222,12 @@ treningslogg-live/
 ├── logo-light.png                 ← klubblogo
 │
 ├── app/
-│   ├── api.js                     ← NY: backend-klient (Sheets via Apps Script)
+│   ├── api.js                     ← backend-klient (Sheets via Apps Script)
 │   ├── data.js                    ← statisk konfig (grupper, tags, fallback-data)
-│   ├── mobile.jsx                 ← MODIFISERT: Sheets-tilkoblet (var: localStorage)
-│   ├── components.jsx             ← desktop-komponenter (uendret)
-│   ├── import.jsx                 ← Spond-parser (uendret, kobles til senere)
-│   └── mobile-mockups.jsx         ← (uendret)
+│   ├── shared.js                  ← felles tema + utils + compute (mobil + desktop)
+│   ├── mobile.jsx                 ← mobil-PWA (Sheets-tilkoblet)
+│   ├── desktop.jsx                ← desktop-app (inkl. Spond-import)
+│   └── components.jsx             ← felles UI-komponenter
 │
 ├── apps-script/
 │   ├── Code.gs                    ← NY: Apps Script Web App
