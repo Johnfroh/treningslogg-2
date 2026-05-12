@@ -74,7 +74,7 @@ const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
   const dowSet = new Set(dayOfWeeks);
   const out = [];
   const cur = new Date(start);
-  for (let i = 0; i < 365 && cur <= until; i++) {
+  while (cur <= until) {
     if (dowSet.has(cur.getDay())) out.push(ymdM(cur));
     cur.setDate(cur.getDate() + 1);
   }
