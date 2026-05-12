@@ -70,7 +70,7 @@ function handle(e, method) {
       default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
   } catch (err) {
-    return json({ ok: false, error: String(err && err.message || err) });
+    return json({ ok: false, error: String((err && err.message) || err) });
   }
 }
 
@@ -105,7 +105,7 @@ function readSheet(name, cols, parser) {
   const range = sh.getRange(2, 1, lastRow - 1, cols.length).getValues();
   return range
     .map(row => parser(rowToObj(row, cols)))
-    .filter(x => x && x.id !== '' && x.id != null || (x && x.name && !x.id));
+    .filter(x => (x && x.id !== '' && x.id != null) || (x && x.name && !x.id));
 }
 
 function parseSessionRow(o) {
