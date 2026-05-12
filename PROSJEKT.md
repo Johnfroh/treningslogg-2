@@ -126,21 +126,36 @@ Importert fra en separat "Claude Design"-prosess hvor klubben kunne iterere på 
 | Google Sheets-integrasjon | Stabil |
 | Spond-import (.xlsx) | Stabil |
 | Periode-velger, frafall-tracking | Levert |
-| Innlogging / brukere | Ikke startet |
+| Eget domene (løft.app) | **Live** |
+| Innlogging / tilgangskontroll | **Live (Cloudflare Zero Trust)** |
+| Trener-identifikasjon i appen | Ikke startet |
+| GDPR-formaliteter (datavernerklæring etc.) | Ikke startet |
 
 ### Bruk per i dag
 - ~170 økter logget
 - ~600 oppmøte-rader (medlem × økt)
 - ~80 unike medlemmer
-- 5 trenere
+- 5 trenere med innlogging
 - Brukes daglig av hovedtrener for logging + planlegging
 
+### URL-er
+- **`https://løft.app/`** — mobil/PWA (Cloudflare Access-beskyttet)
+- **`https://løft.app/desktop`** — desktop-skall
+- **`https://løft.app/import`** — Spond-importer (eldre flyt, beholdt for backup)
+- **`https://løft.app/api`** — proxy mot Apps Script (beskyttet via Cloudflare Access)
+
+### Sikkerhet — som ble satt opp i mai 2026
+- **Cloudflare Zero Trust Access** beskytter alle ruter på `løft.app`
+- Tilgang krever **One-Time PIN på e-post** (24-timers sesjon)
+- **Allowlist:** 5 trener-e-poster eksplisitt godkjent — alle andre nektes automatisk (default-deny)
+- Apps Script-tokenet er fortsatt i koden, men kan ikke nås uten først å passere Access — perimeter-sikkerhet beskytter mot uautorisert lesing
+
 ### Driftskost
-**0 NOK/måned** under nåværende skala. Avhenger av at:
+**0 NOK/måned** under nåværende skala.
 - Cloudflare Pages free tier (100k requests/dag — vi bruker ~50)
+- Cloudflare Zero Trust free tier (≤50 brukere — vi bruker 5)
 - Google Sheets / Apps Script free tier (6 min skript-tid/dag — vi bruker ~30 sek)
-- Ingen tredjepart abonnement
-- Domenet `pages.dev` er gratis subdomene
+- Hostinger domene `løft.app` (~50 NOK/år, prepaid til mai 2027)
 
 ---
 
@@ -157,15 +172,21 @@ Vår posisjon: **trener-først planleggings-verktøy** der dataene som logges un
 
 ## Roadmap
 
-### Neste opp (er ikke startet)
-- **Innlogging og tilgangskontroll** — Cloudflare Zero Trust Access for å begrense hvem som kan bruke appen, samt trener-identifikasjon i logg-modal for audit
-- **GDPR-vurdering** — datavernerklæring, retten til sletting, prosessoravtale med Google verifisert
+### Levert siden forrige status (mai 2026)
+- **Eget domene** løft.app live (med Punycode-håndtering av ø)
+- **Cloudflare Zero Trust Access** med allowlist av 5 trener-e-poster
+- Perimeter-sikkerhet for både PWA, desktop og `/api`
+
+### Neste opp
+- **Trener-identifikasjon i appen** — etter Cloudflare-login vet vi at brukeren er "noen i klubben", men ikke hvem. En enkel "hvem er du?"-velger ved første åpning gjør at `trainer`-feltet auto-fylles og logg-handlinger kan auditeres per person.
+- **GDPR-formaliteter** — datavernerklæring publisert i appen, prosessoravtale med Google verifisert (Sheets/Apps Script), retten-til-sletting-prosess definert.
 
 ### Kort sikt (kvalitet)
 - Slette planlagt økt direkte uten plan-fill-konvertering
 - Slette en hel recurring-serie
 - Rediger planlagt uten å konvertere til logg
 - Renere bekreftelses-dialog (i dag `window.confirm()`)
+- Flytt Apps Script-token til Cloudflare Pages environment-variabel (i stedet for hardkodet i koden)
 
 ### Mellomlang sikt (verdi)
 - Smartere forslag-algoritme (krysser gruppe + tag + beste ukedag)
@@ -183,15 +204,21 @@ Vår posisjon: **trener-først planleggings-verktøy** der dataene som logges un
 
 ## Risiko
 
-### Sikkerhet (åpent)
-- Eneste autentisering i dag er en delt token i URL. Lekker tokenet, har den finneren full lese/skrive-tilgang.
-- Medlemsnavn er personopplysninger under norsk GDPR — i dag eksponert til alle som har URL.
-- Cloudflare-proxyen logger ikke individuelle handlinger; ingen audit-trail.
+### Sikkerhet — vesentlig endret siden forrige status
+**Tidligere åpent:** delt token i URL, ingen perimeter-auth, medlemsnavn eksponert til alle med URL.
 
-**Mitigering planlagt:** Cloudflare Zero Trust Access for perimeter-auth, trener-PIN inne i appen for audit. Estimat: 1–2 dagers arbeid.
+**Nå mitigert:**
+- **Cloudflare Zero Trust Access** beskytter alle ruter (PWA, desktop, `/api`). Kun e-poster på allowlist får tilgang — alle andre nektes automatisk (default-deny).
+- Apps Script-tokenet er fortsatt i koden, men kan ikke nås uten først å passere Access. Tokenet er nå en "andre forsvars-linje" snarere enn eneste forsvar.
+
+**Fortsatt åpent:**
+- **Ingen audit-trail per trener** — vi vet at "noen i klubben" klikket lagre, men ikke hvem. Trener-identifikasjon i appen er neste steg.
+- **Avgangstrener-flyt** — når en trener slutter må deres e-post fjernes manuelt fra Cloudflare-allowlisten. Ingen automasjon. Lav risiko siden ≤5 personer.
+- **GDPR-formaliteter** — selve datalagringen følger Google-vilkår, men klubben har ingen formell datavernerklæring publisert. Bør formaliseres før appen brukes mer offentlig.
 
 ### Avhengighet (medium)
 - Apps Script er proprietær Google-tjeneste. Hvis Google fjerner gratis-tier eller endrer terms, må vi flytte.
+- Cloudflare Zero Trust gratis-plan ≤50 brukere — godt over vårt nåværende behov (5 trenere), men hvis vi åpner for medlemmer trenger vi å vurdere plan/arkitektur.
 - Spond .xlsx-format kan endre seg uten varsel. Parser-en er defensiv, men ikke skuddsikker.
 
 ### Skala (lav)
@@ -222,13 +249,16 @@ Verdt å nevne for noen som vurderer lignende prosjekter:
 | Tjeneste | Bruk | Plan | Kost |
 |---|---|---|---|
 | Cloudflare Pages | Hosting, deploy, Functions | Free | 0 |
+| Cloudflare Zero Trust | Tilgangskontroll (One-Time PIN) | Free (≤50 brukere) | 0 |
+| Cloudflare DNS | Nameservers for løft.app | Free | 0 |
 | Google Apps Script | API mot Sheets | Free | 0 |
 | Google Sheets | Database | Free | 0 |
 | GitHub | Kildekode + CI via Cloudflare | Free | 0 |
+| Hostinger | Domeneregistrering (løft.app) | Prepaid 2 år | ~50 NOK/år |
 | Spond | Oppmøtekilde (kun import) | Klubbens eksisterende lisens | n/a |
 
-Total månedlig driftskost: **0 NOK**.
+Total månedlig driftskost: **~4 NOK** (kun amortisert domene-kost). Reelt månedlig fakturerbart: **0 NOK**.
 
 ---
 
-*Sist oppdatert: mai 2026*
+*Sist oppdatert: mai 2026 — etter at løft.app gikk live med Cloudflare Zero Trust Access.*
