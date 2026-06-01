@@ -29,9 +29,8 @@ const TAG_COLOR = {
 
 const GROUP_COLOR = {
   'junior':         C.amber,
-  'grunnleggende':  C.green,
-  'erfaren':        C.coral,
-  'alle nivåer':    C.greyMid,
+  'gi':             C.green,
+  'nogi':           C.coral,
   'åpen matte':     C.boneMuted,
 };
 
@@ -430,7 +429,7 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
 // ─── Session Editor ───────────────────────────────────────────────────
 const SessionEditor = ({ initial, mode, onClose, onSave, onDelete }) => {
   const [data, setData] = React.useState(() => initial || {
-    date: ymd(new Date()), time: '19:00', group: 'grunnleggende',
+    date: ymd(new Date()), time: '19:00', group: 'gi',
     trainer: 'marius', title: '', content: '', tags: [],
   });
   const [newTag, setNewTag] = React.useState('');

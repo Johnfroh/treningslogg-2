@@ -26,15 +26,15 @@ const M = {
 
 const M_GROUP = {
   'junior':         M.copperHi,
-  'grunnleggende':  M.accent2,
-  'erfaren':        M.coral,
-  'alle nivåer':    M.mid,
+  'gi':             M.accent2,
+  'nogi':           M.coral,
   'åpen matte':     M.amber,
 };
 
 const M_TAG_COLOR = {
   position: M.accent2,
   action:   M.coral,
+  'nivå':   M.mid,
   custom:   M.accent,
 };
 
@@ -74,7 +74,7 @@ const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
   const dowSet = new Set(dayOfWeeks);
   const out = [];
   const cur = new Date(start);
-  for (let i = 0; i < 365 && cur <= until; i++) {
+  while (cur <= until) {
     if (dowSet.has(cur.getDay())) out.push(ymdM(cur));
     cur.setDate(cur.getDate() + 1);
   }
@@ -181,7 +181,7 @@ const computeDashboard = (sessions, planned, attendance, periodDays = 30) => {
       reason: lowest.count === 0
         ? `${lowest.label} er ikke drillet siste ${periodDays} dager${daysSinceTag != null ? ` · sist for ${daysSinceTag} dager siden` : ''}`
         : `${lowest.label} er drillet ${lowest.count} ${lowest.count === 1 ? 'gang' : 'ganger'} siste ${periodDays} dager${daysSinceTag != null ? ` · sist ${daysSinceTag}d siden` : ''}`,
-      group: groupStats[0]?.g || 'grunnleggende',
+      group: groupStats[0]?.g || 'gi',
     };
   }
 
