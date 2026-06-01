@@ -2,39 +2,67 @@
 // Lastes som vanlig JS før mobile.jsx og desktop.jsx, så alle konstanter
 // og hjelpefunksjoner er globalt tilgjengelige.
 
-// ─── Steel-tema ────────────────────────────────────────────────────
-const STEEL_FONT = "'Roboto Mono', 'Courier New', monospace";
+// ─── Daylight-tema ─────────────────────────────────────────────────
+// Lys, avrundet, lavendel-aksent. Plus Jakarta Sans i stedet for monospace.
+// (Tidligere het det "Steel" — mørkt og firkantet. Konstantnavnet STEEL_FONT
+//  beholdes for å unngå widespread rename, men verdien er ny.)
+const STEEL_FONT = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
 
 const M = {
-  bg:        '#141210',
-  card:      '#1F1C19',
-  cardHi:    '#28241F',
-  ink:       '#F0EAE0',
-  inkSoft:   '#F0EAE0',
-  mid:       '#8C8278',
-  rule:      '#332E28',
-  ruleHi:    '#4A4239',
-  accent:    '#CC7A3D',
-  accent2:   '#5E9E6E',
-  amber:     '#D9933A',
-  coral:     '#C46B53',
-  copperHi:  '#E89859',
-  tabBg:     '#0B0A09',
-  shadow:    'none',
-  shadowLg:  'none',
+  // Overflater
+  bg:        '#F4F3FB',  // soft lavendel-bakgrunn
+  card:      '#FFFFFF',  // hvite kort
+  cardHi:    '#F8F7FC',  // hover/aktiv
+
+  // Tekst
+  ink:       '#232136',  // mørk lesetekst
+  inkSoft:   '#54506A',  // sekundær tekst
+  mid:       '#8A86A0',  // dempet
+  dim:       '#B4B0C6',  // veldig dempet
+
+  // Linjer / skiller
+  rule:      '#ECEAF4',
+  ruleHi:    '#DEDBEC',
+
+  // Primær aksent (lavendel) + bakgrunn-tinter
+  accent:    '#7B6EF6',
+  accentBg:  'rgba(123,110,246,0.10)',
+  accentSoft:'rgba(123,110,246,0.16)',
+
+  // Semantisk palett
+  accent2:   '#34B98C',  // mynte-grønn (success)
+  greenBg:   'rgba(52,185,140,0.10)',
+  coral:     '#F2825F',  // korall (advarsel)
+  coralBg:   'rgba(242,130,95,0.10)',
+  blue:      '#4F9BEA',  // himmelblå (info)
+  blueBg:    'rgba(79,155,234,0.10)',
+  purple:    '#B06FD6',  // lilla (junior/highlight)
+  purpleBg:  'rgba(176,111,214,0.10)',
+
+  // Legacy-aliaser (eksisterende kode bruker disse navnene)
+  amber:     '#F2825F',  // tag-warning farge — aliaset til coral
+  copperHi:  '#B06FD6',  // junior-farge — aliaset til purple
+  tabBg:     '#FFFFFF',
+
+  // Skygger og runding
+  shadow:    '0 2px 10px rgba(60,50,110,0.05)',
+  shadowLg:  '0 8px 30px rgba(60,50,110,0.07), 0 2px 6px rgba(60,50,110,0.04)',
+  radius:    14,
+  radiusSm:  10,
+  radiusLg:  20,
 };
 
 const M_GROUP = {
-  'junior':         M.copperHi,
-  'gi':             M.accent2,
-  'nogi':           M.coral,
-  'åpen matte':     M.amber,
+  'junior':         M.purple,    // lilla
+  'gi':             M.accent2,   // mynte
+  'nogi':           M.coral,     // korall
+  'åpen matte':     M.blue,      // himmelblå
 };
 
 const M_TAG_COLOR = {
   position: M.accent2,
   action:   M.coral,
-  'nivå':   M.mid,
+  'nivå':   M.accent,
   custom:   M.accent,
 };
 

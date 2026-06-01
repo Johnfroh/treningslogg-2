@@ -318,7 +318,7 @@ function DesktopToast({ children }) {
       position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
       background: M.card, color: M.ink,
       border: `1px solid ${M.ruleHi}`,
-      padding: '12px 22px', borderRadius: 0,
+      padding: '12px 22px', borderRadius: M.radiusSm,
       fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase',
       zIndex: 200, pointerEvents: 'none',
       boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
@@ -1636,7 +1636,7 @@ function DFieldStyle() {
     width: '100%', padding: '10px 14px',
     background: M.card, border: `1px solid ${M.rule}`,
     fontFamily: 'inherit', fontSize: 13, color: M.ink,
-    boxSizing: 'border-box', borderRadius: 0,
+    boxSizing: 'border-box', borderRadius: M.radiusSm,
   };
 }
 

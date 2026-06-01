@@ -38,17 +38,17 @@ async function checkForUpdate() {
 
 // ─── Tweaks defaults ───────────────────────────────────────────────
 const MOBIL_TWEAKS = /*EDITMODE-BEGIN*/{
-  "accent": "oransje",
+  "accent": "lavendel",
   "radius": "rund",
   "showWeekStat": true,
   "density": "komfortabel"
 }/*EDITMODE-END*/;
 
 const ACCENT_OPTIONS = {
-  'oransje': { primary: '#E0723F', dark: '#C25A28' },
-  'grønn':   { primary: '#3F8B5E', dark: '#2E6E47' },
-  'dempet':  { primary: '#7A6F5F', dark: '#5C5447' },
-  'kobber':  { primary: '#AC7A34', dark: '#8C5F23' },
+  'lavendel': { primary: '#7B6EF6', dark: '#5A4DD9' },
+  'mynte':    { primary: '#34B98C', dark: '#288D6A' },
+  'korall':   { primary: '#F2825F', dark: '#D86742' },
+  'blå':      { primary: '#4F9BEA', dark: '#377EC4' },
 };
 
 // ─── Persistence: Google Sheets via TL_API ─────────────────────────
@@ -157,17 +157,13 @@ function MobileApp() {
     setTimeout(() => setToast(null), 2200);
   };
 
-  const accent = ACCENT_OPTIONS[tweaks.accent] || ACCENT_OPTIONS.oransje;
-  const radius = 0; // Steel — skarpe hjørner overalt
+  const accent = ACCENT_OPTIONS[tweaks.accent] || ACCENT_OPTIONS.lavendel;
 
-  // theme overrides
+  // theme overrides — Daylight: la radius komme fra M-tokens (14 / 10 / 20)
   const T = {
     ...M,
     accent: accent.primary,
     accentDark: accent.dark,
-    radius,
-    radiusLg: radius * 1.3,
-    radiusSm: Math.max(6, radius * 0.5),
   };
 
   const openLog = (initial = null, mode = 'new') => setLogging({ initial, mode });
@@ -398,7 +394,7 @@ function Toast({ T, children }) {
       position: 'fixed', bottom: 'calc(130px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
       background: T.card, color: T.ink,
       border: `1px solid ${T.ruleHi}`,
-      padding: '10px 18px', borderRadius: 0,
+      padding: '10px 18px', borderRadius: T.radiusSm,
       fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase',
       zIndex: 200, pointerEvents: 'none',
       animation: 'tlToastIn 0.18s ease-out',
@@ -509,7 +505,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
       <div style={{
         margin: '16px 16px 0', padding: '16px 18px 14px',
         background: `linear-gradient(180deg, ${T.cardHi}, ${T.card})`,
-        border: `1px solid ${T.rule}`, borderRadius: 0,
+        border: `1px solid ${T.rule}`, borderRadius: T.radiusSm,
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{
@@ -571,7 +567,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           const planThis = planned.some(p => p.date === ymd);
           return (
             <button key={i} onClick={() => setSelectedDate(ymd)} style={{
-              padding: '8px 0', textAlign: 'center', borderRadius: 0,
+              padding: '8px 0', textAlign: 'center', borderRadius: T.radiusSm,
               background: isSelected ? T.accent : 'transparent',
               color: isSelected ? '#0B0A09' : T.ink,
               border: isToday && !isSelected ? `1px solid ${T.accent}` : '1px solid transparent',
@@ -588,8 +584,8 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
                 {String(d.getDate()).padStart(2, '0')}
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, height: 4 }}>
-                {has && <span style={{ width: 4, height: 4, borderRadius: 0, background: isSelected ? '#0B0A09' : T.accent2 }}></span>}
-                {planThis && <span style={{ width: 4, height: 4, borderRadius: 0, background: isSelected ? '#0B0A09' : T.copperHi }}></span>}
+                {has && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? '#0B0A09' : T.accent2 }}></span>}
+                {planThis && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? '#0B0A09' : T.copperHi }}></span>}
               </div>
             </button>
           );
@@ -997,7 +993,7 @@ function GroupDrillSheet({ T, groupId, sessions, onClose }) {
           <button onClick={onClose} style={{
             width: 28, height: 28, border: `1px solid ${T.rule}`,
             background: T.card, color: T.ink, fontSize: 14, cursor: 'pointer',
-            fontFamily: 'inherit', borderRadius: 0,
+            fontFamily: 'inherit', borderRadius: T.radiusSm,
           }}>✕</button>
         </div>
 
@@ -1071,7 +1067,7 @@ function SessionCard({ T, item, onClick, compact }) {
   const groupShort = (TL_DATA.groupShort && TL_DATA.groupShort[item.group]) || item.group;
   return (
     <div onClick={onClick} style={{
-      background: T.card, borderRadius: 0, padding: '10px 12px',
+      background: T.card, borderRadius: T.radiusSm, padding: '10px 12px',
       border: `1px solid ${T.rule}`,
       display: 'flex', alignItems: 'center', gap: 12,
       position: 'relative', overflow: 'hidden', cursor: 'pointer',
@@ -1145,7 +1141,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
       {/* Month header */}
       <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth()-1, 1))} style={{
-          width: 30, height: 30, borderRadius: 0, border: `1px solid ${T.rule}`,
+          width: 30, height: 30, borderRadius: T.radiusSm, border: `1px solid ${T.rule}`,
           background: T.card, fontSize: 14, color: T.ink, cursor: 'pointer', fontFamily: 'inherit',
         }}>‹</button>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -1155,7 +1151,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
           </span>
         </div>
         <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth()+1, 1))} style={{
-          width: 30, height: 30, borderRadius: 0, border: `1px solid ${T.rule}`,
+          width: 30, height: 30, borderRadius: T.radiusSm, border: `1px solid ${T.rule}`,
           background: T.card, fontSize: 14, color: T.ink, cursor: 'pointer', fontFamily: 'inherit',
         }}>›</button>
       </div>
@@ -1163,7 +1159,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
       {/* Calendar */}
       <div style={{
         margin: '0 22px', padding: '12px 8px',
-        background: T.card, borderRadius: 0, boxShadow: T.shadow,
+        background: T.card, borderRadius: T.radiusSm, boxShadow: T.shadow,
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 8 }}>
           {['M','T','O','T','F','L','S'].map((d, i) => (
@@ -1179,7 +1175,7 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
             const items = sessionsByDate[ymd] || [];
             return (
               <div key={i} onClick={() => setSelected(ymd)} style={{
-                height: 44, borderRadius: 0, cursor: 'pointer',
+                height: 44, borderRadius: T.radiusSm, cursor: 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 background: isSelected ? T.accent : (isToday ? T.bg : 'transparent'),
                 color: isSelected ? '#fff' : T.ink,
@@ -1416,7 +1412,7 @@ function PersonCard({ T, member, expanded, onToggle }) {
 
   return (
     <div style={{
-      background: T.card, borderRadius: 0,
+      background: T.card, borderRadius: T.radiusSm,
       border: `1px solid ${T.rule}`,
       transition: 'all 0.15s',
     }}>
@@ -1426,7 +1422,7 @@ function PersonCard({ T, member, expanded, onToggle }) {
         padding: '12px 14px', cursor: 'pointer', alignItems: 'center',
       }}>
         <div style={{
-          width: 36, height: 36, borderRadius: 0,
+          width: 36, height: 36, borderRadius: T.radiusSm,
           background: T.bg, color: T.ink,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 11, fontWeight: 700, flexShrink: 0, fontVariantNumeric: 'tabular-nums',
@@ -1654,7 +1650,7 @@ function PersonDetail({ T, member }) {
 function SmallStat({ T, label, value }) {
   return (
     <div style={{
-      background: T.bg, borderRadius: 0, padding: '10px 12px',
+      background: T.bg, borderRadius: T.radiusSm, padding: '10px 12px',
       display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
     }}>
       <div style={{ fontSize: 9, letterSpacing: 1.4, color: T.mid }}>{label}</div>
@@ -1676,7 +1672,7 @@ function FAB({ T, onClick }) {
   return (
     <button onClick={onClick} style={{
       position: 'fixed', bottom: 'calc(110px + env(safe-area-inset-bottom))', right: 18,
-      width: 52, height: 52, borderRadius: 0,
+      width: 52, height: 52, borderRadius: T.radiusSm,
       background: `linear-gradient(180deg, ${T.copperHi}, ${T.accent})`,
       color: '#0B0A09', border: 'none',
       fontSize: 24, fontWeight: 700, fontFamily: 'inherit',
@@ -1714,7 +1710,7 @@ function TabBar({ T, screen, onChange }) {
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
             background: active ? T.accent : 'transparent',
             border: active ? `1px solid ${T.accent}` : `1px solid ${T.rule}`,
-            borderRadius: 0,
+            borderRadius: T.radiusSm,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>
             {active && (
@@ -1849,7 +1845,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480, margin: '0 auto',
-        background: T.bg, borderRadius: 0,
+        background: T.bg, borderRadius: T.radiusSm,
         borderTop: `1px solid ${T.ruleHi}`,
         maxHeight: '92vh', overflowY: 'auto',
       }}>
@@ -1867,7 +1863,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
             )}
           </div>
           <button onClick={onClose} style={{
-            width: 28, height: 28, borderRadius: 0, border: `1px solid ${T.rule}`,
+            width: 28, height: 28, borderRadius: T.radiusSm, border: `1px solid ${T.rule}`,
             background: T.card, color: T.ink, fontSize: 14, cursor: 'pointer',
             fontFamily: 'inherit',
           }}>✕</button>
@@ -1970,7 +1966,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                             flex: 1, padding: '10px 0',
                             background: sel ? T.accent : T.card,
                             color: sel ? '#fff' : T.ink,
-                            border: 'none', borderRadius: 0,
+                            border: 'none', borderRadius: T.radiusSm,
                             fontFamily: 'inherit', fontSize: 12, fontWeight: sel ? 700 : 500,
                             boxShadow: sel ? 'none' : T.shadow,
                             cursor: 'pointer',
@@ -1993,7 +1989,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                     </div>
 
                     <div style={{
-                      padding: '10px 14px', borderRadius: 0,
+                      padding: '10px 14px', borderRadius: T.radiusSm,
                       background: recurringPreview.length > 0 ? T.bg : 'transparent',
                       border: `1px dashed ${T.rule}`,
                       fontSize: 12, color: recurringPreview.length > 0 ? T.ink : T.mid,
@@ -2018,7 +2014,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 const sel = group === g;
                 return (
                   <span key={g} onClick={() => setGroup(g)} style={{
-                    padding: '8px 14px', borderRadius: 0,
+                    padding: '8px 14px', borderRadius: T.radiusSm,
                     background: sel ? M_GROUP[g] : T.card,
                     color: sel ? '#fff' : T.ink,
                     boxShadow: sel ? 'none' : T.shadow,
@@ -2037,7 +2033,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 const sel = trainer === t.id;
                 return (
                   <span key={t.id} onClick={() => setTrainer(t.id)} style={{
-                    padding: '8px 14px', borderRadius: 0,
+                    padding: '8px 14px', borderRadius: T.radiusSm,
                     background: sel ? T.ink : T.card,
                     color: sel ? '#fff' : T.ink,
                     boxShadow: sel ? 'none' : T.shadow,
@@ -2048,7 +2044,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               })}
               {/* Tom-knapp for åpen matte */}
               <span onClick={() => setTrainer('')} style={{
-                padding: '8px 14px', borderRadius: 0,
+                padding: '8px 14px', borderRadius: T.radiusSm,
                 background: trainer === '' ? T.mid : T.card,
                 color: trainer === '' ? '#fff' : T.mid,
                 boxShadow: trainer === '' ? 'none' : T.shadow,
@@ -2076,7 +2072,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                         const color = M_TAG_COLOR[t.kind] || T.ink;
                         return (
                           <span key={t.id} onClick={() => toggleTag(t.id)} style={{
-                            padding: '7px 12px', borderRadius: 0, fontSize: 12,
+                            padding: '7px 12px', borderRadius: T.radiusSm, fontSize: 12,
                             background: sel ? color : T.card,
                             color: sel ? '#fff' : T.ink,
                             border: sel ? 'none' : `1px solid ${T.rule}`,
@@ -2102,7 +2098,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                       const color = M_TAG_COLOR.custom;
                       return (
                         <span key={id} onClick={() => toggleTag(id)} style={{
-                          padding: '7px 12px', borderRadius: 0, fontSize: 12,
+                          padding: '7px 12px', borderRadius: T.radiusSm, fontSize: 12,
                           background: sel ? color : T.card,
                           color: sel ? '#fff' : T.ink,
                           border: sel ? 'none' : `1px solid ${T.rule}`,
@@ -2123,7 +2119,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {draftCustomTags.map(id => (
                     <span key={id} onClick={() => toggleTag(id)} style={{
-                      padding: '7px 12px', borderRadius: 0, fontSize: 12,
+                      padding: '7px 12px', borderRadius: T.radiusSm, fontSize: 12,
                       background: M_TAG_COLOR.custom, color: '#fff',
                       border: 'none', cursor: 'pointer', fontWeight: 600,
                     }}>✓ {id}</span>
@@ -2188,7 +2184,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 padding: '14px',
                 background: 'transparent',
                 color: T.coral,
-                border: `1px solid ${T.coral}`, borderRadius: 0,
+                border: `1px solid ${T.coral}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: 'pointer',
@@ -2197,7 +2193,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 padding: '14px',
                 background: title ? T.accent : T.rule,
                 color: title ? '#0B0A09' : T.mid,
-                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: 0,
+                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
@@ -2209,7 +2205,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 padding: '14px',
                 background: title ? T.accent : T.rule,
                 color: title ? '#0B0A09' : T.mid,
-                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: 0,
+                border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
@@ -2218,7 +2214,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 padding: '14px',
                 background: 'transparent',
                 color: title ? T.ink : T.mid,
-                border: `1px solid ${T.rule}`, borderRadius: 0,
+                border: `1px solid ${T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.20em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
