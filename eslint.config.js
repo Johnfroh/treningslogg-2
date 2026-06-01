@@ -119,6 +119,7 @@ module.exports = [
         SpreadsheetApp: 'readonly',
         ContentService: 'readonly',
         Logger: 'readonly',
+        Utilities: 'readonly',
       },
     },
     rules: sharedRules,

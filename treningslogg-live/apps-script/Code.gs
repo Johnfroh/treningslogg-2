@@ -391,3 +391,98 @@ function _testRoundtrip() {
   deleteRow(SHEET_NAMES.sessions, created.id);
   Logger.log('Deleted.');
 }
+
+// ─── Migrering til ny gruppemodell ─────────────────────────────────
+// Kjøres MANUELT fra Apps Script-editoren én gang. Rekkefølge:
+//   1. _migrateBackup()        — kopierer hele arbeidsboka som sikkerhet
+//   2. _migrateToNewGroups()   — omklassifiserer gamle gruppenavn
+// Begge er idempotente — å kjøre dem flere ganger gjør ingen skade.
+// Migrasjons-reglene:
+//   junior        → junior (uendret)
+//   åpen matte    → åpen matte (uendret)
+//   grunnleggende → gi (eller nogi hvis "nogi" i tittel) + tag "grunn"
+//   erfaren       → gi (eller nogi hvis "nogi" i tittel) + tag "erfaren"
+//   alle nivåer   → gi (eller nogi hvis "nogi" i tittel) + tag "mix"
+
+function _migrateBackup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = ss.getSpreadsheetTimeZone() || 'Europe/Oslo';
+  const ts = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd_HH-mm');
+  const backupName = ss.getName() + ' — backup ' + ts;
+  const copy = ss.copy(backupName);
+  Logger.log('Backup opprettet: ' + backupName);
+  Logger.log('URL: ' + copy.getUrl());
+  return copy.getUrl();
+}
+
+function _migrateToNewGroups() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const now = new Date().toISOString();
+  const isNoGi = (title) => {
+    const t = String(title || '').toLowerCase();
+    return t.indexOf('nogi') >= 0 || t.indexOf('no-gi') >= 0 || t.indexOf('no gi') >= 0;
+  };
+
+  // 1. sessions: gruppe + nivå-tag + updatedAt
+  const sh = ss.getSheetByName(SHEET_NAMES.sessions);
+  if (!sh) throw new Error('Fant ikke sessions-ark');
+  const lastRow = sh.getLastRow();
+  let migrated = 0, skipped = 0;
+  const fordeling = { gi: 0, nogi: 0, junior: 0, 'åpen matte': 0 };
+
+  if (lastRow >= 2) {
+    const range = sh.getRange(2, 1, lastRow - 1, SESSION_COLS.length);
+    const data = range.getValues();
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const grp = String(row[3] || '').trim().toLowerCase();
+      const title = row[5];
+      const tagsStr = String(row[7] || '');
+      const tags = tagsStr ? tagsStr.split('|').map(t => t.trim()).filter(Boolean) : [];
+
+      let newGroup = null, newTag = null;
+      if (grp === 'grunnleggende')     { newGroup = isNoGi(title) ? 'nogi' : 'gi'; newTag = 'grunn'; }
+      else if (grp === 'erfaren')       { newGroup = isNoGi(title) ? 'nogi' : 'gi'; newTag = 'erfaren'; }
+      else if (grp === 'alle nivåer' || grp === 'alle nivaer') {
+        newGroup = isNoGi(title) ? 'nogi' : 'gi'; newTag = 'mix';
+      }
+
+      if (!newGroup) { skipped++; continue; }
+
+      data[i][3] = newGroup;
+      if (newTag && tags.indexOf(newTag) < 0) {
+        tags.push(newTag);
+        data[i][7] = tags.join('|');
+      }
+      data[i][10] = now;
+      fordeling[newGroup] = (fordeling[newGroup] || 0) + 1;
+      migrated++;
+    }
+    range.setValues(data);
+  }
+  Logger.log('Sessions migrert: ' + migrated + ' (hoppet over: ' + skipped + ')');
+  Logger.log('Sessions-fordeling: ' + JSON.stringify(fordeling));
+
+  // 2. planned: kun gruppe
+  const psh = ss.getSheetByName(SHEET_NAMES.planned);
+  let pMigrated = 0;
+  if (psh) {
+    const pLast = psh.getLastRow();
+    if (pLast >= 2) {
+      const pRange = psh.getRange(2, 1, pLast - 1, PLANNED_COLS.length);
+      const pData = pRange.getValues();
+      for (let i = 0; i < pData.length; i++) {
+        const grp = String(pData[i][3] || '').trim().toLowerCase();
+        const title = pData[i][5];
+        if (grp === 'grunnleggende' || grp === 'erfaren' ||
+            grp === 'alle nivåer' || grp === 'alle nivaer') {
+          pData[i][3] = isNoGi(title) ? 'nogi' : 'gi';
+          pMigrated++;
+        }
+      }
+      pRange.setValues(pData);
+    }
+  }
+  Logger.log('Planned migrert: ' + pMigrated);
+  Logger.log('Migrering fullført.');
+}
