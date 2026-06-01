@@ -13,17 +13,15 @@ const _excelSerialToDate = (serial) => {
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 };
 
+// Foreløpig minimal mapping til ny modell (4 grupper). Mer avansert
+// auto-deteksjon + per-rad-valg kommer i neste commit.
 const _mapClassToGroup = (raw) => {
   if (!raw) return null;
   const s = String(raw).toLowerCase().replace(/\*+\s*$/, '').trim();
-  if (s.includes('junior')) return 'junior';
-  if (s.includes('nogi') || s.includes('no-gi') || s.includes('erfaren')) return 'erfaren';
-  if (s.includes('grunn') || s.includes('intro') || s.includes('fundamental')) return 'grunnleggende';
-  if (s.includes('åpen') || s.includes('open mat')) return 'åpen matte';
-  if (s.includes('ekstra')) return 'erfaren';
-  if (s.includes('alle')) return 'alle nivåer';
-  if (s.startsWith('gi')) return 'alle nivåer';
-  return 'alle nivåer';
+  if (s.includes('junior') || s.includes('knøtte')) return 'junior';
+  if (s.includes('åpen matte') || s.includes('open mat')) return 'åpen matte';
+  if (s.includes('nogi') || s.includes('no-gi') || s.includes('no gi')) return 'nogi';
+  return 'gi';
 };
 
 const _parseWorkbook = (arrayBuffer) => {
@@ -1297,7 +1295,7 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
   const defaultTrainer = init.trainer || (trainerList[0] && trainerList[0].id) || '';
   const [date, setDate] = React.useState(init.date || TODAY_M);
   const [time, setTime] = React.useState(init.time || '18:00');
-  const [group, setGroup] = React.useState(init.group || 'grunnleggende');
+  const [group, setGroup] = React.useState(init.group || 'gi');
   const [trainer, setTrainer] = React.useState(defaultTrainer);
   const [title, setTitle] = React.useState(init.title || '');
   const [content, setContent] = React.useState(init.content || '');

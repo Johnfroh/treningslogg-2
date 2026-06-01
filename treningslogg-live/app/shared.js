@@ -26,15 +26,15 @@ const M = {
 
 const M_GROUP = {
   'junior':         M.copperHi,
-  'grunnleggende':  M.accent2,
-  'erfaren':        M.coral,
-  'alle nivåer':    M.mid,
+  'gi':             M.accent2,
+  'nogi':           M.coral,
   'åpen matte':     M.amber,
 };
 
 const M_TAG_COLOR = {
   position: M.accent2,
   action:   M.coral,
+  'nivå':   M.mid,
   custom:   M.accent,
 };
 
@@ -181,7 +181,7 @@ const computeDashboard = (sessions, planned, attendance, periodDays = 30) => {
       reason: lowest.count === 0
         ? `${lowest.label} er ikke drillet siste ${periodDays} dager${daysSinceTag != null ? ` · sist for ${daysSinceTag} dager siden` : ''}`
         : `${lowest.label} er drillet ${lowest.count} ${lowest.count === 1 ? 'gang' : 'ganger'} siste ${periodDays} dager${daysSinceTag != null ? ` · sist ${daysSinceTag}d siden` : ''}`,
-      group: groupStats[0]?.g || 'grunnleggende',
+      group: groupStats[0]?.g || 'gi',
     };
   }
 

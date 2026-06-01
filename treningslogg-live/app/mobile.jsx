@@ -1751,7 +1751,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   const defaultTrainer = init.trainer || (trainerList[0] && trainerList[0].id) || '';
   const [date, setDate] = React.useState(init.date || TODAY_M);
   const [time, setTime] = React.useState(init.time || '18:00');
-  const [group, setGroup] = React.useState(init.group || 'grunnleggende');
+  const [group, setGroup] = React.useState(init.group || 'gi');
   const [trainer, setTrainer] = React.useState(defaultTrainer);
   const [title, setTitle] = React.useState(init.title || '');
   const [content, setContent] = React.useState(init.content || '');

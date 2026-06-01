@@ -381,9 +381,9 @@ function _testSetupSheets() {
 
 function _testRoundtrip() {
   const created = createSession({
-    date: '2026-05-06', time: '18:00', group: 'grunnleggende', trainer: 'ola',
+    date: '2026-05-06', time: '18:00', group: 'gi', trainer: 'ola',
     title: 'test fra Apps Script', content: 'integrasjonstest',
-    tags: ['guard','drill'], attendance: 12,
+    tags: ['guard','drill','grunn'], attendance: 12,
   });
   Logger.log('Created: ' + JSON.stringify(created));
   const updated = updateSession(created.id, { content: 'oppdatert' });
