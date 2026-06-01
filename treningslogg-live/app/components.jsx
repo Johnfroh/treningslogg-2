@@ -1,37 +1,41 @@
-// Treningslogg — components (BJJ design system)
-// Roboto Mono, anthracite/off-white, no rounded corners, thin strokes, no fills.
+// Treningslogg — components (Daylight design system)
+// Plus Jakarta Sans, lys lavendel bakgrunn, hvite avrundede kort.
 
 const C = {
-  anthracite: '#373F43',
-  deepAnthracite: '#121110',
-  offWhite: '#F5F0E8',
-  bone: '#C6BCA8',
-  boneMuted: '#78726E',
-  amber: '#AC7A34',
-  green: '#306C48',
-  coral: '#9E4430',
-  greyMid: '#76726A',
-  greyDim: '#48443E',
-  greyFrame: '#2C2A26',
-  surface: '#F0EBE1',
-  ruleLight: '#D8D2C8',
-  ruleDark: '#E8E2D8',
+  // Tekst
+  anthracite: '#232136',
+  deepAnthracite: '#1A1830',
+  // Overflater
+  offWhite: '#F4F3FB',
+  surface: '#FFFFFF',
+  // Aksenter / palett (matches M-palett)
+  bone: '#7B6EF6',     // lavendel-aksent (var: bone)
+  boneMuted: '#4F9BEA', // blå (var: bonemuted som var grålig)
+  amber: '#B06FD6',    // lilla (var: amber-ish)
+  green: '#34B98C',    // mynte-grønn
+  coral: '#F2825F',    // korall
+  // Skiller
+  greyMid: '#8A86A0',
+  greyDim: '#B4B0C6',
+  greyFrame: '#ECEAF4',
+  ruleLight: '#ECEAF4',
+  ruleDark: '#DEDBEC',
 };
 
 // Tag color by kind
 const TAG_COLOR = {
   guard: C.green,
   submission: C.coral,
-  dominant: C.amber,
+  dominant: C.bone,
   method: C.greyMid,
-  custom: C.anthracite,
+  custom: C.bone,
 };
 
 const GROUP_COLOR = {
-  'junior':         C.amber,
-  'gi':             C.green,
-  'nogi':           C.coral,
-  'åpen matte':     C.boneMuted,
+  'junior':         C.amber,      // lilla
+  'gi':             C.green,      // mynte
+  'nogi':           C.coral,      // korall
+  'åpen matte':     C.boneMuted,  // blå
 };
 
 // ─── Utility ──────────────────────────────────────────────────────────
@@ -58,7 +62,7 @@ const Tag = ({ tag, selected, onClick, size = 'md' }) => {
   const pad = size === 'sm' ? '3px 8px' : '4px 10px';
   const style = {
     display: 'inline-block',
-    fontFamily: "'Roboto Mono', monospace",
+    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
     fontSize,
     fontWeight: selected ? 700 : 400,
     letterSpacing: '0.12em',
@@ -76,7 +80,7 @@ const Tag = ({ tag, selected, onClick, size = 'md' }) => {
 // ─── Button ───────────────────────────────────────────────────────────
 const Btn = ({ variant = 'primary', children, onClick, style = {}, dark }) => {
   const base = {
-    fontFamily: "'Roboto Mono', monospace",
+    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: '0.16em',
@@ -148,9 +152,9 @@ const TopBar = ({ view, onView, trainer, onChangeTrainer }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.greyMid }}>trener</span>
           <select value={trainer} onChange={e => onChangeTrainer(e.target.value)} style={{
-            fontFamily: "'Roboto Mono', monospace", fontSize: 11, letterSpacing: '0.1em',
+            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 11, letterSpacing: '0.1em',
             background: 'transparent', border: `1px solid ${C.anthracite}`, padding: '6px 10px',
-            color: C.anthracite, textTransform: 'lowercase', borderRadius: 0,
+            color: C.anthracite, textTransform: 'lowercase', borderRadius: 10,
           }}>
             {TL_DATA.trainers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
@@ -494,7 +498,7 @@ const SessionEditor = ({ initial, mode, onClose, onSave, onDelete }) => {
               <textarea value={data.content} onChange={e => update('content', e.target.value)}
                 placeholder="oppvarming, teknikk, drilling, sparring …"
                 rows={8}
-                style={{ ...inputStyle, fontFamily: "'Roboto Mono', monospace", lineHeight: 1.7, resize: 'vertical' }} />
+                style={{ ...inputStyle, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", lineHeight: 1.7, resize: 'vertical' }} />
             </Field>
           </div>
 
@@ -571,14 +575,14 @@ const SessionEditor = ({ initial, mode, onClose, onSave, onDelete }) => {
 };
 
 const inputStyle = {
-  fontFamily: "'Roboto Mono', monospace",
+  fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
   fontSize: 12,
   letterSpacing: '0.04em',
   background: 'transparent',
   border: `1px solid ${C.anthracite}`,
   padding: '10px 12px',
   width: '100%',
-  borderRadius: 0,
+  borderRadius: 10,
   color: C.anthracite,
   boxSizing: 'border-box',
 };
