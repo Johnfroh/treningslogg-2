@@ -94,7 +94,7 @@ function readAttendance() {
   return range.map(row => ({
     sessionId: String(row[0] || ''),
     memberName: String(row[1] || ''),
-    importedAt: row[2] instanceof Date ? row[2].toISOString() : (row[2] ? String(row[2]) : null),
+    importedAt: safeIso(row[2]) || (row[2] ? String(row[2]) : null),
   })).filter(r => r.sessionId && r.memberName);
 }
 
@@ -120,8 +120,8 @@ function parseSessionRow(o) {
     content: String(o.content || ''),
     tags: parseTags(o.tags),
     attendance: o.attendance === '' || o.attendance == null ? null : Number(o.attendance),
-    createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null,
-    updatedAt: o.updatedAt ? new Date(o.updatedAt).toISOString() : null,
+    createdAt: safeIso(o.createdAt),
+    updatedAt: safeIso(o.updatedAt),
   };
 }
 
@@ -351,6 +351,16 @@ function hm(v) {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Defensiv ISO-konvertering: returner null hvis verdien ikke kan parses
+// som en gyldig dato. Brukes på createdAt/updatedAt der celle-formatet
+// kan ha blitt forvirret av Sheets sin auto-deteksjon ved round-trip.
+function safeIso(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString();
+  var d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 function parseTags(v) {
   if (!v) return [];
