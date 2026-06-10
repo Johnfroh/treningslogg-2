@@ -272,7 +272,7 @@ function DesktopApp() {
         {syncError && (
           <div style={{
             padding: '10px 28px', background: M.tabBg, borderBottom: `1px solid ${M.rule}`,
-            fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
             color: M.coral, fontWeight: 700, textAlign: 'center',
           }}>⚠ {syncError}</div>
         )}
@@ -319,9 +319,9 @@ function DesktopToast({ children }) {
       background: M.card, color: M.ink,
       border: `1px solid ${M.ruleHi}`,
       padding: '12px 22px', borderRadius: M.radiusSm,
-      fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase',
+      fontSize: 11, fontWeight: 500, letterSpacing: '0.10em', textTransform: 'uppercase',
       zIndex: 200, pointerEvents: 'none',
-      boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
+      boxShadow: M.shadowLg,
     }}>{children}</div>
   );
 }
@@ -349,10 +349,10 @@ function Sidebar({ active, onSelect, onImport }) {
       }}>
         <img src="logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: M.ink, textTransform: 'lowercase' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: M.ink, textTransform: 'lowercase' }}>
             treningslogg
           </div>
-          <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', marginTop: 4 }}>
+          <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.accent, textTransform: 'uppercase', marginTop: 4 }}>
             BODØ BJJ
           </div>
         </div>
@@ -373,7 +373,7 @@ function Sidebar({ active, onSelect, onImport }) {
                 }}>
                   <span style={{
                     position: 'absolute', top: -6, left: 0, background: M.tabBg, padding: '0 6px 0 0',
-                    fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase',
+                    fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase',
                   }}>verktøy</span>
                 </div>
               )}
@@ -388,7 +388,7 @@ function Sidebar({ active, onSelect, onImport }) {
                     : isTool
                       ? `1px dashed ${M.rule}`
                       : `1px solid transparent`,
-                  color: isActive ? '#0B0A09' : M.ink,
+                  color: isActive ? M.accentInk : M.ink,
                   cursor: 'pointer', position: 'relative',
                 }}>
                 {isActive && (
@@ -396,10 +396,10 @@ function Sidebar({ active, onSelect, onImport }) {
                 )}
                 <span style={{
                   fontSize: 14, fontWeight: 700, width: 18, textAlign: 'center',
-                  color: isActive ? '#0B0A09' : (isTool ? M.accent : M.ink),
+                  color: isActive ? M.accentInk : (isTool ? M.accent : M.ink),
                 }}>{it.icon}</span>
                 <span style={{
-                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+                  fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
                   fontWeight: isActive ? 700 : 500,
                 }}>
                   {it.label}
@@ -413,7 +413,7 @@ function Sidebar({ active, onSelect, onImport }) {
       {/* Footer */}
       <div style={{
         padding: '14px 18px', borderTop: `1px solid ${M.rule}`,
-        fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase',
+        fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase',
       }}>
         steel · v2
       </div>
@@ -433,7 +433,7 @@ function DesktopTopbar({ title, subtitle, period, onPeriodChange, groupFilter, o
       flexShrink: 0,
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 8, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
           {subtitle}
         </div>
         <div style={{
@@ -453,10 +453,10 @@ function DesktopTopbar({ title, subtitle, period, onPeriodChange, groupFilter, o
                 className={`tl-period ${sel ? 'is-active' : ''}`}
                 onClick={() => onPeriodChange(p.id)}
                 style={{
-                  padding: '8px 14px', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                  padding: '8px 14px', fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase',
                   fontWeight: sel ? 700 : 500,
                   background: sel ? M.accent : M.card,
-                  color: sel ? '#0B0A09' : M.ink,
+                  color: sel ? M.accentInk : M.ink,
                   border: `1px solid ${sel ? M.accent : M.rule}`,
                   borderLeftWidth: i === 0 || sel ? 1 : 0,
                   cursor: 'pointer', fontFamily: 'inherit',
@@ -471,7 +471,7 @@ function DesktopTopbar({ title, subtitle, period, onPeriodChange, groupFilter, o
           <button onClick={() => setGroupOpen(o => !o)} style={{
             padding: '8px 14px', background: M.card,
             border: `1px solid ${groupOpen ? M.accent : M.rule}`,
-            fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: M.ink,
+            fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: M.ink,
             display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer',
             minWidth: 160, fontFamily: 'inherit',
           }}>
@@ -487,7 +487,7 @@ function DesktopTopbar({ title, subtitle, period, onPeriodChange, groupFilter, o
                   onClick={() => { onGroupChange(g); setGroupOpen(false); }}
                   className="tl-nav-item"
                   style={{
-                    padding: '10px 14px', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase',
+                    padding: '10px 14px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase',
                     color: g === groupFilter ? M.accent : M.ink,
                     borderBottom: `1px solid ${M.rule}`, cursor: 'pointer',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -537,7 +537,7 @@ function DesktopHome({ sessions, planned, attendance, loading }) {
         {loading && summary.sessionsLogged === 0 ? (
           <div style={{
             padding: 60, textAlign: 'center', color: M.mid,
-            fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700,
+            fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
           }}>henter data fra Sheets …</div>
         ) : (
           <>
@@ -557,7 +557,7 @@ function DesktopHome({ sessions, planned, attendance, loading }) {
               ) : (
                 <div style={{
                   background: M.card, border: `1px solid ${M.rule}`, padding: 20,
-                  color: M.mid, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase',
+                  color: M.mid, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
                 }}>ingen forslag — alle core-tags er dekket godt</div>
               )}
 
@@ -585,7 +585,7 @@ function DesktopHome({ sessions, planned, attendance, loading }) {
 function KPICard({ label, value, trend, color, suffix }) {
   return (
     <div style={{ background: M.card, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+      <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
         {label}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -614,11 +614,11 @@ function SectionHead({ left, right }) {
       display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
       background: M.cardHi,
     }}>
-      <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: M.ink, fontWeight: 700 }}>
+      <div style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: M.ink, fontWeight: 700 }}>
         {left}
       </div>
       {right && (
-        <div style={{ fontSize: 8, letterSpacing: '0.20em', textTransform: 'uppercase', color: M.mid }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase', color: M.mid }}>
           {right}
         </div>
       )}
@@ -635,7 +635,7 @@ function SuggestionCard({ suggestion }) {
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: M.accent }} />
       <SectionHead left="forslag · neste økt" right="bygd på data" />
       <div style={{ padding: '16px 18px 16px 22px' }}>
-        <div style={{ fontSize: 8, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', fontWeight: 700 }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.10em', color: M.accent, textTransform: 'uppercase', fontWeight: 700 }}>
           ↳ {suggestion.group}
         </div>
         <div style={{ fontSize: 18, color: M.ink, marginTop: 8, fontWeight: 500 }}>
@@ -657,7 +657,7 @@ function GroupBlock({ groupStats, groupMax }) {
         {groupStats.length === 0 ? (
           <div style={{
             padding: 12, color: M.mid, fontSize: 10, textAlign: 'center',
-            letterSpacing: '0.16em', textTransform: 'uppercase',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
           }}>ingen data i denne perioden</div>
         ) : groupStats.map((s, i) => {
           const w = (s.avg / groupMax) * 100;
@@ -668,7 +668,7 @@ function GroupBlock({ groupStats, groupMax }) {
               display: 'grid', gridTemplateColumns: '120px 1fr 80px', gap: 12, alignItems: 'center',
             }}>
               <span style={{
-                fontSize: 9, letterSpacing: '0.18em', color, textTransform: 'uppercase', fontWeight: 700,
+                fontSize: 9, letterSpacing: '0.10em', color, textTransform: 'uppercase', fontWeight: 700,
               }}>{s.g}</span>
               <div style={{ height: 5, background: M.rule, position: 'relative' }}>
                 <div style={{ position: 'absolute', inset: 0, width: `${w}%`, background: color }} />
@@ -750,7 +750,7 @@ function DowBlock({ dowStats, dowMax }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginTop: 8 }}>
           {dowStats.map((d, i) => (
             <div key={i} style={{
-              textAlign: 'center', fontSize: 8, letterSpacing: '0.18em',
+              textAlign: 'center', fontSize: 8, letterSpacing: '0.10em',
               color: d.avg === 0 ? M.mid : M.ink, textTransform: 'uppercase', fontWeight: 700,
             }}>{NORWAY_DAYS_INITIAL[d.dow]}</div>
           ))}
@@ -779,12 +779,12 @@ function GapsBlock({ gaps }) {
                 <div style={{ fontSize: 13, fontWeight: 700, color: M.ink, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {String(d.getDate()).padStart(2, '0')}.{pad(d.getMonth() + 1)}
                 </div>
-                <div style={{ fontSize: 7, letterSpacing: '0.20em', color: M.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+                <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
                   {NORWAY_DAYS_SHORT[d.getDay()]} · {g.time || '—'}
                 </div>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.18em', color, textTransform: 'uppercase', fontWeight: 700 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.10em', color, textTransform: 'uppercase', fontWeight: 700 }}>
                   {g.group}
                 </div>
                 <div style={{ fontSize: 10, color: M.mid, marginTop: 4, fontStyle: 'italic' }}>
@@ -806,7 +806,7 @@ function PlaceholderScreen({ title, subtitle }) {
       <DesktopTopbar title={title} subtitle={subtitle} showGroupFilter={false} />
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: M.mid, fontSize: 11, letterSpacing: '0.20em', textTransform: 'uppercase',
+        color: M.mid, fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase',
         fontFamily: STEEL_FONT,
       }}>
         kommer i en senere fase
@@ -894,7 +894,7 @@ function DesktopPeople({ sessions, attendance, members }) {
         {filtered.length === 0 ? (
           <div style={{
             background: M.card, border: `1px solid ${M.rule}`, padding: 24,
-            color: M.mid, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: M.mid, fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase',
             textAlign: 'center',
           }}>
             {stats.length === 0 ? 'ingen oppmøte registrert ennå' : `ingen treff på "${query}"`}
@@ -904,7 +904,7 @@ function DesktopPeople({ sessions, attendance, members }) {
             <div style={{
               padding: '8px 14px', display: 'grid',
               gridTemplateColumns: '40px 1fr 100px 80px 90px 50px 24px', gap: 12, alignItems: 'center',
-              fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700,
+              fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700,
             }}>
               <span>#</span><span>navn</span><span>trend 30d</span><span>6 uker</span>
               <span style={{ textAlign: 'center' }}>status</span>
@@ -944,7 +944,7 @@ function FrafallSummary({ stats, onSelect }) {
               cursor: 'pointer',
             }}>
               <div style={{ fontSize: 12, color: M.ink, textTransform: 'capitalize' }}>{m.name}</div>
-              <div style={{ fontSize: 9, color, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>
+              <div style={{ fontSize: 9, color, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700 }}>
                 ● {m.status}
               </div>
               <div style={{ fontSize: 10, color: M.mid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -1006,7 +1006,7 @@ function DesktopPersonRow({ rank, member, expanded, onToggle }) {
           ))}
         </div>
         <div style={{
-          fontSize: 8, letterSpacing: '0.18em', color: statusColor,
+          fontSize: 8, letterSpacing: '0.10em', color: statusColor,
           fontWeight: 700, textTransform: 'uppercase', textAlign: 'center',
         }}>● {member.status}</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: M.ink, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
@@ -1040,7 +1040,7 @@ function DesktopPersonDetail({ member }) {
     <div style={{ borderTop: `1px solid ${M.rule}`, padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
       {/* Gruppe-fordeling */}
       <div>
-        <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
           gruppe-fordeling
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1058,14 +1058,14 @@ function DesktopPersonDetail({ member }) {
 
       {/* Tag-historikk */}
       <div>
-        <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
           tag-historikk
         </div>
         {tagHistory.length === 0 ? (
           <div style={{
             padding: 10, border: `1px dashed ${M.rule}`,
             color: M.mid, fontSize: 9, textAlign: 'center',
-            letterSpacing: '0.14em', textTransform: 'uppercase',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
           }}>
             ingen tagger registrert<br/>
             {attended.length} økter · 0 har tagger
@@ -1099,7 +1099,7 @@ function DesktopPersonDetail({ member }) {
 
       {/* Siste økter */}
       <div>
-        <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
           siste 6 økter
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -1117,7 +1117,7 @@ function DesktopPersonDetail({ member }) {
                   <div style={{ fontSize: 11, color: M.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {s.title || <span style={{ color: M.mid, fontStyle: 'italic' }}>uten tittel</span>}
                   </div>
-                  <div style={{ fontSize: 8, color: M_GROUP[s.group] || M.mid, marginTop: 2, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <div style={{ fontSize: 8, color: M_GROUP[s.group] || M.mid, marginTop: 2, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
                     {s.group}
                   </div>
                 </div>
@@ -1186,7 +1186,7 @@ function DesktopMonth({ sessions, planned, onOpenLog }) {
               {['M','T','O','T','F','L','S'].map((d, i) => (
                 <div key={i} style={{
                   textAlign: 'center', fontSize: 8, color: M.mid,
-                  letterSpacing: '0.20em', padding: '6px 0', textTransform: 'uppercase', fontWeight: 700,
+                  letterSpacing: '0.10em', padding: '6px 0', textTransform: 'uppercase', fontWeight: 700,
                 }}>{d}</div>
               ))}
             </div>
@@ -1200,26 +1200,27 @@ function DesktopMonth({ sessions, planned, onOpenLog }) {
                 return (
                   <button key={i} onClick={() => setSelected(ymd)} style={{
                     height: 80, padding: 8, cursor: 'pointer', fontFamily: 'inherit',
-                    background: isSelected ? M.accent : M.bg,
-                    color: isSelected ? '#0B0A09' : M.ink,
-                    border: `1px solid ${isSelected ? M.accent : (isToday ? M.accent : M.rule)}`,
+                    background: isSelected ? M.accent : (isToday ? M.accentBg : M.bg),
+                    color: isSelected ? M.accentInk : M.ink,
+                    border: isToday && !isSelected ? `2px solid ${M.accent}` : `1px solid ${isSelected ? M.accent : M.rule}`,
+                    borderRadius: M.radiusSm,
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                     position: 'relative', textAlign: 'left',
                   }}>
                     <div style={{
                       fontSize: 14, fontWeight: 700,
                       fontVariantNumeric: 'tabular-nums',
-                      color: isSelected ? '#0B0A09' : (isToday ? M.accent : M.ink),
+                      color: isSelected ? M.accentInk : (isToday ? M.accent : M.ink),
                     }}>{d.getDate()}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 4 }}>
                       {items.slice(0, 4).map((it, j) => (
                         <span key={j} style={{
                           width: 6, height: 6,
-                          background: isSelected ? '#0B0A09' : (it.kind === 'logged' ? (M_GROUP[it.group] || M.mid) : M.copperHi),
+                          background: isSelected ? M.accentInk : (it.kind === 'logged' ? (M_GROUP[it.group] || M.mid) : M.copperHi),
                         }} />
                       ))}
                       {items.length > 4 && (
-                        <span style={{ fontSize: 7, color: isSelected ? '#0B0A09' : M.mid, marginLeft: 2 }}>+{items.length-4}</span>
+                        <span style={{ fontSize: 7, color: isSelected ? M.accentInk : M.mid, marginLeft: 2 }}>+{items.length-4}</span>
                       )}
                     </div>
                   </button>
@@ -1239,7 +1240,7 @@ function DesktopMonth({ sessions, planned, onOpenLog }) {
             {selectedItems.length === 0 && (
               <div style={{
                 padding: 16, color: M.mid, fontSize: 10, textAlign: 'center',
-                letterSpacing: '0.16em', textTransform: 'uppercase',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
               }}>ingen økter denne dagen</div>
             )}
             {selectedItems.map((it, i) => {
@@ -1258,7 +1259,7 @@ function DesktopMonth({ sessions, planned, onOpenLog }) {
                     <div style={{ fontSize: 13, fontWeight: 700, color: M.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                       {it.time || '—'}
                     </div>
-                    <div style={{ fontSize: 7, letterSpacing: '0.20em', color, textTransform: 'uppercase', fontWeight: 700, marginTop: 4 }}>
+                    <div style={{ fontSize: 7, letterSpacing: '0.10em', color, textTransform: 'uppercase', fontWeight: 700, marginTop: 4 }}>
                       {it.group}
                     </div>
                   </div>
@@ -1278,7 +1279,7 @@ function DesktopMonth({ sessions, planned, onOpenLog }) {
               padding: 12, marginTop: 4,
               background: 'transparent', color: M.ink,
               border: `1px dashed ${M.rule}`, fontFamily: 'inherit',
-              fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+              fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
               cursor: 'pointer',
             }}>+ ny økt</button>
           </div>
@@ -1301,6 +1302,14 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
   const [content, setContent] = React.useState(init.content || '');
   const [tags, setTags] = React.useState(init.tags || []);
   const [newTagInput, setNewTagInput] = React.useState('');
+
+  // To-stegs sletting (erstatter window.confirm) — auto-disarm etter 3 sek
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  React.useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
 
   const [type, setType] = React.useState(() => {
     if (mode === 'edit' || mode === 'plan-fill') return 'logged';
@@ -1395,11 +1404,11 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <div style={{ fontSize: 8, letterSpacing: '0.24em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ fontSize: 8, letterSpacing: '0.10em', color: M.mid, textTransform: 'uppercase', fontWeight: 700 }}>
               {titleLabel}
             </div>
             {mode === 'plan-fill' && (
-              <div style={{ fontSize: 9, color: M.copperHi, marginTop: 4, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 9, color: M.copperHi, marginTop: 4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 ● forhåndsutfylt fra plan
               </div>
             )}
@@ -1420,7 +1429,7 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
                   background: active ? M.ink : M.card,
                   color: active ? '#fff' : M.mid,
                   border: 'none', fontFamily: 'inherit', fontSize: 11,
-                  fontWeight: active ? 700 : 400, letterSpacing: '0.14em', textTransform: 'uppercase',
+                  fontWeight: active ? 700 : 400, letterSpacing: '0.08em', textTransform: 'uppercase',
                   cursor: 'pointer',
                 }}>{opt.label}</button>
               );
@@ -1484,7 +1493,7 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
                           <button key={dow} onClick={() => toggleRecurDay(dow)} style={{
                             flex: 1, padding: '8px 0',
                             background: sel ? M.accent : M.card,
-                            color: sel ? '#0B0A09' : M.ink,
+                            color: sel ? M.accentInk : M.ink,
                             border: `1px solid ${sel ? M.accent : M.rule}`,
                             fontFamily: 'inherit', fontSize: 11, fontWeight: sel ? 700 : 500,
                             cursor: 'pointer',
@@ -1493,13 +1502,13 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
                       })}
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <span style={{ fontSize: 9, color: M.mid, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>til og med</span>
+                      <span style={{ fontSize: 9, color: M.mid, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700 }}>til og med</span>
                       <input type="date" value={recurUntil} min={date} onChange={(e) => setRecurUntil(e.target.value)} style={{ ...DFieldStyle(), flex: 1 }} />
                     </div>
                     <div style={{
                       padding: '8px 14px', border: `1px dashed ${M.rule}`,
                       fontSize: 10, color: recurringPreview.length > 0 ? M.ink : M.mid,
-                      letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center', fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center', fontWeight: 700,
                     }}>
                       {recurDays.length === 0 ? 'velg én eller flere dager'
                         : recurringPreview.length === 0 ? 'ingen datoer i intervallet'
@@ -1519,7 +1528,7 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
                   if (!items.length) return null;
                   return (
                     <div key={tg.kind}>
-                      <div style={{ fontSize: 8, color: M.mid, letterSpacing: '0.20em', marginBottom: 6, textTransform: 'uppercase', fontWeight: 700 }}>
+                      <div style={{ fontSize: 8, color: M.mid, letterSpacing: '0.10em', marginBottom: 6, textTransform: 'uppercase', fontWeight: 700 }}>
                         {tg.label}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1542,7 +1551,7 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
                 })}
                 {customTagsUsed.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 8, color: M.mid, letterSpacing: '0.20em', marginBottom: 6, textTransform: 'uppercase', fontWeight: 700 }}>tidligere brukt</div>
+                    <div style={{ fontSize: 8, color: M.mid, letterSpacing: '0.10em', marginBottom: 6, textTransform: 'uppercase', fontWeight: 700 }}>tidligere brukt</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {customTagsUsed.map(id => {
                         const sel = tags.includes(id);
@@ -1601,9 +1610,12 @@ function DesktopLogModal({ mode, initial, trainers, sessions, onSave, onDelete, 
           {mode === 'edit' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, marginTop: 8 }}>
               <button onClick={() => {
-                if (!window.confirm('Slette denne økten? Dette kan ikke angres.')) return;
+                if (!confirmDelete) { setConfirmDelete(true); return; }
                 if (onDelete && initial?.id) onDelete(initial.id);
-              }} style={DBtn('coral')}>slett</button>
+              }} style={{
+                ...DBtn('coral'),
+                ...(confirmDelete ? { background: M.coral, color: M.accentInk } : {}),
+              }}>{confirmDelete ? 'sikker?' : 'slett'}</button>
               <button onClick={submit} disabled={!title} style={DBtn('primary', !title)}>lagre endringer</button>
             </div>
           ) : (
@@ -1623,7 +1635,7 @@ function DField({ label, children }) {
   return (
     <div>
       <div style={{
-        fontSize: 9, color: M.mid, marginBottom: 8, letterSpacing: '0.20em',
+        fontSize: 9, color: M.mid, marginBottom: 8, letterSpacing: '0.10em',
         textTransform: 'uppercase', fontWeight: 700,
       }}>{label}</div>
       {children}
@@ -1647,7 +1659,7 @@ function DToggleStyle(active) {
     color: active ? '#fff' : M.mid,
     border: 'none', fontFamily: 'inherit',
     fontSize: 11, fontWeight: active ? 700 : 400,
-    letterSpacing: '0.14em', textTransform: 'uppercase',
+    letterSpacing: '0.08em', textTransform: 'uppercase',
     cursor: 'pointer',
   };
 }
@@ -1656,7 +1668,7 @@ function DBtn(variant, disabled) {
   const styles = {
     primary: {
       background: disabled ? M.rule : M.accent,
-      color: disabled ? M.mid : '#0B0A09',
+      color: disabled ? M.mid : M.accentInk,
       border: `1px solid ${disabled ? M.rule : M.accent}`,
     },
     coral: {
@@ -1669,7 +1681,7 @@ function DBtn(variant, disabled) {
     padding: '14px',
     fontFamily: 'inherit',
     fontSize: 11, fontWeight: 700,
-    letterSpacing: '0.20em', textTransform: 'uppercase',
+    letterSpacing: '0.10em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
     ...styles[variant],
   };
@@ -1779,7 +1791,7 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <div style={{ fontSize: 8, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ fontSize: 8, letterSpacing: '0.10em', color: M.accent, textTransform: 'uppercase', fontWeight: 700 }}>
               verktøy
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: M.ink, marginTop: 4, textTransform: 'lowercase' }}>
@@ -1809,10 +1821,10 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
               }}>
               <div style={{ fontSize: 28, color: M.accent, marginBottom: 12 }}>↑</div>
               <div style={{
-                fontSize: 11, letterSpacing: '0.20em', color: M.ink,
+                fontSize: 11, letterSpacing: '0.10em', color: M.ink,
                 textTransform: 'uppercase', fontWeight: 700,
               }}>slipp .xlsx-fil her</div>
-              <div style={{ fontSize: 9, color: M.mid, marginTop: 8, letterSpacing: '0.14em' }}>
+              <div style={{ fontSize: 9, color: M.mid, marginTop: 8, letterSpacing: '0.08em' }}>
                 eller klikk for å velge
               </div>
             </div>
@@ -1820,13 +1832,13 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
             {error && (
               <div style={{
                 marginTop: 16, padding: 12, border: `1px solid ${M.coral}`,
-                color: M.coral, fontSize: 11, letterSpacing: '0.14em',
+                color: M.coral, fontSize: 11, letterSpacing: '0.08em',
               }}>
                 {error}
               </div>
             )}
             <div style={{ marginTop: 24, fontSize: 9, color: M.mid, lineHeight: 1.8, letterSpacing: '0.08em' }}>
-              <div style={{ fontSize: 7, letterSpacing: '0.24em', color: M.accent, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
+              <div style={{ fontSize: 7, letterSpacing: '0.10em', color: M.accent, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
                 hva skjer med fila
               </div>
               <div>↳ matchede økter får oppmøte-liste lagt til (navn knyttes til økt)</div>
@@ -1871,7 +1883,7 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
                 <div key={ym}>
                   <div style={{
                     padding: '8px 22px', background: M.cardHi,
-                    fontSize: 8, letterSpacing: '0.24em', color: M.mid,
+                    fontSize: 8, letterSpacing: '0.10em', color: M.mid,
                     textTransform: 'uppercase', fontWeight: 700,
                     borderBottom: `1px solid ${M.rule}`, borderTop: `1px solid ${M.rule}`,
                   }}>{ym}</div>
@@ -1887,7 +1899,7 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
                       }}>
                         <span style={{ color: M.mid, fontVariantNumeric: 'tabular-nums' }}>{m.ymd.slice(5)}</span>
                         <span style={{
-                          color: groupColor, fontSize: 9, letterSpacing: '0.18em',
+                          color: groupColor, fontSize: 9, letterSpacing: '0.10em',
                           textTransform: 'uppercase', fontWeight: 700,
                         }}>{m.group}</span>
                         <span style={{
@@ -1897,7 +1909,7 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
                           {names.length} delt.
                         </span>
                         <span style={{
-                          textAlign: 'right', fontSize: 9, letterSpacing: '0.18em',
+                          textAlign: 'right', fontSize: 9, letterSpacing: '0.10em',
                           color: m.match ? M.accent2 : M.amber, fontWeight: 700,
                         }}>
                           {m.match ? '● MATCH' : '○ NY'}
@@ -1918,20 +1930,20 @@ function ImportOverlay({ existingSessions, onClose, onApply }) {
               <button onClick={() => { setStage('drop'); setParsed(null); setMatches([]); }} style={{
                 padding: '10px 16px', background: 'transparent', color: M.ink,
                 border: `1px solid ${M.rule}`, fontFamily: 'inherit',
-                fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
                 cursor: 'pointer',
               }}>← bytt fil</button>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={onClose} style={{
                   padding: '10px 16px', background: 'transparent', color: M.ink,
                   border: `1px solid ${M.rule}`, fontFamily: 'inherit',
-                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                  fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
                   cursor: 'pointer',
                 }}>avbryt</button>
                 <button onClick={apply} style={{
-                  padding: '10px 20px', background: M.accent, color: '#0B0A09',
+                  padding: '10px 20px', background: M.accent, color: M.accentInk,
                   border: `1px solid ${M.accent}`, fontFamily: 'inherit',
-                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                  fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
                   cursor: 'pointer',
                 }}>
                   importer {stats.matched} match{createMissing && stats.missing ? ` + ${stats.missing} ny` : ''}

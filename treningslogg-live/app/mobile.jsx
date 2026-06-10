@@ -395,7 +395,7 @@ function Toast({ T, children }) {
       background: T.card, color: T.ink,
       border: `1px solid ${T.ruleHi}`,
       padding: '10px 18px', borderRadius: T.radiusSm,
-      fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase',
+      fontSize: 11, fontWeight: 500, letterSpacing: '0.10em', textTransform: 'uppercase',
       zIndex: 200, pointerEvents: 'none',
       animation: 'tlToastIn 0.18s ease-out',
     }}>{children}</div>
@@ -404,31 +404,42 @@ function Toast({ T, children }) {
 
 // ─── Status-bar (synlig laste-/feilmelding på toppen) ──────────────
 function StatusBar({ T, loading, syncError, totalItems, onRetry }) {
-  // Vis laster-status i 2 sek først, så kun ved faktisk feil eller tom data
+  // Kort delay så cache-treff slipper flash, men bruker ser raskt at noe skjer
   const [showLoading, setShowLoading] = React.useState(false);
   React.useEffect(() => {
     if (loading) {
-      const t = setTimeout(() => setShowLoading(true), 1500);
+      const t = setTimeout(() => setShowLoading(true), 300);
       return () => clearTimeout(t);
     }
     setShowLoading(false);
   }, [loading]);
 
+  const isLoading = showLoading && loading;
   const message = syncError ? `⚠ ${syncError}`
-    : (showLoading && loading) ? 'henter data fra Sheets …'
+    : isLoading ? 'henter data fra Sheets …'
     : (!loading && totalItems === 0) ? 'ingen data — trykk for å hente på nytt'
     : null;
   if (!message) return null;
 
-  const color = syncError ? T.coral : (totalItems === 0 && !loading) ? T.copperHi : T.mid;
+  const color = syncError ? T.coral : (totalItems === 0 && !loading) ? T.accent : T.mid;
   return (
     <div onClick={onRetry} style={{
       padding: '10px 18px',
       background: T.tabBg, borderBottom: `1px solid ${T.rule}`,
-      fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+      fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
       color, fontWeight: 700, cursor: onRetry ? 'pointer' : 'default',
       textAlign: 'center',
-    }}>{message}</div>
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+    }}>
+      {isLoading && !syncError && (
+        <span style={{
+          width: 11, height: 11, flex: 'none',
+          border: `2px solid ${T.rule}`, borderTopColor: T.accent,
+          borderRadius: '50%', animation: 'tlSpin 0.8s linear infinite',
+        }} />
+      )}
+      {message}
+    </div>
   );
 }
 
@@ -446,11 +457,11 @@ function Topbar({ T }) {
         <img src="logo.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         <div>
           <div style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.16em',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
             color: T.ink, textTransform: 'lowercase', lineHeight: 1,
           }}>treningslogg</div>
           <div style={{
-            fontSize: 7, letterSpacing: '0.24em',
+            fontSize: 7, letterSpacing: '0.10em',
             color: T.accent, textTransform: 'uppercase', marginTop: 4,
           }}>BODØ BJJ · TRENINGSLOGG</div>
         </div>
@@ -513,7 +524,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           background: T.accent,
         }} />
         <div style={{
-          fontSize: 8, letterSpacing: '0.24em', textTransform: 'uppercase',
+          fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase',
           color: T.mid, fontWeight: 700,
         }}>
           uke {(() => { const d = new Date(selectedDateObj); const onejan = new Date(d.getFullYear(), 0, 1); const w = Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7); return String(w).padStart(2, '0'); })()} · {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}
@@ -522,7 +533,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           <div style={{ fontSize: 36, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.01em' }}>
             {selectedDateObj.getDate()}
           </div>
-          <div style={{ fontSize: 13, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.accent, fontWeight: 700 }}>
+          <div style={{ fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.accent, fontWeight: 700 }}>
             {NORWAY_MONTHS[selectedDateObj.getMonth()]}
           </div>
         </div>
@@ -541,7 +552,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
                 background: T.card, padding: '8px 10px',
                 display: 'flex', flexDirection: 'column', gap: 4,
               }}>
-                <div style={{ fontSize: 7, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.mid }}>
+                <div style={{ fontSize: 7, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.mid }}>
                   {s.label}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums' }}>
@@ -569,13 +580,13 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
             <button key={i} onClick={() => setSelectedDate(ymd)} style={{
               padding: '8px 0', textAlign: 'center', borderRadius: T.radiusSm,
               background: isSelected ? T.accent : 'transparent',
-              color: isSelected ? '#0B0A09' : T.ink,
-              border: isToday && !isSelected ? `1px solid ${T.accent}` : '1px solid transparent',
+              color: isSelected ? T.accentInk : T.ink,
+              border: isToday && !isSelected ? `1.5px solid ${T.accent}` : '1px solid transparent', boxShadow: isToday && !isSelected ? `inset 0 0 0 99px ${T.accentBg}` : undefined,
               transition: 'background 0.12s',
               fontFamily: 'inherit', cursor: 'pointer',
             }}>
               <div style={{
-                fontSize: 8, letterSpacing: '0.20em',
+                fontSize: 8, letterSpacing: '0.10em',
                 opacity: isSelected ? 1 : 0.7, textTransform: 'uppercase', fontWeight: 700,
               }}>
                 {NORWAY_DAYS_INITIAL[d.getDay()]}
@@ -584,8 +595,8 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
                 {String(d.getDate()).padStart(2, '0')}
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 4, height: 4 }}>
-                {has && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? '#0B0A09' : T.accent2 }}></span>}
-                {planThis && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? '#0B0A09' : T.copperHi }}></span>}
+                {has && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? T.accentInk : T.accent2 }}></span>}
+                {planThis && <span style={{ width: 4, height: 4, borderRadius: T.radiusSm, background: isSelected ? T.accentInk : T.copperHi }}></span>}
               </div>
             </button>
           );
@@ -666,7 +677,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
 
       {/* Section: PULS — header + periode-velger */}
       <div style={{ padding: '14px 18px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 8, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.mid, fontWeight: 700 }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.mid, fontWeight: 700 }}>
           dashboard · planlegging
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
@@ -674,10 +685,10 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
             const sel = p.id === periodId;
             return (
               <button key={p.id} onClick={() => setPeriodId(p.id)} style={{
-                padding: '5px 10px', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase',
+                padding: '5px 10px', fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase',
                 fontWeight: sel ? 700 : 500,
                 background: sel ? T.accent : T.card,
-                color: sel ? '#0B0A09' : T.ink,
+                color: sel ? T.accentInk : T.ink,
                 border: `1px solid ${sel ? T.accent : T.rule}`,
                 borderLeftWidth: i === 0 ? 1 : (sel ? 1 : 0),
                 cursor: 'pointer', fontFamily: 'inherit',
@@ -693,14 +704,14 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
         border: `1px solid ${T.rule}`, position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', top: 0, right: 18, width: 4, height: 32, background: T.accent }} />
-        <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+        <div style={{ fontSize: 8, letterSpacing: '0.10em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
           siste {summary.periodDays} dager · puls
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
           <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
             {summary.avgAtt || '—'}
           </span>
-          <span style={{ fontSize: 9, color: T.mid, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 9, color: T.mid, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
             snitt på matta
           </span>
           {summary.trendPct !== 0 && (
@@ -724,7 +735,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
               <div style={{ fontSize: 18, fontWeight: 700, color: s.c, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                 {String(s.n).padStart(2, '0')}
               </div>
-              <div style={{ fontSize: 8, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+              <div style={{ fontSize: 8, letterSpacing: '0.10em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
                 {s.l}
               </div>
             </div>
@@ -743,7 +754,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
             }}>
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: T.accent }} />
               <div style={{ padding: '12px 14px 12px 18px' }}>
-                <div style={{ fontSize: 7, letterSpacing: '0.24em', color: T.accent, textTransform: 'uppercase', fontWeight: 700 }}>
+                <div style={{ fontSize: 7, letterSpacing: '0.10em', color: T.accent, textTransform: 'uppercase', fontWeight: 700 }}>
                   ↳ {suggestion.group}
                 </div>
                 <div style={{ fontSize: 14, color: T.ink, marginTop: 6, fontWeight: 500 }}>
@@ -757,8 +768,8 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                 onClick={() => onOpenLog({ group: suggestion.group, tags: [suggestion.tagId] }, 'new')}
                 style={{
                   padding: '10px 0', textAlign: 'center',
-                  background: T.accent, color: '#0B0A09',
-                  fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 700,
+                  background: T.accent, color: T.accentInk,
+                  fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', fontWeight: 700,
                   borderTop: `1px solid ${T.rule}`, cursor: 'pointer',
                 }}
               >
@@ -789,10 +800,10 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: color }} />
                   <div style={{ marginLeft: 4, flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ fontSize: 9, letterSpacing: '0.18em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
+                      <span style={{ fontSize: 9, letterSpacing: '0.10em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
                         {s.g}
                       </span>
-                      <span style={{ fontSize: 8, letterSpacing: '0.16em', color: T.mid, textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: 8, letterSpacing: '0.08em', color: T.mid, textTransform: 'uppercase' }}>
                         {s.sessions} {s.sessions === 1 ? 'økt' : 'økter'}
                       </span>
                     </div>
@@ -874,7 +885,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginTop: 6 }}>
             {dowStats.map((d, i) => (
               <div key={i} style={{
-                textAlign: 'center', fontSize: 8, letterSpacing: '0.18em',
+                textAlign: 'center', fontSize: 8, letterSpacing: '0.10em',
                 color: d.avg === 0 ? T.mid : T.ink, textTransform: 'uppercase', fontWeight: 700,
               }}>{NORWAY_DAYS_INITIAL[d.dow]}</div>
             ))}
@@ -901,12 +912,12 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                     <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                       {String(d.getDate()).padStart(2, '0')}.{pad(d.getMonth() + 1)}
                     </div>
-                    <div style={{ fontSize: 7, letterSpacing: '0.20em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
+                    <div style={{ fontSize: 7, letterSpacing: '0.10em', color: T.mid, textTransform: 'uppercase', marginTop: 4, fontWeight: 700 }}>
                       {NORWAY_DAYS_SHORT[d.getDay()]} · {g.time || '—'}
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 9, letterSpacing: '0.18em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
+                    <div style={{ fontSize: 9, letterSpacing: '0.10em', color: color, textTransform: 'uppercase', fontWeight: 700 }}>
                       {g.group}
                     </div>
                     <div style={{ fontSize: 10, color: T.mid, marginTop: 4, fontStyle: 'italic' }}>
@@ -915,7 +926,7 @@ function Dashboard({ T, sessions, planned, attendance, onOpenLog }) {
                   </div>
                   <div style={{
                     padding: '6px 10px', border: `1px solid ${T.accent}`,
-                    color: T.accent, fontSize: 9, letterSpacing: '0.18em',
+                    color: T.accent, fontSize: 9, letterSpacing: '0.10em',
                     textTransform: 'uppercase', fontWeight: 700,
                   }}>
                     fyll
@@ -980,13 +991,13 @@ function GroupDrillSheet({ T, groupId, sessions, onClose }) {
 
         <div style={{ padding: '4px 18px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ fontSize: 8, letterSpacing: '0.10em', color: T.mid, textTransform: 'uppercase', fontWeight: 700 }}>
               gruppe-historikk
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color, marginTop: 4, textTransform: 'lowercase' }}>
               {groupId}
             </div>
-            <div style={{ fontSize: 9, color: T.mid, marginTop: 4, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 9, color: T.mid, marginTop: 4, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
               {groupSessions.length} {groupSessions.length === 1 ? 'økt' : 'økter'} totalt
             </div>
           </div>
@@ -1002,14 +1013,14 @@ function GroupDrillSheet({ T, groupId, sessions, onClose }) {
             margin: '8px 16px 24px', padding: '20px',
             background: T.card, border: `1px solid ${T.rule}`,
             color: T.mid, fontSize: 11, textAlign: 'center',
-            letterSpacing: '0.14em', textTransform: 'uppercase',
+            letterSpacing: '0.08em', textTransform: 'uppercase',
           }}>
             ingen kjernetags registrert ennå
           </div>
         ) : (
           <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: 0 }}>
             <div style={{
-              fontSize: 8, letterSpacing: '0.24em', color: T.mid, textTransform: 'uppercase', fontWeight: 700,
+              fontSize: 8, letterSpacing: '0.10em', color: T.mid, textTransform: 'uppercase', fontWeight: 700,
               marginBottom: 8,
             }}>
               tags drillet · sortert nyeste først
@@ -1027,7 +1038,7 @@ function GroupDrillSheet({ T, groupId, sessions, onClose }) {
                   <div style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
                     {t.label}
                   </div>
-                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.14em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.08em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
                     sist {fmtAgo(days).replace(' siden', '')}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', minWidth: 24, textAlign: 'right' }}>
@@ -1046,10 +1057,10 @@ function GroupDrillSheet({ T, groupId, sessions, onClose }) {
 function DashSectionHead({ T, left, right }) {
   return (
     <div style={{ padding: '20px 18px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: T.ink, fontWeight: 700 }}>
+      <div style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.ink, fontWeight: 700 }}>
         {left}
       </div>
-      <div style={{ fontSize: 8, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.mid }}>
+      <div style={{ fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.mid }}>
         {right}
       </div>
     </div>
@@ -1085,7 +1096,7 @@ function SessionCard({ T, item, onClick, compact }) {
           {item.time || '—'}
         </div>
         <div style={{
-          fontSize: 7, letterSpacing: '0.20em', textTransform: 'uppercase',
+          fontSize: 7, letterSpacing: '0.10em', textTransform: 'uppercase',
           color: color, fontWeight: 700, marginTop: 4,
         }}>
           {compact ? dateLabel : groupShort}
@@ -1100,7 +1111,7 @@ function SessionCard({ T, item, onClick, compact }) {
           {item.title || (item.kind === 'planned' ? 'planlagt — uten innhold' : 'uten tittel')}
         </div>
         {(item.tags && item.tags.length > 0) && (
-          <div style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.mid, marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.mid, marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.tags.slice(0, 3).join(' · ')}
           </div>
         )}
@@ -1177,8 +1188,8 @@ function MonthScreen({ T, sessions, planned, onOpenLog }) {
               <div key={i} onClick={() => setSelected(ymd)} style={{
                 height: 44, borderRadius: T.radiusSm, cursor: 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                background: isSelected ? T.accent : (isToday ? T.bg : 'transparent'),
-                color: isSelected ? '#fff' : T.ink,
+                background: isSelected ? T.accent : (isToday ? T.accentBg : 'transparent'),
+                color: isSelected ? T.accentInk : (isToday ? T.accent : T.ink),
                 border: isToday && !isSelected ? `1.5px solid ${T.accent}` : 'none',
                 position: 'relative',
               }}>
@@ -1316,10 +1327,10 @@ function PeopleScreen({ T, sessions, attendance, members }) {
 
       {/* Header */}
       <div style={{ padding: '16px 18px 8px' }}>
-        <div style={{ fontSize: 8, color: T.mid, letterSpacing: '0.24em', textTransform: 'uppercase' }}>deltakere</div>
+        <div style={{ fontSize: 8, color: T.mid, letterSpacing: '0.10em', textTransform: 'uppercase' }}>deltakere</div>
         <div style={{ fontSize: 28, fontWeight: 700, marginTop: 6, color: T.accent, fontVariantNumeric: 'tabular-nums' }}>
           {memberStats.length}
-          <span style={{ fontSize: 11, color: T.mid, marginLeft: 8, fontWeight: 400, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 11, color: T.mid, marginLeft: 8, fontWeight: 400, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
             medlemmer
           </span>
         </div>
@@ -1442,11 +1453,11 @@ function PersonCard({ T, member, expanded, onToggle }) {
               letterSpacing: '0.08em', fontVariantNumeric: 'tabular-nums',
             }}>{trendGlyph} {trendText}</span>
             <span style={{
-              fontSize: 8, letterSpacing: '0.16em', color: T.mid, textTransform: 'uppercase',
+              fontSize: 8, letterSpacing: '0.08em', color: T.mid, textTransform: 'uppercase',
             }}>siste 30d · sist {lastLabel}</span>
             {statusLabel && (
               <span style={{
-                fontSize: 7, letterSpacing: '0.18em', color: statusColor,
+                fontSize: 7, letterSpacing: '0.10em', color: statusColor,
                 fontWeight: 700, textTransform: 'uppercase', marginLeft: 'auto',
               }}>● {member.status}</span>
             )}
@@ -1575,7 +1586,7 @@ function PersonDetail({ T, member }) {
               padding: '14px 12px', marginTop: 4,
               border: `1px dashed ${T.rule}`,
               color: T.mid, fontSize: 10, textAlign: 'center',
-              letterSpacing: '0.14em', textTransform: 'uppercase',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
               lineHeight: 1.6,
             }}>
               ingen tagger registrert ennå
@@ -1601,7 +1612,7 @@ function PersonDetail({ T, member }) {
                   <div style={{ fontSize: 11, color: T.ink, fontWeight: 500 }}>
                     {def?.label || t.id}
                   </div>
-                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.14em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: 9, color: T.mid, letterSpacing: '0.08em', textTransform: 'uppercase', fontVariantNumeric: 'tabular-nums' }}>
                     sist {ago}
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', minWidth: 24, textAlign: 'right' }}>
@@ -1674,7 +1685,7 @@ function FAB({ T, onClick }) {
       position: 'fixed', bottom: 'calc(110px + env(safe-area-inset-bottom))', right: 18,
       width: 52, height: 52, borderRadius: T.radiusSm,
       background: `linear-gradient(180deg, ${T.copperHi}, ${T.accent})`,
-      color: '#0B0A09', border: 'none',
+      color: T.accentInk, border: 'none',
       fontSize: 24, fontWeight: 700, fontFamily: 'inherit',
       boxShadow: '0 4px 12px rgba(204,122,61,0.35)',
       cursor: 'pointer', zIndex: 30,
@@ -1723,14 +1734,14 @@ function TabBar({ T, screen, onChange }) {
               width: 24, height: 24,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 14, fontWeight: 700,
-              color: active ? '#0B0A09' : T.ink,
+              color: active ? T.accentInk : T.ink,
               background: active ? 'rgba(11,10,9,0.12)' : T.card,
               border: active ? '1px solid rgba(11,10,9,0.3)' : `1px solid ${T.rule}`,
             }}>{t.icon}</div>
             <div style={{
-              fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase',
+              fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase',
               fontWeight: active ? 700 : 500,
-              color: active ? '#0B0A09' : T.ink,
+              color: active ? T.accentInk : T.ink,
             }}>{t.label}</div>
           </button>
         );
@@ -1753,6 +1764,15 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   const [content, setContent] = React.useState(init.content || '');
   const [tags, setTags] = React.useState(init.tags || []);
   const [newTagInput, setNewTagInput] = React.useState('');
+
+  // To-stegs sletting: første trykk armerer knappen, andre trykk sletter.
+  // Auto-disarmerer etter 3 sek — erstatter window.confirm.
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  React.useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
 
   // Type: 'logged' (full skjema) eller 'planned' (forenklet)
   // - edit/plan-fill: alltid logged
@@ -2178,24 +2198,24 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
           {mode === 'edit' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, marginTop: 8 }}>
               <button onClick={() => {
-                if (!window.confirm('Slette denne økten? Dette kan ikke angres.')) return;
+                if (!confirmDelete) { setConfirmDelete(true); return; }
                 if (onDelete && initial?.id) onDelete(initial.id);
               }} style={{
                 padding: '14px',
-                background: 'transparent',
-                color: T.coral,
+                background: confirmDelete ? T.coral : 'transparent',
+                color: confirmDelete ? T.accentInk : T.coral,
                 border: `1px solid ${T.coral}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.20em', textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}>slett</button>
+                letterSpacing: '0.10em', textTransform: 'uppercase',
+                cursor: 'pointer', transition: 'background 0.15s ease',
+              }}>{confirmDelete ? 'sikker?' : 'slett'}</button>
               <button onClick={submit} disabled={!title} style={{
                 padding: '14px',
                 background: title ? T.accent : T.rule,
-                color: title ? '#0B0A09' : T.mid,
+                color: title ? T.accentInk : T.mid,
                 border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.20em', textTransform: 'uppercase',
+                letterSpacing: '0.10em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
               }}>lagre endringer</button>
             </div>
@@ -2204,10 +2224,10 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
               <button onClick={submit} disabled={!title} style={{
                 padding: '14px',
                 background: title ? T.accent : T.rule,
-                color: title ? '#0B0A09' : T.mid,
+                color: title ? T.accentInk : T.mid,
                 border: `1px solid ${title ? T.accent : T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.20em', textTransform: 'uppercase',
+                letterSpacing: '0.10em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
               }}>{isPlanned ? 'lagre plan' : 'lagre'}</button>
               <button onClick={submitAndNew} disabled={!title} style={{
@@ -2216,7 +2236,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 color: title ? T.ink : T.mid,
                 border: `1px solid ${T.rule}`, borderRadius: T.radiusSm,
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.20em', textTransform: 'uppercase',
+                letterSpacing: '0.10em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
               }}>lagre & ny</button>
             </div>
@@ -2231,7 +2251,7 @@ function Field({ T, label, children }) {
   return (
     <div>
       <div style={{
-        fontSize: 9, color: T.mid, marginBottom: 8, letterSpacing: '0.20em',
+        fontSize: 9, color: T.mid, marginBottom: 8, letterSpacing: '0.10em',
         textTransform: 'uppercase', fontWeight: 700,
       }}>
         {label}

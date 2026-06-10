@@ -28,6 +28,7 @@ const M = {
   accent:    '#7B6EF6',
   accentBg:  'rgba(123,110,246,0.10)',
   accentSoft:'rgba(123,110,246,0.16)',
+  accentInk: '#FFFFFF',  // tekst/ikoner oppå accent-bakgrunn
 
   // Semantisk palett
   accent2:   '#34B98C',  // mynte-grønn (success)

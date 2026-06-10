@@ -83,7 +83,7 @@ const Btn = ({ variant = 'primary', children, onClick, style = {}, dark }) => {
     fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
     fontSize: 10,
     fontWeight: 700,
-    letterSpacing: '0.16em',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     padding: '10px 18px',
     cursor: 'pointer',
@@ -130,10 +130,10 @@ const TopBar = ({ view, onView, trainer, onChangeTrainer }) => {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32,
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.18em', color: C.anthracite, textTransform: 'lowercase' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.10em', color: C.anthracite, textTransform: 'lowercase' }}>
             bodø jiu jitsu
           </span>
-          <span style={{ fontSize: 8, letterSpacing: '0.18em', color: C.greyMid, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 8, letterSpacing: '0.10em', color: C.greyMid, textTransform: 'uppercase' }}>
             treningslogg · trenere
           </span>
         </div>
@@ -150,7 +150,7 @@ const TopBar = ({ view, onView, trainer, onChangeTrainer }) => {
           ))}
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.greyMid }}>trener</span>
+          <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.greyMid }}>trener</span>
           <select value={trainer} onChange={e => onChangeTrainer(e.target.value)} style={{
             fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontSize: 11, letterSpacing: '0.1em',
             background: 'transparent', border: `1px solid ${C.anthracite}`, padding: '6px 10px',
@@ -203,7 +203,7 @@ const Calendar = ({ month, sessions, planned, filterGroup, filterTrainer, onPick
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `1px solid ${C.anthracite}`, background: C.anthracite }}>
         {headDays.map(h => (
           <div key={h} style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', color: C.bone,
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: C.bone,
             padding: '12px 14px', borderRight: `1px solid ${C.greyFrame}`,
           }}>{h}</div>
         ))}
@@ -234,7 +234,7 @@ const Calendar = ({ month, sessions, planned, filterGroup, filterTrainer, onPick
                 display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
               }}>
                 <span>{d.getDate()}</span>
-                {today_ && <span style={{ fontSize: 8, letterSpacing: '0.2em' }}>I DAG</span>}
+                {today_ && <span style={{ fontSize: 8, letterSpacing: '0.10em' }}>I DAG</span>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
                 {items.slice(0, 3).map((s, idx) => (
@@ -270,7 +270,7 @@ const Calendar = ({ month, sessions, planned, filterGroup, filterTrainer, onPick
                   </div>
                 ))}
                 {items.length > 3 && (
-                  <div style={{ fontSize: 8, letterSpacing: '0.2em', color: C.greyMid, paddingLeft: 8 }}>
+                  <div style={{ fontSize: 8, letterSpacing: '0.10em', color: C.greyMid, paddingLeft: 8 }}>
                     + {items.length - 3} TIL
                   </div>
                 )}
@@ -290,7 +290,7 @@ const FilterBar = ({ filterGroup, setFilterGroup, filterTrainer, setFilterTraine
   return (
     <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.greyMid }}>gruppe</span>
+        <span style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.greyMid }}>gruppe</span>
         <div style={{ display: 'flex', border: `1px solid ${C.anthracite}` }}>
           {groups.map(g => (
             <span key={g} onClick={() => setFilterGroup(g)} style={{
@@ -306,7 +306,7 @@ const FilterBar = ({ filterGroup, setFilterGroup, filterTrainer, setFilterTraine
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.greyMid }}>trener</span>
+        <span style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.greyMid }}>trener</span>
         <div style={{ display: 'flex', border: `1px solid ${C.anthracite}` }}>
           {trainers.map(t => (
             <span key={t} onClick={() => setFilterTrainer(t)} style={{
@@ -341,7 +341,7 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
       }}>
         <div style={{ padding: '20px 28px', borderBottom: `1px solid ${C.anthracite}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.greyMid, marginBottom: 4 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.greyMid, marginBottom: 4 }}>
               {dayLabel(date)} · {date.getDate()}. {monthLabel(date).split(' ')[0]}
             </div>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'lowercase', color: C.anthracite }}>
@@ -368,10 +368,10 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
               display: 'flex', flexDirection: 'column', gap: 8,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.anthracite }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.anthracite }}>
                   {it.time} · {it.group}
                 </div>
-                <span style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                <span style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase',
                   color: it.kind === 'planned' ? C.amber : C.green }}>
                   {it.kind === 'planned' ? '○ planlagt' : '● logget'}
                 </span>
@@ -388,11 +388,11 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
                     {it.tags.map(t => <Tag key={t} tag={t} size="sm" />)}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4, paddingTop: 8, borderTop: `1px solid ${C.ruleLight}` }}>
-                    <span style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.greyMid }}>
+                    <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.greyMid }}>
                       {it.trainer ? `${it.trainer} · ` : ''}{it.attendance} oppmøtt
                     </span>
                     {it.imported && (
-                      <span style={{ fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.amber }}>
+                      <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.amber }}>
                         ↑ importert
                       </span>
                     )}
@@ -403,7 +403,7 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
                       borderLeft: `2px solid ${C.greyMid}`,
                       fontSize: 10, lineHeight: 1.7, color: C.greyDim, letterSpacing: '0.04em',
                     }}>
-                      <div style={{ fontSize: 9, letterSpacing: '0.16em', color: C.boneMuted, marginBottom: 4 }}>
+                      <div style={{ fontSize: 9, letterSpacing: '0.08em', color: C.boneMuted, marginBottom: 4 }}>
                         DELTAKERE ({attendanceMap[it.id].length})
                       </div>
                       {attendanceMap[it.id].slice(0, 8).join(', ')}
@@ -413,7 +413,7 @@ const DayPanel = ({ date, sessions, planned, attendanceMap, onClose, onOpenSessi
                 </>
               )}
               {it.kind === 'planned' && (
-                <div style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.amber, marginTop: 4 }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.amber, marginTop: 4 }}>
                   → legg inn innhold
                 </div>
               )}
@@ -467,7 +467,7 @@ const SessionEditor = ({ initial, mode, onClose, onSave, onDelete }) => {
         {/* header */}
         <div style={{ padding: '20px 32px', borderBottom: `1px solid ${C.anthracite}`, background: C.anthracite, color: C.bone, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: C.boneMuted, marginBottom: 4 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.boneMuted, marginBottom: 4 }}>
               {mode === 'new' ? 'ny økt' : mode === 'plan' ? 'planlegg økt' : 'rediger økt'}
             </div>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'lowercase' }}>
@@ -556,7 +556,7 @@ const SessionEditor = ({ initial, mode, onClose, onSave, onDelete }) => {
         <div style={{ borderTop: `1px solid ${C.anthracite}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.surface }}>
           {mode === 'edit' && onDelete
             ? <Btn variant="danger" onClick={onDelete}>slett økt</Btn>
-            : <span style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.greyMid }}>auto-lagres når du trykker lagre</span>}
+            : <span style={{ fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.greyMid }}>auto-lagres når du trykker lagre</span>}
           <div style={{ display: 'flex', gap: 12 }}>
             <Btn variant="ghost" onClick={onClose}>avbryt</Btn>
             {mode !== 'edit' && (
@@ -589,7 +589,7 @@ const inputStyle = {
 
 const Field = ({ label, children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.greyMid }}>
+    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: C.greyMid }}>
       {label}
     </span>
     {children}
@@ -610,7 +610,7 @@ const ListView = ({ sessions, planned, onOpenSession, filterGroup, filterTrainer
     <div style={{ border: `1px solid ${C.anthracite}` }}>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 130px 90px 90px', background: C.anthracite }}>
         {['DATO','ØKT','GRUPPE / TRENER','TAGS','OPPMØTE'].map(h => (
-          <div key={h} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', color: C.bone, padding: '12px 16px', borderRight: `1px solid ${C.greyFrame}` }}>{h}</div>
+          <div key={h} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', color: C.bone, padding: '12px 16px', borderRight: `1px solid ${C.greyFrame}` }}>{h}</div>
         ))}
       </div>
       {all.map((s, i) => {
@@ -626,7 +626,7 @@ const ListView = ({ sessions, planned, onOpenSession, filterGroup, filterTrainer
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: C.anthracite }}>
                 {dayShort(d)} {d.getDate()}.{String(d.getMonth()+1).padStart(2,'0')}
               </div>
-              <div style={{ fontSize: 9, letterSpacing: '0.16em', color: C.greyMid, textTransform: 'uppercase' }}>{s.time}</div>
+              <div style={{ fontSize: 9, letterSpacing: '0.08em', color: C.greyMid, textTransform: 'uppercase' }}>{s.time}</div>
             </div>
             <div style={{ padding: '14px 16px', borderRight: `1px solid ${C.ruleDark}` }}>
               <div style={{ fontSize: 12, color: C.anthracite, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -641,7 +641,7 @@ const ListView = ({ sessions, planned, onOpenSession, filterGroup, filterTrainer
             </div>
             <div style={{ padding: '14px 16px', borderRight: `1px solid ${C.ruleDark}`, display: 'flex', flexWrap: 'wrap', gap: 3, alignContent: 'flex-start' }}>
               {(s.tags || []).slice(0, 2).map(t => <Tag key={t} tag={t} size="sm" />)}
-              {(s.tags || []).length > 2 && <span style={{ fontSize: 9, color: C.greyMid, letterSpacing: '0.16em' }}>+{s.tags.length - 2}</span>}
+              {(s.tags || []).length > 2 && <span style={{ fontSize: 9, color: C.greyMid, letterSpacing: '0.08em' }}>+{s.tags.length - 2}</span>}
             </div>
             <div style={{ padding: '14px 16px', fontSize: 11, color: C.anthracite, letterSpacing: '0.06em' }}>
               {s.attendance != null ? `${s.attendance} stk` : <span style={{ color: C.greyMid }}>—</span>}
