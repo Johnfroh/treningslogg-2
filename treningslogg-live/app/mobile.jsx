@@ -209,7 +209,11 @@ function MobileApp() {
     const tempId = `tmp-${Date.now()}`;
 
     // 1) UI-respons umiddelbart
-    if (mode === 'plan-fill') {
+    if (mode === 'plan-fill' && isPlanned) {
+      // Bruker valgte å beholde som plan — bare oppdater planen, ingen konvertering
+      setPlanned(prev => prev.map(p => p.id === planId ? { ...p, ...data } : p));
+    } else if (mode === 'plan-fill') {
+      // Konverter plan → logg
       setPlanned(prev => prev.filter(p => p.id !== planId));
       setSessions(prev => [{ ...data, id: tempId }, ...prev]);
     } else if (mode === 'edit') {
@@ -236,7 +240,10 @@ function MobileApp() {
 
     // 2) Server-call
     try {
-      if (mode === 'edit') {
+      if (mode === 'plan-fill' && isPlanned && planId) {
+        const updated = await window.TL_API.updatePlanned(planId, data);
+        setPlanned(prev => prev.map(p => p.id === planId ? updated : p));
+      } else if (mode === 'edit') {
         const updated = await window.TL_API.updateSession(planId, data);
         setSessions(prev => prev.map(s => s.id === planId ? updated : s));
       } else if (isPlanned) {
@@ -264,6 +271,24 @@ function MobileApp() {
         const fresh = await window.TL_API.refresh();
         applyData(fresh);
       } catch (_) { /* offline — la lokal state stå */ }
+    }
+  };
+
+  const deletePlanned = async (id) => {
+    if (!id) return;
+    const original = planned.find(p => p.id === id);
+    setPlanned(prev => prev.filter(p => p.id !== id));
+    setLogging(null);
+    flashToast('sletter plan …');
+    try {
+      await window.TL_API.deletePlanned(id);
+      setSyncError(null);
+      flashToast('plan slettet');
+    } catch (err) {
+      console.error('[mobile] deletePlanned feilet:', err);
+      if (original) setPlanned(prev => [original, ...prev]);
+      setSyncError('kunne ikke slette plan');
+      flashToast('feil — prøv igjen');
     }
   };
 
@@ -346,6 +371,7 @@ function MobileApp() {
           sessions={sessions}
           onSave={saveSession}
           onDelete={deleteSession}
+          onDeletePlan={deletePlanned}
           onClose={() => setLogging(null)}
         />
       )}
@@ -1751,7 +1777,7 @@ function TabBar({ T, screen, onChange }) {
 }
 
 // ─── Log modal ──────────────────────────────────────────────────────
-function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDelete }) {
+function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDelete, onDeletePlan }) {
   // Pre-fill from planned/initial
   const init = initial || {};
   const trainerList = (trainers && trainers.length) ? trainers : TL_DATA.trainers;
@@ -1775,14 +1801,16 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
   }, [confirmDelete]);
 
   // Type: 'logged' (full skjema) eller 'planned' (forenklet)
-  // - edit/plan-fill: alltid logged
+  // - edit: alltid logged
+  // - plan-fill: starter som logged (konvertering er hovedflyt), men kan
+  //   veksles tilbake til planned hvis bruker bare vil redigere planen
   // - new: framtidig dato → planned, ellers logged
   const [type, setType] = React.useState(() => {
     if (mode === 'edit' || mode === 'plan-fill') return 'logged';
     return (init.date && init.date > TODAY_M) ? 'planned' : 'logged';
   });
   const isPlanned = type === 'planned';
-  const canToggleType = mode === 'new';
+  const canToggleType = mode === 'new' || mode === 'plan-fill';
 
   // Recurring: bare relevant når planned + new
   const [recurring, setRecurring] = React.useState(false);
@@ -2195,11 +2223,15 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
           )}
 
           {/* Save row */}
-          {mode === 'edit' ? (
+          {mode === 'edit' || (mode === 'plan-fill' && onDeletePlan) ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, marginTop: 8 }}>
               <button onClick={() => {
                 if (!confirmDelete) { setConfirmDelete(true); return; }
-                if (onDelete && initial?.id) onDelete(initial.id);
+                if (mode === 'plan-fill' && onDeletePlan && initial?.id) {
+                  onDeletePlan(initial.id);
+                } else if (onDelete && initial?.id) {
+                  onDelete(initial.id);
+                }
               }} style={{
                 padding: '14px',
                 background: confirmDelete ? T.coral : 'transparent',
@@ -2208,7 +2240,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.10em', textTransform: 'uppercase',
                 cursor: 'pointer', transition: 'background 0.15s ease',
-              }}>{confirmDelete ? 'sikker?' : 'slett'}</button>
+              }}>{confirmDelete ? 'sikker?' : (mode === 'plan-fill' ? 'slett plan' : 'slett')}</button>
               <button onClick={submit} disabled={!title} style={{
                 padding: '14px',
                 background: title ? T.accent : T.rule,
@@ -2217,7 +2249,7 @@ function LogModal({ T, mode, initial, trainers, sessions, onSave, onClose, onDel
                 fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.10em', textTransform: 'uppercase',
                 cursor: title ? 'pointer' : 'not-allowed',
-              }}>lagre endringer</button>
+              }}>{mode === 'edit' ? 'lagre endringer' : isPlanned ? 'oppdater plan' : 'logg som gjennomført'}</button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
