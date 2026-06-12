@@ -2,7 +2,24 @@
 
 Dette er backenden for Treningslogg. Apps Script eksponerer Google Sheets som en HTTPS-endpoint mobil-appen kan kalle.
 
-## Deploy (15 minutter)
+## ⚠️ VIKTIG: Code.gs deployer IKKE automatisk
+
+Git/Cloudflare deployer kun frontend. Apps Script er en **manuelt synkronisert kopi**.
+Hver gang `Code.gs` endres i repoet, MÅ du:
+
+1. Kopiere hele `Code.gs` fra repoet.
+2. Lime inn i Apps Script-editoren (erstatt alt).
+3. **Lagre** (Cmd/Ctrl+S).
+4. **Deploy → Manage deployments → blyant-ikon → Version: New version → Deploy.**
+   (Uten dette steget kjører fortsatt den gamle koden — Save er ikke nok!)
+5. Hvis endringen introduserte nye ark/faner: kjør relevant `_setup…`-funksjon
+   manuelt fra editor-dropdownen (f.eks. `_setupBmSheets`).
+6. Test: åpne appen og verifiser at lasting og lagring virker.
+
+`SHARED_TOKEN` i repoets Code.gs er nå synkronisert med klient-koden, så
+innliming overskriver ikke lenger tokenet med en plassholder.
+
+## Deploy første gang (15 minutter)
 
 1. Lag eller åpne Sheets-fila som skal være database (se `../SHEETS-MAL.md` for struktur).
 2. **Extensions** → **Apps Script**.
@@ -38,7 +55,8 @@ Apps Script bruker versjonering. Hver gang du endrer `Code.gs`:
 
 | Symptom | Årsak | Løsning |
 |---|---|---|
-| `unauthorized` | Token mismatch | Sjekk at `SHARED_TOKEN` i Code.gs matcher `TOKEN` i app/api.js |
+| `unauthorized` | Token mismatch | Sjekk at `SHARED_TOKEN` i Code.gs matcher `TOKEN` i app/api.js og `API_TOKEN` i fotball/app-core.js |
+| `unknown action: …` | Gammel kode deployet | Du har limt inn ny kode, men ikke deployet ny versjon (se ⚠️ øverst) |
 | `Authorization is required` | Første kjøring | Run `_testSetupSheets` manuelt fra editoren og aksepter tilganger |
 | CORS-feil i konsollen | Ingen — Apps Script-deployments med "Anyone" støtter CORS | Sjekk at deployment er Web app, ikke API executable |
 | Tomme svar | Sheet-fane mangler | Run `_testSetupSheets` igjen |
