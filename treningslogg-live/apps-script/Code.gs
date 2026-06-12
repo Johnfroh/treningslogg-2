@@ -15,9 +15,11 @@
  */
 
 // ─── Konfigurasjon ─────────────────────────────────────────────────
-// Hemmelig token. Endre til noe ingen vil gjette.
-// Frontend må sende samme token i ?token=... eller body.
-const SHARED_TOKEN = 'bjj-bodø-2026-bytt-meg';
+// Delt token mellom frontend og Apps Script. Må være identisk med
+// TOKEN i app/api.js og API_TOKEN i fotball/app-core.js.
+// Tokenet er andre forsvarslinje — primærbeskyttelsen er Cloudflare
+// Access foran løft.app. (Roadmap: flytt til Cloudflare env-variabel.)
+const SHARED_TOKEN = 'bjj-Hk8nQ2wT-2026';
 
 const SHEET_NAMES = {
   sessions: 'sessions',
