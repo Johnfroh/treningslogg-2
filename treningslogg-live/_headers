@@ -15,6 +15,11 @@
 /*.jsx
   Cache-Control: public, max-age=0, must-revalidate
 
+# Fotball-appen er ren HTML/JS — samme prinsipp: ny build skal
+# plukkes opp raskt
+/fotball/*
+  Cache-Control: public, max-age=0, must-revalidate
+
 # Statiske assets med fingerprint-eller-stabile-paths kan caches
 /icons/*
   Cache-Control: public, max-age=86400

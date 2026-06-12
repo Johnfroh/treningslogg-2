@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Skanntrening — Vis at du vil ha den</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&amp;family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#262320; --ink-soft:#4A453E;
+    --green:#3E8E54; --green-deep:#2E6B3F;
+    --gold:#E0992E; --gold-deep:#C07E1E;
+    --coral:#DA5B3B;
+    --muted:#9A9286;
+    --hair:#E7E1D5; --hair-strong:#D6CEBE;
+    --paper:#FFFFFF; --cream:#FBF6EC; --desk:#E8E3D8;
+    --serif:'Spectral',Georgia,serif;
+    --display:'Bricolage Grotesque','Trebuchet MS',sans-serif;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    font-family:var(--serif);
+    background:var(--cream);
+    color:var(--ink);
+    overflow:hidden;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  .screen{ position:fixed; inset:0; display:none; flex-direction:column; }
+  .screen.active{ display:flex; }
+
+  /* ---------- SETUP ---------- */
+  #setup{ overflow-y:auto; display:none; background:var(--cream); }
+  #setup.active{ display:block; }
+  .setup-inner{ max-width:480px; margin:0 auto; padding:26px 22px 44px 22px; }
+  .brandline{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:var(--display); font-size:9px; font-weight:600;
+    letter-spacing:0.18em; text-transform:uppercase;
+    border-bottom:1px solid var(--hair); padding-bottom:12px;
+  }
+  .brandline span:first-child{ color:var(--green); }
+  .brandline span:last-child{ color:var(--muted); }
+  .apptitle{ margin-top:24px; }
+  .apptitle h1{
+    font-family:var(--display); font-size:40px; font-weight:800;
+    letter-spacing:-0.02em; line-height:0.98; color:var(--ink);
+  }
+  .apptitle h1 .hl{ color:var(--green); }
+  .apptitle .sub{
+    margin-top:10px; font-family:var(--display); font-size:11px; font-weight:700;
+    letter-spacing:0.04em; color:var(--gold-deep); text-transform:uppercase;
+  }
+  .title-rule{ height:2px; background:var(--ink); width:38px; margin-top:14px; }
+  .section-label{
+    margin-top:30px; margin-bottom:10px;
+    font-family:var(--display); font-size:9.5px; font-weight:600;
+    letter-spacing:0.22em; color:var(--green); text-transform:uppercase;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-label::after{ content:""; flex:1; height:1px; background:var(--hair); }
+
+  .mode-grid{ display:grid; grid-template-columns:1fr; gap:8px; }
+  .mode-btn{
+    display:flex; flex-direction:column; gap:4px; text-align:left;
+    background:var(--paper); border:1px solid var(--hair-strong); color:var(--ink);
+    font-family:var(--serif); padding:13px 15px; cursor:pointer; min-height:44px;
+  }
+  .mode-btn .mb-name{ font-family:var(--display); font-size:14px; font-weight:700; letter-spacing:-0.005em; }
+  .mode-btn .mb-desc{ font-size:11.5px; line-height:1.5; color:var(--ink-soft); }
+  .mode-btn.selected{ border:2px solid var(--ink); padding:12px 14px; }
+  .mode-btn.selected .mb-name{ color:var(--green-deep); }
+
+  #handling-legend{ display:none; border:2px solid var(--ink); background:var(--paper); padding:13px 15px; margin-top:8px; }
+  #handling-legend.visible{ display:block; }
+  #handling-legend .hl-title{
+    font-family:var(--display); font-size:8.5px; font-weight:600;
+    letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; margin-bottom:9px;
+  }
+  .hl-row{ display:flex; align-items:center; gap:11px; padding:4px 0; font-size:12.5px; }
+  .hl-swatch{ width:16px; height:16px; border:1px solid var(--hair-strong); flex:none; }
+  .hl-action{ font-family:var(--display); font-weight:700; }
+
+  .setting-row{
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid var(--hair); padding:11px 0; gap:12px;
+  }
+  .setting-row .sr-label{ font-size:13.5px; color:var(--ink); }
+  .sr-control{ display:flex; align-items:center; gap:0; }
+  .stepper{ display:flex; align-items:center; border:1px solid var(--hair-strong); background:var(--paper); }
+  .stepper button{
+    width:44px; height:44px; background:transparent; border:none; color:var(--ink);
+    font-family:var(--display); font-size:20px; font-weight:700; cursor:pointer;
+  }
+  .stepper button:active{ color:var(--gold-deep); }
+  .stepper .stepper-val{
+    min-width:64px; text-align:center; font-family:var(--display); font-size:13.5px; font-weight:700; color:var(--ink);
+    border-left:1px solid var(--hair); border-right:1px solid var(--hair);
+    height:44px; display:flex; align-items:center; justify-content:center;
+  }
+  .toggle-group{ display:flex; border:1px solid var(--hair-strong); background:var(--paper); }
+  .toggle-group button{
+    background:transparent; border:none; color:var(--muted); font-family:var(--display);
+    font-size:10.5px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+    padding:0 14px; height:44px; cursor:pointer;
+  }
+  .toggle-group button + button{ border-left:1px solid var(--hair); }
+  .toggle-group button.selected{ color:#fff; background:var(--green); font-weight:700; }
+
+  .start-btn{
+    margin-top:34px; width:100%; height:62px;
+    background:var(--green); color:#fff;
+    border:none; font-family:var(--display); font-size:15px; font-weight:800;
+    letter-spacing:0.2em; text-transform:uppercase; cursor:pointer;
+  }
+  .start-btn:active{ background:var(--green-deep); }
+  .setup-hint{
+    margin-top:18px; font-size:11.5px; line-height:1.65; color:var(--ink-soft); font-style:italic;
+  }
+
+  /* ---------- COUNTDOWN ---------- */
+  #countdown{ background:var(--cream); align-items:center; justify-content:center; }
+  #countdown .cd-num{ font-family:var(--display); font-size:38vmin; font-weight:800; color:var(--ink); line-height:1; }
+  #countdown .cd-label{
+    position:absolute; top:34px; left:0; right:0; text-align:center;
+    font-family:var(--display); font-size:10px; font-weight:600;
+    letter-spacing:0.22em; color:var(--green); text-transform:uppercase;
+  }
+
+  /* ---------- RUN ---------- */
+  #run{ background:var(--ink); align-items:center; justify-content:center; cursor:pointer; }
+  #run .signal-color{ position:absolute; inset:0; transition:background-color 120ms linear; }
+  #run .signal-number{
+    position:relative; font-family:var(--display); font-size:60vmin; font-weight:800;
+    color:var(--cream); line-height:1; font-variant-numeric:tabular-nums;
+  }
+  #run .run-meta{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:18px 22px; font-family:var(--display); font-size:13px; font-weight:700;
+    letter-spacing:0.12em; z-index:5;
+  }
+  #run .stop-hint{
+    position:absolute; bottom:20px; left:0; right:0; text-align:center;
+    font-family:var(--display); font-size:9px; font-weight:600;
+    letter-spacing:0.24em; text-transform:uppercase; z-index:5;
+  }
+  #run .dot-mark{
+    position:relative; width:10px; height:10px; border:1px solid var(--muted);
+    border-radius:50%; display:none; opacity:0.5;
+  }
+  #run.dark-phase .dot-mark{ display:block; }
+  #run.dark-phase .signal-number{ display:none; }
+
+  /* ---------- RESULT ---------- */
+  #result{ overflow-y:auto; display:none; background:var(--cream); }
+  #result.active{ display:block; }
+  .result-inner{ max-width:480px; margin:0 auto; padding:26px 22px 44px 22px; }
+  .result-card{ border:2px solid var(--green); background:var(--paper); padding:18px 18px 16px; }
+  .result-head{ border-bottom:2px solid var(--green); padding-bottom:12px; }
+  .result-head .rh-kick{
+    font-family:var(--display); font-size:8.5px; font-weight:600;
+    letter-spacing:0.2em; color:var(--green); text-transform:uppercase;
+  }
+  .result-head h2{
+    margin-top:6px; font-family:var(--display); font-size:26px; font-weight:800;
+    letter-spacing:-0.01em; line-height:0.98; color:var(--ink);
+  }
+  .result-stats{ display:flex; gap:0; border-bottom:1px solid var(--hair); }
+  .result-stats .stat{ flex:1; padding:12px 0 12px 14px; }
+  .result-stats .stat:first-child{ padding-left:0; }
+  .result-stats .stat + .stat{ border-left:1px solid var(--hair); }
+  .result-stats .stat .st-val{ font-family:var(--display); font-size:21px; font-weight:800; color:var(--gold); }
+  .result-stats .stat .st-label{
+    margin-top:3px; font-family:var(--display); font-size:8px; font-weight:600;
+    letter-spacing:0.18em; color:var(--muted); text-transform:uppercase;
+  }
+  .log-label{
+    margin:14px 0 4px; font-family:var(--display); font-size:8.5px; font-weight:600;
+    letter-spacing:0.2em; color:var(--muted); text-transform:uppercase;
+  }
+  .log-list{ margin-top:0; }
+  .log-row{
+    display:flex; align-items:center; gap:12px;
+    border-bottom:1px solid var(--hair); padding:9px 0;
+    font-size:13px;
+  }
+  .log-row:last-child{ border-bottom:none; }
+  .log-row .lr-num{ width:28px; font-family:var(--display); font-size:13px; font-weight:800; color:var(--gold); }
+  .log-row .lr-swatch{ width:20px; height:20px; border:1px solid var(--hair-strong); flex:none; }
+  .log-row .lr-name{ font-family:var(--display); font-weight:700; font-size:13px; }
+  .log-row .lr-extra{ margin-left:auto; font-family:var(--display); font-size:9px; font-weight:600; letter-spacing:0.12em; color:var(--green-deep); text-transform:uppercase; }
+  .result-actions{ display:flex; gap:8px; margin-top:24px; }
+  .result-actions button{
+    flex:1; height:54px; font-family:var(--display); font-size:12px; font-weight:800;
+    letter-spacing:0.16em; text-transform:uppercase; cursor:pointer;
+  }
+  .btn-primary{ background:var(--green); color:#fff; border:none; }
+  .btn-primary:active{ background:var(--green-deep); }
+  .btn-ghost{ background:var(--paper); color:var(--ink); border:2px solid var(--ink); }
+</style>
+</head>
+<body>
+
+  <!-- ============ SETUP ============ -->
+  <div class="screen active" id="setup" data-screen-label="Oppsett">
+    <div class="setup-inner">
+      <div class="brandline"><span>Blikket opp</span><span>Kroppen · Blikkene · Ballen</span></div>
+
+      <div class="apptitle">
+        <h1>Skann<span class="hl">trening</span></h1>
+        <div class="sub">Sett mobilen bak deg · Se over skulderen · Si det du ser</div>
+        <div class="title-rule"></div>
+      </div>
+
+      <div class="section-label">Øvelse</div>
+      <div class="mode-grid" id="mode-grid">
+        <button class="mode-btn selected" data-mode="farger">
+          <span class="mb-name">Farger</span>
+          <span class="mb-desc">Skjermen skifter farge. Skann og si fargen høyt.</span>
+        </button>
+        <button class="mode-btn" data-mode="tall">
+          <span class="mb-name">Tall</span>
+          <span class="mb-desc">Skjermen viser et tall 1–9. Skann og si tallet høyt.</span>
+        </button>
+        <button class="mode-btn" data-mode="handling">
+          <span class="mb-name">Farge + handling</span>
+          <span class="mb-desc">Fargen betyr en handling. Skann, si handlingen — og gjør den med ball.</span>
+        </button>
+      </div>
+      <div id="handling-legend">
+        <div class="hl-title">Handlinger</div>
+        <div class="hl-row"><span class="hl-swatch" style="background:#3E8E54;"></span><span>grønn → <span class="hl-action">vend opp</span></span></div>
+        <div class="hl-row"><span class="hl-swatch" style="background:#E03C31;"></span><span>rød → <span class="hl-action">spill tilbake</span></span></div>
+        <div class="hl-row"><span class="hl-swatch" style="background:#F5C518;"></span><span>gul → <span class="hl-action">hold &amp; skjerm</span></span></div>
+      </div>
+
+      <div class="section-label">Innstillinger</div>
+
+      <div class="setting-row" id="row-farger">
+        <span class="sr-label">Antall farger</span>
+        <div class="stepper">
+          <button data-step="colors" data-dir="-1" aria-label="Færre farger">−</button>
+          <span class="stepper-val" id="val-colors">6</span>
+          <button data-step="colors" data-dir="1" aria-label="Flere farger">+</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="sr-label">Tid mellom skift</span>
+        <div class="stepper">
+          <button data-step="interval" data-dir="-1" aria-label="Kortere intervall">−</button>
+          <span class="stepper-val" id="val-interval">3–6 s</span>
+          <button data-step="interval" data-dir="1" aria-label="Lengre intervall">+</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="sr-label">Varighet</span>
+        <div class="stepper">
+          <button data-step="duration" data-dir="-1" aria-label="Kortere økt">−</button>
+          <span class="stepper-val" id="val-duration">45 s</span>
+          <button data-step="duration" data-dir="1" aria-label="Lengre økt">+</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="sr-label">Visning</span>
+        <div class="toggle-group" id="toggle-display">
+          <button data-val="konstant" class="selected">Konstant</button>
+          <button data-val="blink">Blink</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="sr-label">Pip ved skifte</span>
+        <div class="toggle-group" id="toggle-sound">
+          <button data-val="on" class="selected">På</button>
+          <button data-val="off">Av</button>
+        </div>
+      </div>
+
+      <button class="start-btn" id="btn-start">Start</button>
+
+      <p class="setup-hint">Konstant: signalet står på til neste skift — skann ofte, så ofte du kan.<br>
+      Blink: signalet vises i halvannet sekund og forsvinner — pipet sier fra når du må skanne. Går du glipp av det, er det borte.<br><br>
+      Etter økten viser appen fasit, slik at en voksen kan sjekke svarene.</p>
+    </div>
+  </div>
+
+  <!-- ============ COUNTDOWN ============ -->
+  <div class="screen" id="countdown" data-screen-label="Nedtelling">
+    <div class="cd-label">Sett mobilen bak deg</div>
+    <div class="cd-num" id="cd-num">3</div>
+  </div>
+
+  <!-- ============ RUN ============ -->
+  <div class="screen" id="run" data-screen-label="Økt pågår">
+    <div class="signal-color" id="signal-color"></div>
+    <div class="run-meta"><span id="run-timer">0:45</span><span id="run-count">0</span></div>
+    <div class="signal-number" id="signal-number"></div>
+    <div class="dot-mark"></div>
+    <div class="stop-hint">Trykk for å avslutte</div>
+  </div>
+
+  <!-- ============ RESULT ============ -->
+  <div class="screen" id="result" data-screen-label="Fasit">
+    <div class="result-inner">
+      <div class="result-card">
+      <div class="result-head">
+        <div class="rh-kick">Økt ferdig · Fasit</div>
+        <h2 id="result-title">Skannlogg</h2>
+      </div>
+      <div class="result-stats">
+        <div class="stat"><div class="st-val" id="stat-count">0</div><div class="st-label">Signaler</div></div>
+        <div class="stat"><div class="st-val" id="stat-duration">45 s</div><div class="st-label">Varighet</div></div>
+        <div class="stat"><div class="st-val" id="stat-mode">Farger</div><div class="st-label">Øvelse</div></div>
+      </div>
+      <div class="log-label">Rekkefølge — fasit</div>
+      <div class="log-list" id="log-list"></div>
+      </div>
+      <div class="result-actions">
+        <button class="btn-ghost" id="btn-back">Oppsett</button>
+        <button class="btn-primary" id="btn-again">Samme igjen</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Palette: distinct, nameable colors ----------
+  var COLORS = [
+    { name:"RØD",    hex:"#E03C31", darkText:false },
+    { name:"BLÅ",    hex:"#1F6FD6", darkText:false },
+    { name:"GRØNN",  hex:"#3E8E54", darkText:false },
+    { name:"GUL",    hex:"#F5C518", darkText:true  },
+    { name:"HVIT",   hex:"#F5F0E8", darkText:true  },
+    { name:"LILLA",  hex:"#8C4FD0", darkText:false }
+  ];
+  var ACTIONS = [
+    { name:"GRØNN", hex:"#3E8E54", action:"VEND OPP",      darkText:false },
+    { name:"RØD",   hex:"#E03C31", action:"SPILL TILBAKE", darkText:false },
+    { name:"GUL",   hex:"#F5C518", action:"HOLD & SKJERM", darkText:true  }
+  ];
+  var INTERVALS = [
+    { label:"1–2 s",  min:1000, max:2000 },
+    { label:"2–4 s",  min:2000, max:4000 },
+    { label:"3–6 s",  min:3000, max:6000 },
+    { label:"4–8 s",  min:4000, max:8000 },
+    { label:"6–12 s", min:6000, max:12000 }
+  ];
+  var DURATIONS = [30, 45, 60, 90, 120, 180];
+
+  // ---------- Settings (persisted) ----------
+  var defaults = { mode:"farger", colors:6, intervalIdx:2, durationIdx:1, display:"konstant", sound:"on" };
+  var settings = defaults;
+  try {
+    var saved = localStorage.getItem("skanntrening-settings");
+    if (saved) settings = Object.assign({}, defaults, JSON.parse(saved));
+  } catch(e) {}
+  function saveSettings(){
+    try { localStorage.setItem("skanntrening-settings", JSON.stringify(settings)); } catch(e) {}
+  }
+
+  // ---------- Elements ----------
+  function $(id){ return document.getElementById(id); }
+  var screens = { setup:$("setup"), countdown:$("countdown"), run:$("run"), result:$("result") };
+  function showScreen(name){
+    Object.keys(screens).forEach(function(k){ screens[k].classList.remove("active"); });
+    screens[name].classList.add("active");
+  }
+
+  // ---------- Setup UI ----------
+  function refreshSetupUI(){
+    var btns = document.querySelectorAll("#mode-grid .mode-btn");
+    btns.forEach(function(b){ b.classList.toggle("selected", b.dataset.mode === settings.mode); });
+    $("handling-legend").classList.toggle("visible", settings.mode === "handling");
+    $("row-farger").style.display = (settings.mode === "farger") ? "flex" : "none";
+    $("val-colors").textContent = settings.colors;
+    $("val-interval").textContent = INTERVALS[settings.intervalIdx].label;
+    $("val-duration").textContent = DURATIONS[settings.durationIdx] + " s";
+    document.querySelectorAll("#toggle-display button").forEach(function(b){
+      b.classList.toggle("selected", b.dataset.val === settings.display);
+    });
+    document.querySelectorAll("#toggle-sound button").forEach(function(b){
+      b.classList.toggle("selected", b.dataset.val === settings.sound);
+    });
+  }
+
+  document.querySelectorAll("#mode-grid .mode-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      settings.mode = b.dataset.mode; saveSettings(); refreshSetupUI();
+    });
+  });
+  document.querySelectorAll(".stepper button").forEach(function(b){
+    b.addEventListener("click", function(){
+      var dir = parseInt(b.dataset.dir, 10);
+      if (b.dataset.step === "colors") settings.colors = Math.min(6, Math.max(2, settings.colors + dir));
+      if (b.dataset.step === "interval") settings.intervalIdx = Math.min(INTERVALS.length - 1, Math.max(0, settings.intervalIdx + dir));
+      if (b.dataset.step === "duration") settings.durationIdx = Math.min(DURATIONS.length - 1, Math.max(0, settings.durationIdx + dir));
+      saveSettings(); refreshSetupUI();
+    });
+  });
+  document.querySelectorAll("#toggle-display button").forEach(function(b){
+    b.addEventListener("click", function(){ settings.display = b.dataset.val; saveSettings(); refreshSetupUI(); });
+  });
+  document.querySelectorAll("#toggle-sound button").forEach(function(b){
+    b.addEventListener("click", function(){ settings.sound = b.dataset.val; saveSettings(); refreshSetupUI(); });
+  });
+  refreshSetupUI();
+
+  // ---------- Audio ----------
+  var audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function beep(freq, durMs, when){
+    if (settings.sound !== "on" || !audioCtx) return;
+    var t = audioCtx.currentTime + (when || 0);
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "square";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + durMs / 1000 + 0.05);
+  }
+  function beepChange(){ beep(880, 90); }
+  function beepEnd(){ beep(660, 120, 0); beep(660, 120, 0.18); beep(440, 300, 0.36); }
+
+  // ---------- Wake lock ----------
+  var wakeLock = null;
+  function acquireWakeLock(){
+    if ("wakeLock" in navigator) {
+      navigator.wakeLock.request("screen").then(function(wl){ wakeLock = wl; }).catch(function(){});
+    }
+  }
+  function releaseWakeLock(){
+    if (wakeLock) { wakeLock.release().catch(function(){}); wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible" && sessionActive) acquireWakeLock();
+  });
+
+  // ---------- Session ----------
+  var sessionActive = false;
+  var timers = [];
+  var log = [];
+  var sessionEndsAt = 0;
+  var lastSignalIdx = -1;
+  var FLASH_MS = 1500;
+
+  function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+  function pool(){
+    if (settings.mode === "farger") return COLORS.slice(0, settings.colors);
+    if (settings.mode === "handling") return ACTIONS;
+    return null; // tall
+  }
+
+  function nextSignal(){
+    if (!sessionActive) return;
+    var sig;
+    if (settings.mode === "tall") {
+      var n;
+      do { n = 1 + Math.floor(Math.random() * 9); } while (n === lastSignalIdx);
+      lastSignalIdx = n;
+      sig = { kind:"tall", value:n };
+    } else {
+      var p = pool();
+      var i;
+      do { i = Math.floor(Math.random() * p.length); } while (i === lastSignalIdx && p.length > 1);
+      lastSignalIdx = i;
+      sig = { kind:settings.mode, value:p[i] };
+    }
+    log.push(sig);
+    renderSignal(sig);
+    beepChange();
+    $("run-count").textContent = log.length;
+
+    if (settings.display === "blink") {
+      later(function(){ if (sessionActive) renderDark(); }, FLASH_MS);
+    }
+
+    var iv = INTERVALS[settings.intervalIdx];
+    var wait = iv.min + Math.random() * (iv.max - iv.min);
+    if (Date.now() + wait < sessionEndsAt - 400) {
+      later(nextSignal, wait);
+    }
+  }
+
+  function renderSignal(sig){
+    var run = $("run");
+    run.classList.remove("dark-phase");
+    var colorEl = $("signal-color");
+    var numEl = $("signal-number");
+    if (sig.kind === "tall") {
+      colorEl.style.backgroundColor = "#262320";
+      numEl.textContent = sig.value;
+      numEl.style.display = "block";
+      setMetaDark(true);
+    } else {
+      colorEl.style.backgroundColor = sig.value.hex;
+      numEl.style.display = "none";
+      setMetaDark(!sig.value.darkText);
+    }
+  }
+  function renderDark(){
+    $("run").classList.add("dark-phase");
+    $("signal-color").style.backgroundColor = "#262320";
+    setMetaDark(true);
+  }
+  function setMetaDark(light){
+    // light = meta text should be light (on dark/saturated bg)
+    var meta = document.querySelector("#run .run-meta");
+    var hint = document.querySelector("#run .stop-hint");
+    meta.style.color = light ? "rgba(251,246,236,0.9)" : "rgba(38,35,32,0.85)";
+    hint.style.color = light ? "rgba(251,246,236,0.55)" : "rgba(38,35,32,0.55)";
+  }
+
+  function tickTimer(){
+    if (!sessionActive) return;
+    var left = Math.max(0, Math.ceil((sessionEndsAt - Date.now()) / 1000));
+    var m = Math.floor(left / 60), s = left % 60;
+    $("run-timer").textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    if (left <= 0) { endSession(); return; }
+    later(tickTimer, 250);
+  }
+
+  function startSession(){
+    ensureAudio();
+    acquireWakeLock();
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(function(){});
+    }
+    showScreen("countdown");
+    var n = 3;
+    $("cd-num").textContent = n;
+    beep(440, 100);
+    var cd = setInterval(function(){
+      n--;
+      if (n > 0) {
+        $("cd-num").textContent = n;
+        beep(440, 100);
+      } else {
+        clearInterval(cd);
+        beep(880, 250);
+        runSession();
+      }
+    }, 1000);
+  }
+
+  function runSession(){
+    sessionActive = true;
+    log = [];
+    lastSignalIdx = -1;
+    sessionEndsAt = Date.now() + DURATIONS[settings.durationIdx] * 1000;
+    $("run-count").textContent = "0";
+    showScreen("run");
+    tickTimer();
+    nextSignal();
+  }
+
+  function endSession(){
+    if (!sessionActive) return;
+    sessionActive = false;
+    clearTimers();
+    beepEnd();
+    releaseWakeLock();
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(function(){});
+    }
+    renderResult();
+    showScreen("result");
+  }
+
+  function renderResult(){
+    $("stat-count").textContent = log.length;
+    $("stat-duration").textContent = DURATIONS[settings.durationIdx] + " s";
+    var modeNames = { farger:"Farger", tall:"Tall", handling:"Handling" };
+    $("stat-mode").textContent = modeNames[settings.mode];
+    var list = $("log-list");
+    list.innerHTML = "";
+    log.forEach(function(sig, i){
+      var row = document.createElement("div");
+      row.className = "log-row";
+      var numHtml = '<span class="lr-num">' + String(i + 1).padStart(2, "0") + '</span>';
+      if (sig.kind === "tall") {
+        row.innerHTML = numHtml +
+          '<span class="lr-swatch" style="background:#262320; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#FBF6EC;">' + sig.value + '</span>' +
+          '<span class="lr-name">' + sig.value + '</span>';
+      } else {
+        var extra = sig.kind === "handling" ? '<span class="lr-extra">' + sig.value.action + '</span>' : '';
+        row.innerHTML = numHtml +
+          '<span class="lr-swatch" style="background:' + sig.value.hex + ';"></span>' +
+          '<span class="lr-name">' + sig.value.name + '</span>' + extra;
+      }
+      list.appendChild(row);
+    });
+  }
+
+  // ---------- Wiring ----------
+  $("btn-start").addEventListener("click", startSession);
+  $("run").addEventListener("click", endSession);
+  $("btn-back").addEventListener("click", function(){ showScreen("setup"); });
+  $("btn-again").addEventListener("click", startSession);
+})();
+</script>
+
+<style id="__om-edit-overrides"></style>
+</body>
+</html>

@@ -25,6 +25,9 @@ const SHEET_NAMES = {
   trainers: 'trainers',
   members:  'members',
   attendance: 'attendance',
+  // Bygg motoren — fotball-egentreningsapp på /fotball
+  bmEntries: 'bm_entries',
+  bmSettings: 'bm_settings',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -32,6 +35,10 @@ const PLANNED_COLS = ['id','date','time','group','trainer','title'];
 const TRAINER_COLS = ['id','name','active'];
 const MEMBER_COLS  = ['name','aliases','active'];
 const ATTENDANCE_COLS = ['sessionId','memberName','importedAt'];
+// 'user'-kolonnen er tom i single-user-modus, klar for skalering når
+// flere brukere kommer på /fotball.
+const BM_ENTRY_COLS    = ['id','user','date','okt','parts','rekord','note','xp','createdAt'];
+const BM_SETTINGS_COLS = ['user','key','value'];
 
 // ─── Public entrypoints ────────────────────────────────────────────
 
@@ -66,6 +73,11 @@ function handle(e, method) {
       case 'updatePlanned':   return json({ ok: true, data: updatePlanned(body.id, body.payload) });
       case 'deletePlanned':   return json({ ok: true, data: deleteRow(SHEET_NAMES.planned, body.id) });
       case 'importAttendance':return json({ ok: true, data: importAttendance(body.rows) });
+      // Bygg motoren — fotball-egentrening
+      case 'bmList':          return json({ ok: true, data: bmList(params.user || body.user) });
+      case 'bmCreate':        return json({ ok: true, data: bmCreate(body.payload) });
+      case 'bmDelete':        return json({ ok: true, data: deleteRow(SHEET_NAMES.bmEntries, body.id) });
+      case 'bmSetSetting':    return json({ ok: true, data: bmSetSetting(body.user, body.key, body.value) });
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
       default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
@@ -94,7 +106,7 @@ function readAttendance() {
   return range.map(row => ({
     sessionId: String(row[0] || ''),
     memberName: String(row[1] || ''),
-    importedAt: row[2] instanceof Date ? row[2].toISOString() : (row[2] ? String(row[2]) : null),
+    importedAt: safeIso(row[2]) || (row[2] ? String(row[2]) : null),
   })).filter(r => r.sessionId && r.memberName);
 }
 
@@ -120,8 +132,8 @@ function parseSessionRow(o) {
     content: String(o.content || ''),
     tags: parseTags(o.tags),
     attendance: o.attendance === '' || o.attendance == null ? null : Number(o.attendance),
-    createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null,
-    updatedAt: o.updatedAt ? new Date(o.updatedAt).toISOString() : null,
+    createdAt: safeIso(o.createdAt),
+    updatedAt: safeIso(o.updatedAt),
   };
 }
 
@@ -287,6 +299,8 @@ function sheet(name) {
               : name === SHEET_NAMES.trainers   ? TRAINER_COLS
               : name === SHEET_NAMES.members    ? MEMBER_COLS
               : name === SHEET_NAMES.attendance ? ATTENDANCE_COLS
+              : name === SHEET_NAMES.bmEntries  ? BM_ENTRY_COLS
+              : name === SHEET_NAMES.bmSettings ? BM_SETTINGS_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
@@ -351,6 +365,16 @@ function hm(v) {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Defensiv ISO-konvertering: returner null hvis verdien ikke kan parses
+// som en gyldig dato. Brukes på createdAt/updatedAt der celle-formatet
+// kan ha blitt forvirret av Sheets sin auto-deteksjon ved round-trip.
+function safeIso(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString();
+  var d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 function parseTags(v) {
   if (!v) return [];
@@ -485,4 +509,103 @@ function _migrateToNewGroups() {
   }
   Logger.log('Planned migrert: ' + pMigrated);
   Logger.log('Migrering fullført.');
+}
+
+// ─── Bygg motoren — fotball-egentrening (løft.app/fotball) ─────────
+// Lagrer økt-entries og innstillinger i to nye faner. Forberedt for
+// flere brukere via 'user'-kolonne — single-user kan bare bruke '' (tom).
+
+function _setupBmSheets() {
+  // Kjør én gang manuelt fra editoren for å opprette de to fanene.
+  sheet(SHEET_NAMES.bmEntries);
+  sheet(SHEET_NAMES.bmSettings);
+  Logger.log('bm_entries og bm_settings opprettet med headers.');
+}
+
+function bmList(userFilter) {
+  return {
+    entries: bmReadEntries(userFilter),
+    settings: bmReadSettings(userFilter),
+  };
+}
+
+function bmReadEntries(userFilter) {
+  const sh = sheet(SHEET_NAMES.bmEntries);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return [];
+  const range = sh.getRange(2, 1, lastRow - 1, BM_ENTRY_COLS.length).getValues();
+  return range
+    .map(row => rowToObj(row, BM_ENTRY_COLS))
+    .filter(o => o.id)
+    .filter(o => !userFilter || String(o.user || '') === String(userFilter))
+    .map(o => ({
+      id: String(o.id),
+      user: String(o.user || ''),
+      date: ymd(o.date),
+      okt: String(o.okt || ''),
+      parts: o.parts ? String(o.parts).split('|').map(s => s === '1') : [],
+      rekord: String(o.rekord || ''),
+      note: String(o.note || ''),
+      xp: o.xp === '' || o.xp == null ? 0 : Number(o.xp),
+      createdAt: safeIso(o.createdAt),
+    }));
+}
+
+function bmReadSettings(userFilter) {
+  const sh = sheet(SHEET_NAMES.bmSettings);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return {};
+  const range = sh.getRange(2, 1, lastRow - 1, BM_SETTINGS_COLS.length).getValues();
+  const out = {};
+  range.forEach(row => {
+    const o = rowToObj(row, BM_SETTINGS_COLS);
+    if (!o.key) return;
+    if (userFilter && String(o.user || '') !== String(userFilter)) return;
+    out[String(o.key)] = String(o.value == null ? '' : o.value);
+  });
+  return out;
+}
+
+function bmCreate(payload) {
+  if (!payload) throw new Error('payload mangler');
+  const id = payload.id || ('bm-' + Date.now());
+  const partsStr = Array.isArray(payload.parts)
+    ? payload.parts.map(p => p ? '1' : '0').join('|')
+    : String(payload.parts || '');
+  const row = {
+    id,
+    user: String(payload.user || ''),
+    date: String(payload.date || ''),
+    okt: String(payload.okt || ''),
+    parts: partsStr,
+    rekord: payload.rekord != null ? String(payload.rekord) : '',
+    note: String(payload.note || ''),
+    xp: payload.xp == null ? 0 : Number(payload.xp),
+    createdAt: new Date().toISOString(),
+  };
+  appendRow(SHEET_NAMES.bmEntries, BM_ENTRY_COLS, row);
+  return Object.assign({}, row, {
+    parts: Array.isArray(payload.parts) ? payload.parts : [],
+  });
+}
+
+function bmSetSetting(user, key, value) {
+  if (!key) throw new Error('key mangler');
+  const userStr = String(user || '');
+  const valStr  = value == null ? '' : String(value);
+  const sh = sheet(SHEET_NAMES.bmSettings);
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const data = sh.getRange(2, 1, lastRow - 1, BM_SETTINGS_COLS.length).getValues();
+    for (let i = 0; i < data.length; i++) {
+      const rowUser = String(data[i][0] || '');
+      const rowKey  = String(data[i][1] || '');
+      if (rowUser === userStr && rowKey === String(key)) {
+        sh.getRange(i + 2, 3).setValue(valStr);
+        return { user: userStr, key: String(key), value: valStr };
+      }
+    }
+  }
+  appendRow(SHEET_NAMES.bmSettings, BM_SETTINGS_COLS, { user: userStr, key: String(key), value: valStr });
+  return { user: userStr, key: String(key), value: valStr };
 }
