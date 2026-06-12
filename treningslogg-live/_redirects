@@ -1,0 +1,7 @@
+# Cloudflare Pages — eksplisitt routing
+# Uten dette serverer Pages root-index.html som fallback når noen ber om
+# /fotball uten skråstrek på slutten — og brukeren ender i trener-appen.
+# 308 (Permanent) bevarer metode og caches i nettleseren.
+
+/fotball     /fotball/    308
+/fotball/api /fotball/api 200
