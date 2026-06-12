@@ -3,5 +3,4 @@
 # /fotball uten skråstrek på slutten — og brukeren ender i trener-appen.
 # 308 (Permanent) bevarer metode og caches i nettleseren.
 
-/fotball     /fotball/    308
-/fotball/api /fotball/api 200
+/fotball   /fotball/  308

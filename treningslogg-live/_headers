@@ -16,9 +16,13 @@
   Cache-Control: public, max-age=0, must-revalidate
 
 # Fotball-appen er ren HTML/JS — samme prinsipp: ny build skal
-# plukkes opp raskt
+# plukkes opp raskt. Eksplisitt charset så æøå ikke mojibakes hvis
+# fila åpnes direkte eller en mellomtjener decoder etter header.
 /fotball/*
   Cache-Control: public, max-age=0, must-revalidate
+
+/fotball/*.js
+  Content-Type: text/javascript; charset=utf-8
 
 # Statiske assets med fingerprint-eller-stabile-paths kan caches
 /icons/*
