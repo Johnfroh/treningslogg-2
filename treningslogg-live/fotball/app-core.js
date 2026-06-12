@@ -8,7 +8,9 @@
 var D = window.BM_DATA;
 
 /* ---------- API-klient ---------- */
-var API_URL   = '/api';
+// Egen API-rute under /fotball slik at brukere med kun /fotball-tilgang
+// i Cloudflare Access slipper gjennom (vanlige /api krever trener-tilgang).
+var API_URL   = '/fotball/api';
 var API_TOKEN = 'bjj-Hk8nQ2wT-2026';  // samme token som trener-appen
 var USER      = '';                    // single-user nå — fylles ut når flere kommer på
 
