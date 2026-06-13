@@ -63,6 +63,29 @@ window.BM_DATA = {
       rekord: { desc: "Beste 45-sekunder på én-touch (antall pasninger).", placeholder: "antall", better: "higher" }
     },
     {
+      key: "bonusC", label: "Bonus C", title: "Skann-appen og kjeglene",
+      meta: "20 min · ball + 5 kjegler + skann-app på stativ", accent: "gold", skann: true,
+      intro: "Nå gjør en skjerm jobben: appen blinker tall, farger eller piler du ikke kan forutse – løft blikket og les dem mens ballen ruller.",
+      parts: [
+        { name: "Les og rop", time: "6 min", skann: true, desc: "Driv ballen rolig mellom fem kjegler i en bue. Sett skann-appen i øyehøyde (tall-modus) – den blinker et tall, løft blikket, les det, rop det høyt, fortsett føringen uten å stoppe. Kan du føre uten å se på ballen?" },
+        { name: "Farge styrer retning", time: "7 min", skann: true, desc: "Gi hver kjegle en farge. Appen blinker en farge (farge-modus) – du fører ballen til den kjeglen, vender rundt den, og venter på neste farge mens ballen holdes i bevegelse. Oppfatt, velg, utfør." },
+        { name: "Pil = vending", time: "7 min", skann: true, desc: "Appen blinker en pil – venstre, høyre, opp, ned (pil-modus). Gjør vendingen pilen viser, midt i føringen, så fort du klarer å lese den. Bland inn fintene fra Økt 3 når pilen peker bakover." }
+      ],
+      rekord: { desc: "Antall riktige reaksjoner på 90 sekunder uten å miste ballen.", placeholder: "antall på 90 sek", better: "higher" }
+    },
+    {
+      key: "bonusD", label: "Bonus D", title: "To mål, tre baller",
+      meta: "20–30 min · 3 baller + 2 småmål", accent: "gold", skann: true,
+      intro: "Mange repetisjoner på kort tid bygger en avslutter. Sett de to målene 6–8 meter fra hverandre.",
+      parts: [
+        { name: "Tre på rad", time: "6 min", desc: "Tre baller på en linje. Avslutt alle tre så raskt du kan med god kvalitet – og veksle mål for hver ball: venstre, høyre, venstre. Det er vekslingen som trener deg." },
+        { name: "Touch og avslutt", time: "8 min", desc: "Legg ballene litt unna. Spring til ballen, ta én touch som legger den til rette, og avslutt på andre touch. Aldri stoppe ballen først. To touch, mål – sånn scores de fleste mål." },
+        { name: "Skjermen velger målet", time: "8 min", skann: true, desc: "Bruk skann-appen (pil- eller farge-modus) i det du tar siste touch: skjermen sier venstre eller høyre, og du avslutter dit – etter at du er i bevegelse. Les og bestem i siste øyeblikk." },
+        { name: "Vinkeljakt", time: "5 min", desc: "Flytt deg rundt: skyt fra spiss vinkel, fra siden, etter en liten dragning innover. Samme to mål, men aldri samme vinkel to ganger." }
+      ],
+      rekord: { desc: "Antall fulltreff av ti skudd der skjermen valgte siden.", placeholder: "treff av 10", better: "higher" }
+    },
+    {
       key: "fart1", label: "Fart 1", title: "Fartsskolen",
       meta: "15 min · ingen utstyr", accent: "coral",
       intro: "Fart er teknikk før det er muskler. Sprinter du sliten, trener du kondisjon – ikke fart.",
@@ -114,17 +137,17 @@ window.BM_DATA = {
   xpRules: { base: 20, allParts: 10, newRecord: 15 },
 
   badges: [
-    { key: "igang",    name: "I gang",          desc: "Første økt ført",                    check: s => s.total >= 1 },
-    { key: "fem",      name: "Femmer'n",        desc: "5 økter gjennomført",                check: s => s.total >= 5 },
-    { key: "ti",       name: "Tosifret",        desc: "10 økter gjennomført",               check: s => s.total >= 10 },
-    { key: "kvart",    name: "Kvarthundre",     desc: "25 økter gjennomført",               check: s => s.total >= 25 },
-    { key: "femti",    name: "Halvhundre",      desc: "50 økter gjennomført",               check: s => s.total >= 50 },
-    { key: "meny",     name: "Hele menyen",     desc: "Alle 7 øktene prøvd",                check: s => s.distinct >= 7 },
-    { key: "uke1",     name: "Uka i boks",      desc: "Første uke med ukemålet nådd",       check: s => s.weeksMet >= 1 },
-    { key: "streak2",  name: "To på rad",       desc: "2 uker på rad med ukemålet",         check: s => s.bestStreak >= 2 },
-    { key: "streak4",  name: "Månedsmotor",     desc: "4 uker på rad med ukemålet",         check: s => s.bestStreak >= 4 },
-    { key: "streak8",  name: "Maskinen",        desc: "8 uker på rad med ukemålet",         check: s => s.bestStreak >= 8 },
-    { key: "rekord1",  name: "Rekordjeger",     desc: "Slo din egen rekord",                check: s => s.improvements >= 1 },
-    { key: "rekord3",  name: "Kurven peker opp", desc: "3 rekordforbedringer",              check: s => s.improvements >= 3 }
+    { key: "igang",    name: "I gang",          desc: "Første økt ført",                    icon:"whistle",  check: s => s.total >= 1 },
+    { key: "fem",      name: "Femmer'n",        desc: "5 økter gjennomført",                num:"5",        check: s => s.total >= 5 },
+    { key: "ti",       name: "Tosifret",        desc: "10 økter gjennomført",               num:"10",       check: s => s.total >= 10 },
+    { key: "kvart",    name: "Kvarthundre",     desc: "25 økter gjennomført",               num:"25",       check: s => s.total >= 25 },
+    { key: "femti",    name: "Halvhundre",      desc: "50 økter gjennomført",               num:"50",       check: s => s.total >= 50 },
+    { key: "meny",     name: "Hele menyen",     desc: "Alle 9 øktene prøvd",                icon:"clipboard", check: s => s.distinct >= 9 },
+    { key: "uke1",     name: "Uka i boks",      desc: "Første uke med ukemålet nådd",       icon:"calcheck", check: s => s.weeksMet >= 1 },
+    { key: "streak2",  name: "To på rad",       desc: "2 uker på rad med ukemålet",         icon:"flame",   check: s => s.bestStreak >= 2 },
+    { key: "streak4",  name: "Månedsmotor",     desc: "4 uker på rad med ukemålet",         icon:"calendar", check: s => s.bestStreak >= 4 },
+    { key: "streak8",  name: "Maskinen",        desc: "8 uker på rad med ukemålet",         icon:"gear",    check: s => s.bestStreak >= 8 },
+    { key: "rekord1",  name: "Rekordjeger",     desc: "Slo din egen rekord",                icon:"trophy",  check: s => s.improvements >= 1 },
+    { key: "rekord3",  name: "Kurven peker opp", desc: "3 rekordforbedringer",              icon:"chart",   check: s => s.improvements >= 3 }
   ]
 };

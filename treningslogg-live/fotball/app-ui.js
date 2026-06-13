@@ -128,7 +128,7 @@ function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec){
   });
   var card=$("cb-card");
   card.querySelectorAll(".confetti-piece").forEach(function(c){ c.remove(); });
-  var colors=["#3E8E54","#E0992E","#DA5B3B","#2E6B3F","#C07E1E"];
+  var colors=["#5fe0a0","#ffce8a","#da5b3b","#3ea86a","#e0992e"];
   for(var i=0;i<22;i++){
     var c=document.createElement("span");
     c.className="confetti-piece";

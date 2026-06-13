@@ -7,6 +7,19 @@
 "use strict";
 var D = window.BM_DATA;
 
+/* ---------- ikoner (fotball-merker) ---------- */
+var ICONS = {
+  whistle:'<path d="M3 10h10a4 4 0 1 1 0 8H8l-4 4v-4a4 4 0 0 1-1-8z"/><circle cx="9" cy="14" r="1.6"/><path d="M14 6.5l3-1.5"/>',
+  flame:'<path d="M12 3c1.2 3-1.8 4.2-1.8 7A2.2 2.2 0 0 0 14 11c0-1-.3-1.8-1-2.6 3 .8 4.5 3.6 4.5 6.6a5.5 5.5 0 1 1-11 0c0-4 4-5.5 5.5-12z"/>',
+  trophy:'<path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3"/><path d="M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v4"/><path d="M9 21h6"/><path d="M10 17h4"/>',
+  calendar:'<rect x="4" y="5" width="16" height="15"/><path d="M4 10h16"/><path d="M8 3v4"/><path d="M16 3v4"/>',
+  calcheck:'<rect x="4" y="5" width="16" height="15"/><path d="M4 10h16"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M9 15l2 2 4-4"/>',
+  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19"/>',
+  clipboard:'<rect x="5" y="4" width="14" height="17"/><path d="M9 4h6v3H9z"/><path d="M8 11h8M8 15h8"/>',
+  chart:'<path d="M4 20V4M4 20h16"/><path d="M7 16l4-5 3 3 5-7"/><path d="M19 7v4M19 7h-4"/>'
+};
+function ico(name){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||'')+'</svg>'; }
+
 /* ---------- API-klient ---------- */
 // Egen API-rute under /fotball slik at brukere med kun /fotball-tilgang
 // i Cloudflare Access slipper gjennom (vanlige /api krever trener-tilgang).
@@ -160,30 +173,31 @@ function renderDashboard(){
   $("quote-text").textContent="«"+D.quotes[doy%D.quotes.length]+"»";
   $("streak-num").textContent=stats.streak;
   $("streak-unit").textContent=stats.streak===1?"uke":"uker";
-  $("streak-sub").textContent=stats.streak>0?"på rad med ukemålet — hold den i live":"nå ukemålet denne uka for å starte en streak";
+  $("streak-sub").textContent=stats.streak>0?"hold gløden i live":"tenn den denne uka";
   var lvl=levelInfo(stats.xp);
   $("lvl-num").textContent=lvl.num;
   $("lvl-name").textContent=lvl.name;
   $("xp-fill").style.width=lvl.pct+"%";
   $("xp-text").textContent=lvl.next?(stats.xp+" XP · "+(lvl.next.xp-stats.xp)+" til «"+lvl.next.name+"»"):(stats.xp+" XP · toppnivå");
+  // uke + is→ild-bar (ukens fremgang mot målet)
   $("week-count").textContent=stats.thisWeek;
   $("week-goal").textContent=settings.goal;
   $("goal-val").textContent=settings.goal;
-  var dots=$("week-dots"); dots.innerHTML="";
-  var n=Math.max(settings.goal, stats.thisWeek);
-  for(var i=0;i<n;i++){
-    var dv=document.createElement("div");
-    dv.className="wd"+(i<stats.thisWeek?" done":"");
-    dots.appendChild(dv);
-  }
+  var goal=settings.goal||1;
+  var pct=Math.max(0,Math.min(100,Math.round(stats.thisWeek/goal*100)));
+  if($("if-fill")) $("if-fill").style.width=pct+"%";
+  if($("if-edge")) $("if-edge").style.left=pct+"%";
+  if($("if-pct"))  $("if-pct").textContent=pct+"%";
+  // merker (klubb-crests)
   var earned=earnedBadges(stats);
+  var bc=$("badge-count"); if(bc) bc.textContent=earned.length+" / "+D.badges.length+" låst opp";
   var bg=$("badge-grid"); bg.innerHTML="";
-  D.badges.forEach(function(b,i){
+  D.badges.forEach(function(b){
     var has=earned.indexOf(b.key)>=0;
+    var inner=b.num?('<span class="num">'+b.num+'</span>'):('<span class="ico">'+ico(b.icon)+'</span>');
     var el=document.createElement("div");
     el.className="badge"+(has?" earned":"");
-    el.innerHTML='<div class="bd-mark">'+(has?"★":String(i+1).padStart(2,"0"))+'</div>'+
-      '<div><div class="bd-name">'+b.name+'</div><div class="bd-desc">'+b.desc+'</div></div>';
+    el.innerHTML='<div class="crest">'+inner+'</div><div class="bd-name">'+b.name+'</div>';
     bg.appendChild(el);
   });
   var rl=$("record-list"); rl.innerHTML="";
