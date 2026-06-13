@@ -64,13 +64,21 @@ function loadCache(){
        var d=JSON.parse(raw); return d && Array.isArray(d.entries) ? d : null;
   }catch(e){ return null; }
 }
-function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({entries:entries, settings:settings})); }catch(e){} }
+function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({entries:entries, settings:settings, weekGoals:weekGoals})); }catch(e){} }
 
 /* ---------- state ---------- */
 var cached = loadCache();
 var entries = cached ? cached.entries : [];
 var settings = Object.assign({ goal: 3 }, cached ? (cached.settings||{}) : {});
 if (typeof settings.goal === 'string') settings.goal = parseInt(settings.goal, 10) || 3;
+// Ukemål per uke: { "2026-W24": 3 }. Låser inn målet som gjaldt da uka
+// pågikk — brukes av computeStats så streak ikke endres med tilbakevirkende
+// kraft når brukeren justerer målet. Uker uten egen verdi faller tilbake
+// til settings.goal (gjeldende mål).
+var weekGoals = (cached && cached.weekGoals) ? cached.weekGoals : {};
+function goalForWeek(wk){
+  return (weekGoals[wk] != null) ? weekGoals[wk] : settings.goal;
+}
 
 /* ---------- dato-hjelpere ---------- */
 function todayStr(){
@@ -126,13 +134,14 @@ function computeStats(list){
       else if(isBetter(okt,n,best[e.okt])){ improvements++; best[e.okt]=n; }
     }
   });
-  var goal=settings.goal;
+  // Streak bruker per-uke-målet (goalForWeek), ikke ett fast mål — så
+  // historiske uker beholder terskelen de faktisk hadde.
   var curWk=weekKey(todayStr());
   var streak=0, wk=curWk;
-  if((weeks[wk]||0)>=goal){ streak++; wk=prevWeekKeyFromKey(wk); }
+  if((weeks[wk]||0)>=goalForWeek(wk)){ streak++; wk=prevWeekKeyFromKey(wk); }
   else { wk=prevWeekKeyFromKey(wk); }
-  while((weeks[wk]||0)>=goal){ streak++; wk=prevWeekKeyFromKey(wk); }
-  var metWeeks=Object.keys(weeks).filter(function(k){return weeks[k]>=goal;}).sort();
+  while((weeks[wk]||0)>=goalForWeek(wk)){ streak++; wk=prevWeekKeyFromKey(wk); }
+  var metWeeks=Object.keys(weeks).filter(function(k){return weeks[k]>=goalForWeek(k);}).sort();
   var bestStreak=0, run=0, prev=null;
   metWeeks.forEach(function(k){
     run=(prev!==null && k===nextWeekKeyFromKey(prev)) ? run+1 : 1;
@@ -238,9 +247,18 @@ function renderDashboard(){
 /* ---------- mutasjoner (optimistisk + server) ---------- */
 function addEntry(entry){
   entries.push(entry);
+  // Lås inn ukemålet for uka denne økta tilhører, hvis det ikke alt er
+  // satt — så streak-terskelen for uka er bevart selv om målet endres senere.
+  var ewk = weekKey(entry.date);
+  var lockGoal = null;
+  if (weekGoals[ewk] == null) { weekGoals[ewk] = settings.goal; lockGoal = settings.goal; }
   saveCache();
   renderDashboard();
   if (window.BM_UI && window.BM_UI.refresh) window.BM_UI.refresh();
+  if (lockGoal != null) {
+    apiPost({ action: 'bmSetWeekGoal', user: USER, week: ewk, value: String(lockGoal) })
+      .catch(function(err){ console.warn('bmSetWeekGoal (lås) feilet:', err.message); });
+  }
   apiPost({ action: 'bmCreate', payload: Object.assign({}, entry, { user: USER }) })
     .then(function(saved){
       if (saved && saved.id && saved.id !== entry.id) {
@@ -276,6 +294,10 @@ function deleteEntry(id){
 
 function setGoal(goal){
   settings.goal = goal;
+  // Endring av målet gjelder fra og med inneværende uke — skriv det inn
+  // som ukens låste mål. Historiske uker beholder sine egne verdier.
+  var curWk = weekKey(todayStr());
+  weekGoals[curWk] = goal;
   saveCache();
   renderDashboard();
   apiPost({ action: 'bmSetSetting', user: USER, key: 'goal', value: String(goal) })
@@ -283,6 +305,8 @@ function setGoal(goal){
       console.error('bmSetSetting feilet:', err);
       window.BM.toast('Innstilling ikke lagret');
     });
+  apiPost({ action: 'bmSetWeekGoal', user: USER, week: curWk, value: String(goal) })
+    .catch(function(err){ console.warn('bmSetWeekGoal feilet:', err.message); });
 }
 
 /* ---------- eksport ---------- */
@@ -335,6 +359,7 @@ apiGet('bmList', { user: USER }).then(function(data){
   entries  = Array.isArray(data.entries) ? data.entries : [];
   var srvSettings = data.settings || {};
   if (srvSettings.goal) settings.goal = parseInt(srvSettings.goal, 10) || settings.goal;
+  if (data.weekGoals && typeof data.weekGoals === 'object') weekGoals = data.weekGoals;
   saveCache();
   renderDashboard();
   if (window.BM_UI && window.BM_UI.refresh) window.BM_UI.refresh();
