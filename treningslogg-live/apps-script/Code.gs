@@ -30,6 +30,7 @@ const SHEET_NAMES = {
   // Bygg motoren — fotball-egentreningsapp på /fotball
   bmEntries: 'bm_entries',
   bmSettings: 'bm_settings',
+  bmWeekGoals: 'bm_week_goals',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -41,6 +42,9 @@ const ATTENDANCE_COLS = ['sessionId','memberName','importedAt'];
 // flere brukere kommer på /fotball.
 const BM_ENTRY_COLS    = ['id','user','date','okt','parts','rekord','note','xp','createdAt'];
 const BM_SETTINGS_COLS = ['user','key','value'];
+// Ukemål per uke — låser inn hvilket mål som gjaldt da uka pågikk, så
+// streak ikke regnes feil med tilbakevirkende kraft når målet endres.
+const BM_WEEKGOAL_COLS = ['user','week','goal'];
 
 // ─── Public entrypoints ────────────────────────────────────────────
 
@@ -80,6 +84,7 @@ function handle(e, method) {
       case 'bmCreate':        return json({ ok: true, data: bmCreate(body.payload) });
       case 'bmDelete':        return json({ ok: true, data: deleteRow(SHEET_NAMES.bmEntries, body.id) });
       case 'bmSetSetting':    return json({ ok: true, data: bmSetSetting(body.user, body.key, body.value) });
+      case 'bmSetWeekGoal':   return json({ ok: true, data: bmSetWeekGoal(body.user, body.week, body.value) });
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
       default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
@@ -303,6 +308,7 @@ function sheet(name) {
               : name === SHEET_NAMES.attendance ? ATTENDANCE_COLS
               : name === SHEET_NAMES.bmEntries  ? BM_ENTRY_COLS
               : name === SHEET_NAMES.bmSettings ? BM_SETTINGS_COLS
+              : name === SHEET_NAMES.bmWeekGoals ? BM_WEEKGOAL_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
@@ -518,17 +524,56 @@ function _migrateToNewGroups() {
 // flere brukere via 'user'-kolonne — single-user kan bare bruke '' (tom).
 
 function _setupBmSheets() {
-  // Kjør én gang manuelt fra editoren for å opprette de to fanene.
+  // Kjør én gang manuelt fra editoren for å opprette fanene.
   sheet(SHEET_NAMES.bmEntries);
   sheet(SHEET_NAMES.bmSettings);
-  Logger.log('bm_entries og bm_settings opprettet med headers.');
+  sheet(SHEET_NAMES.bmWeekGoals);
+  Logger.log('bm_entries, bm_settings og bm_week_goals opprettet med headers.');
 }
 
 function bmList(userFilter) {
   return {
     entries: bmReadEntries(userFilter),
     settings: bmReadSettings(userFilter),
+    weekGoals: bmReadWeekGoals(userFilter),
   };
+}
+
+function bmReadWeekGoals(userFilter) {
+  const sh = sheet(SHEET_NAMES.bmWeekGoals);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return {};
+  const range = sh.getRange(2, 1, lastRow - 1, BM_WEEKGOAL_COLS.length).getValues();
+  const out = {};
+  range.forEach(row => {
+    const o = rowToObj(row, BM_WEEKGOAL_COLS);
+    if (!o.week) return;
+    if (userFilter && String(o.user || '') !== String(userFilter)) return;
+    const g = Number(o.goal);
+    if (!isNaN(g)) out[String(o.week)] = g;
+  });
+  return out;
+}
+
+function bmSetWeekGoal(user, week, value) {
+  if (!week) throw new Error('week mangler');
+  const userStr = String(user || '');
+  const valStr  = value == null ? '' : String(value);
+  const sh = sheet(SHEET_NAMES.bmWeekGoals);
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const data = sh.getRange(2, 1, lastRow - 1, BM_WEEKGOAL_COLS.length).getValues();
+    for (let i = 0; i < data.length; i++) {
+      const rowUser = String(data[i][0] || '');
+      const rowWeek = String(data[i][1] || '');
+      if (rowUser === userStr && rowWeek === String(week)) {
+        sh.getRange(i + 2, 3).setValue(valStr);
+        return { user: userStr, week: String(week), goal: valStr };
+      }
+    }
+  }
+  appendRow(SHEET_NAMES.bmWeekGoals, BM_WEEKGOAL_COLS, { user: userStr, week: String(week), goal: valStr });
+  return { user: userStr, week: String(week), goal: valStr };
 }
 
 function bmReadEntries(userFilter) {
