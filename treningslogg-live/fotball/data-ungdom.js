@@ -15,9 +15,9 @@ window.BM_PROGRAMS.ungdom = {
   quoteSource: "Fra heftet «Vis at du vil ha den»",
 
   groups: [
-    { key: "ball",  title: "Ball og blikk",   sub: "Økt 1–3" },
-    { key: "bonus", title: "Bonus",            sub: "A–D" },
-    { key: "fart",  title: "Fart og motor",   sub: "Fart 1–2" }
+    { key: "ball",  title: "Ball og blikk",      sub: "Økt 1–3" },
+    { key: "bonus", title: "Økter med utstyr",   sub: "A–D" },
+    { key: "fart",  title: "Fart og motor",      sub: "Fart 1–4" }
   ],
 
   theme: {
@@ -144,6 +144,29 @@ window.BM_PROGRAMS.ungdom = {
         { name: "Nedjogg", time: "3 min", desc: "Rolig jogg eller gange med ballen i hendene. Pust ned. Tenk gjennom hva som satt best i dag – det er en del av økta." }
       ],
       rekord: { desc: "Beste 5-10-5-tid (sekunder). Mobiltider er like unøyaktige hver uke – fremgangen er ekte.", placeholder: "sekunder", better: "lower" }
+    },
+    {
+      key: "fart3", label: "Fart 3", title: "Den rolige motoren", group: "fart",
+      meta: "30 min · ingen utstyr", accent: "coral",
+      intro: "Utholdenhet bygges godt i din alder, og hver rolige langtur legger motorkraft i banken. Hemmeligheten er kjedelig, men sann: den skal være lett — du skal kunne snakke i hele setninger mens du løper.",
+      parts: [
+        { name: "Mykstart", time: "5 min", desc: "Begynn med rask gange som glir over i rolig jogg. Ikke kast deg ut i tempo – la pulsen og pusten finne seg til rette først. De første minuttene skal kjennes nesten for lette." },
+        { name: "Snakketempo", time: "20 min", desc: "Jevn, rolig jogg der du kan holde en samtale uten å hakke. Løp gjerne med en kompis – da blir snakketesten ekte. Tenk teknikk mens du løper: avslappede skuldre, løse hender, blikket frem, og lette, raske steg som lander under deg." },
+        { name: "Stigningsløp", time: "5 min", desc: "Avslutt med fire til seks stigningsløp på rundt 60–80 meter: øk farten gradvis opp til cirka 80 prosent, hold et par sekunder, og la den gli rolig ned igjen. Gå rolig tilbake mellom hvert. Holder farten og den gode teknikken levende på slutten." }
+      ],
+      rekord: { desc: "Hvor langt du kom på 30 min på samme rute, samme rolige snakketempo. Målet er ikke å løpe fortere — men at det samme blir lettere.", placeholder: "meter / runder", better: "higher" }
+    },
+    {
+      key: "fart4", label: "Fart 4", title: "Lek med farten", group: "fart",
+      meta: "25–30 min · ingen utstyr", accent: "coral",
+      intro: "Fartlek er svensk og betyr akkurat det det høres ut som: lek med farten. Den løpsøkta som ligner mest på fotball — kampen er aldri jevn, og her bestemmer du selv når det smeller til.",
+      parts: [
+        { name: "Oppvarming", time: "5 min", desc: "Rolig jogg til kroppen er varm – samme snakketempo som i Fart 3." },
+        { name: "Fartsleken", time: "15–18 min", desc: "Fortsett å jogge rolig – men kast inn rykk du velger selv underveis. Spurt til den lyktestolpen. Hardt til neste tre. Så rolig jogg til du er ordentlig uthvilt igjen, før neste rykk. Varier lengden: noen rykk på fem sekunder, noen på tjue. Sikt på 8–12 rykk." },
+        { name: "Bakkevarianten (valgfri)", time: "10 min", desc: "Bytt ut fartsleken hvis du har en bakke på 30–50 meter: spurt opp i god fart (10–15 sek), gå eller jogg rolig ned igjen, 6–8 ganger. Bakke bygger eksplosivitet og er snillere mot knærne enn flat sprint." },
+        { name: "Nedjogg", time: "3–5 min", desc: "Rolig jogg eller gange til slutt. Pust ned, kjenn at beina var med på noe ekte i dag." }
+      ],
+      rekord: { desc: "Antall rykk med ordentlig fart og full pause mellom – eller antall bakkedrag der det siste var like kvikt som det første.", placeholder: "antall rykk", better: "higher" }
     }
   ],
 
