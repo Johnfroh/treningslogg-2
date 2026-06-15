@@ -30,6 +30,7 @@ const SHEET_NAMES = {
   // Bygg motoren — fotball-egentreningsapp på /fotball
   bmEntries: 'bm_entries',
   bmSettings: 'bm_settings',
+  bmWeekGoals: 'bm_week_goals',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -38,9 +39,15 @@ const TRAINER_COLS = ['id','name','active'];
 const MEMBER_COLS  = ['name','aliases','active'];
 const ATTENDANCE_COLS = ['sessionId','memberName','importedAt'];
 // 'user'-kolonnen er tom i single-user-modus, klar for skalering når
-// flere brukere kommer på /fotball.
-const BM_ENTRY_COLS    = ['id','user','date','okt','parts','rekord','note','xp','createdAt'];
-const BM_SETTINGS_COLS = ['user','key','value'];
+// flere brukere kommer på /fotball. 'program'-kolonna noterer hvilket
+// program raden tilhører (ungdom/junior/rg). Tom = ungdom (legacy).
+const BM_ENTRY_COLS    = ['id','user','program','date','okt','parts','rekord','note','xp','createdAt'];
+const BM_SETTINGS_COLS = ['user','program','key','value'];
+// Ukemål per uke — låser inn hvilket mål som gjaldt da uka pågikk, så
+// streak ikke regnes feil med tilbakevirkende kraft når målet endres.
+const BM_WEEKGOAL_COLS = ['user','program','week','goal'];
+
+function bmProgram(p){ var s = String(p || '').trim().toLowerCase(); return s || 'ungdom'; }
 
 // ─── Public entrypoints ────────────────────────────────────────────
 
@@ -75,11 +82,12 @@ function handle(e, method) {
       case 'updatePlanned':   return json({ ok: true, data: updatePlanned(body.id, body.payload) });
       case 'deletePlanned':   return json({ ok: true, data: deleteRow(SHEET_NAMES.planned, body.id) });
       case 'importAttendance':return json({ ok: true, data: importAttendance(body.rows) });
-      // Bygg motoren — fotball-egentrening
-      case 'bmList':          return json({ ok: true, data: bmList(params.user || body.user) });
+      // Bygg motoren — fotball-egentrening (med program-dimensjon)
+      case 'bmList':          return json({ ok: true, data: bmList(params.user || body.user, params.program || body.program) });
       case 'bmCreate':        return json({ ok: true, data: bmCreate(body.payload) });
       case 'bmDelete':        return json({ ok: true, data: deleteRow(SHEET_NAMES.bmEntries, body.id) });
-      case 'bmSetSetting':    return json({ ok: true, data: bmSetSetting(body.user, body.key, body.value) });
+      case 'bmSetSetting':    return json({ ok: true, data: bmSetSetting(body.user, body.program, body.key, body.value) });
+      case 'bmSetWeekGoal':   return json({ ok: true, data: bmSetWeekGoal(body.user, body.program, body.week, body.value) });
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
       default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
@@ -303,6 +311,7 @@ function sheet(name) {
               : name === SHEET_NAMES.attendance ? ATTENDANCE_COLS
               : name === SHEET_NAMES.bmEntries  ? BM_ENTRY_COLS
               : name === SHEET_NAMES.bmSettings ? BM_SETTINGS_COLS
+              : name === SHEET_NAMES.bmWeekGoals ? BM_WEEKGOAL_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
@@ -518,20 +527,66 @@ function _migrateToNewGroups() {
 // flere brukere via 'user'-kolonne — single-user kan bare bruke '' (tom).
 
 function _setupBmSheets() {
-  // Kjør én gang manuelt fra editoren for å opprette de to fanene.
+  // Kjør én gang manuelt fra editoren for å opprette fanene.
   sheet(SHEET_NAMES.bmEntries);
   sheet(SHEET_NAMES.bmSettings);
-  Logger.log('bm_entries og bm_settings opprettet med headers.');
+  sheet(SHEET_NAMES.bmWeekGoals);
+  Logger.log('bm_entries, bm_settings og bm_week_goals opprettet med headers.');
 }
 
-function bmList(userFilter) {
+// Alle bm*-funksjoner er program-bevisste. Filtrer på user + program
+// (tomme felter aksepteres som "ungdom" for å bevare eksisterende data).
+function bmList(userFilter, programFilter) {
+  const prog = bmProgram(programFilter);
   return {
-    entries: bmReadEntries(userFilter),
-    settings: bmReadSettings(userFilter),
+    entries:   bmReadEntries(userFilter, prog),
+    settings:  bmReadSettings(userFilter, prog),
+    weekGoals: bmReadWeekGoals(userFilter, prog),
   };
 }
 
-function bmReadEntries(userFilter) {
+function bmReadWeekGoals(userFilter, programFilter) {
+  const sh = sheet(SHEET_NAMES.bmWeekGoals);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return {};
+  const range = sh.getRange(2, 1, lastRow - 1, BM_WEEKGOAL_COLS.length).getValues();
+  const out = {};
+  range.forEach(row => {
+    const o = rowToObj(row, BM_WEEKGOAL_COLS);
+    if (!o.week) return;
+    if (userFilter && String(o.user || '') !== String(userFilter)) return;
+    if (programFilter && bmProgram(o.program) !== programFilter) return;
+    const g = Number(o.goal);
+    if (!isNaN(g)) out[String(o.week)] = g;
+  });
+  return out;
+}
+
+function bmSetWeekGoal(user, program, week, value) {
+  if (!week) throw new Error('week mangler');
+  const userStr = String(user || '');
+  const prog    = bmProgram(program);
+  const valStr  = value == null ? '' : String(value);
+  const sh = sheet(SHEET_NAMES.bmWeekGoals);
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const data = sh.getRange(2, 1, lastRow - 1, BM_WEEKGOAL_COLS.length).getValues();
+    for (let i = 0; i < data.length; i++) {
+      const rowUser = String(data[i][0] || '');
+      const rowProg = bmProgram(data[i][1]);
+      const rowWeek = String(data[i][2] || '');
+      if (rowUser === userStr && rowProg === prog && rowWeek === String(week)) {
+        sh.getRange(i + 2, 4).setValue(valStr);
+        return { user: userStr, program: prog, week: String(week), goal: valStr };
+      }
+    }
+  }
+  appendRow(SHEET_NAMES.bmWeekGoals, BM_WEEKGOAL_COLS,
+    { user: userStr, program: prog, week: String(week), goal: valStr });
+  return { user: userStr, program: prog, week: String(week), goal: valStr };
+}
+
+function bmReadEntries(userFilter, programFilter) {
   const sh = sheet(SHEET_NAMES.bmEntries);
   const lastRow = sh.getLastRow();
   if (lastRow < 2) return [];
@@ -540,9 +595,11 @@ function bmReadEntries(userFilter) {
     .map(row => rowToObj(row, BM_ENTRY_COLS))
     .filter(o => o.id)
     .filter(o => !userFilter || String(o.user || '') === String(userFilter))
+    .filter(o => !programFilter || bmProgram(o.program) === programFilter)
     .map(o => ({
       id: String(o.id),
       user: String(o.user || ''),
+      program: bmProgram(o.program),
       date: ymd(o.date),
       okt: String(o.okt || ''),
       parts: o.parts ? String(o.parts).split('|').map(s => s === '1') : [],
@@ -553,7 +610,7 @@ function bmReadEntries(userFilter) {
     }));
 }
 
-function bmReadSettings(userFilter) {
+function bmReadSettings(userFilter, programFilter) {
   const sh = sheet(SHEET_NAMES.bmSettings);
   const lastRow = sh.getLastRow();
   if (lastRow < 2) return {};
@@ -563,6 +620,7 @@ function bmReadSettings(userFilter) {
     const o = rowToObj(row, BM_SETTINGS_COLS);
     if (!o.key) return;
     if (userFilter && String(o.user || '') !== String(userFilter)) return;
+    if (programFilter && bmProgram(o.program) !== programFilter) return;
     out[String(o.key)] = String(o.value == null ? '' : o.value);
   });
   return out;
@@ -577,6 +635,7 @@ function bmCreate(payload) {
   const row = {
     id,
     user: String(payload.user || ''),
+    program: bmProgram(payload.program),
     date: String(payload.date || ''),
     okt: String(payload.okt || ''),
     parts: partsStr,
@@ -591,9 +650,10 @@ function bmCreate(payload) {
   });
 }
 
-function bmSetSetting(user, key, value) {
+function bmSetSetting(user, program, key, value) {
   if (!key) throw new Error('key mangler');
   const userStr = String(user || '');
+  const prog    = bmProgram(program);
   const valStr  = value == null ? '' : String(value);
   const sh = sheet(SHEET_NAMES.bmSettings);
   const lastRow = sh.getLastRow();
@@ -601,13 +661,62 @@ function bmSetSetting(user, key, value) {
     const data = sh.getRange(2, 1, lastRow - 1, BM_SETTINGS_COLS.length).getValues();
     for (let i = 0; i < data.length; i++) {
       const rowUser = String(data[i][0] || '');
-      const rowKey  = String(data[i][1] || '');
-      if (rowUser === userStr && rowKey === String(key)) {
-        sh.getRange(i + 2, 3).setValue(valStr);
-        return { user: userStr, key: String(key), value: valStr };
+      const rowProg = bmProgram(data[i][1]);
+      const rowKey  = String(data[i][2] || '');
+      if (rowUser === userStr && rowProg === prog && rowKey === String(key)) {
+        sh.getRange(i + 2, 4).setValue(valStr);
+        return { user: userStr, program: prog, key: String(key), value: valStr };
       }
     }
   }
-  appendRow(SHEET_NAMES.bmSettings, BM_SETTINGS_COLS, { user: userStr, key: String(key), value: valStr });
-  return { user: userStr, key: String(key), value: valStr };
+  appendRow(SHEET_NAMES.bmSettings, BM_SETTINGS_COLS,
+    { user: userStr, program: prog, key: String(key), value: valStr });
+  return { user: userStr, program: prog, key: String(key), value: valStr };
+}
+
+// ─── Migrering: legg til 'program'-kolonne i bm-fanene ─────────────
+// Kjøres ÉN gang manuelt fra editoren. Idempotent — kan kjøres flere
+// ganger. Setter program='ungdom' på alle eksisterende rader (de er
+// alle fra Bygg motoren-tiden før de andre programmene fantes).
+//
+// Forutsetning: pasted ny Code.gs (med utvidede BM_*_COLS) + kjørt
+// _setupBmSheets() slik at headers er oppdatert.
+function _migrateBmAddProgram() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // progColIdx er 0-indeksert i cols-arrayen (program ligger på index 2
+  // i bm_entries, index 1 i de to andre). Sheets-API tar 1-indeksert
+  // kolonnenummer, så vi gjør +1 ved getRange.
+  const targets = [
+    { name: SHEET_NAMES.bmEntries,   cols: BM_ENTRY_COLS,    progColIdx: 2 },
+    { name: SHEET_NAMES.bmSettings,  cols: BM_SETTINGS_COLS, progColIdx: 1 },
+    { name: SHEET_NAMES.bmWeekGoals, cols: BM_WEEKGOAL_COLS, progColIdx: 1 },
+  ];
+  targets.forEach(t => {
+    const sh = ss.getSheetByName(t.name);
+    if (!sh) { Logger.log('Hopper over: ' + t.name + ' (finnes ikke)'); return; }
+    // Sett header om mangler
+    const headerLen = sh.getLastColumn();
+    if (headerLen < t.cols.length) {
+      sh.getRange(1, 1, 1, t.cols.length).setValues([t.cols]);
+    }
+    const lastRow = sh.getLastRow();
+    if (lastRow < 2) { Logger.log(t.name + ': ingen rader å migrere'); return; }
+    const sheetsCol = t.progColIdx + 1;
+    const range = sh.getRange(2, sheetsCol, lastRow - 1, 1);
+    const vals = range.getValues();
+    let filled = 0, alreadySet = 0;
+    for (let i = 0; i < vals.length; i++) {
+      const cur = vals[i][0];
+      if (!cur || String(cur).trim() === '') {
+        vals[i][0] = 'ungdom';
+        filled++;
+      } else {
+        alreadySet++;
+      }
+    }
+    range.setValues(vals);
+    Logger.log(t.name + ' (kolonne ' + sheetsCol + '): fylte ' + filled +
+               ' rader (allerede satt: ' + alreadySet + ')');
+  });
+  Logger.log('Migrering fullført.');
 }
