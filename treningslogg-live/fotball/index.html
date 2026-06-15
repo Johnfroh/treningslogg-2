@@ -126,6 +126,9 @@
   .ministepper button:active{ color:var(--gold-bright); }
   .ministepper .msv{ min-width:38px; text-align:center; font-family:var(--display); font-size:16px; color:var(--ink); border-left:1px solid var(--line); border-right:1px solid var(--line); height:40px; display:flex; align-items:center; justify-content:center; }
 
+  .locknote{ font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.04em;
+    color:var(--gold-bright); text-transform:uppercase; margin-top:9px; min-height:11px; }
+
   /* rank line */
   .rankline{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 0; padding:11px 14px;
     border:1px solid var(--line-strong); background:linear-gradient(90deg,rgba(40,160,90,.18),rgba(255,150,40,.08)); }
@@ -312,6 +315,7 @@
             <button id="goal-plus" aria-label="Høyere ukemål">+</button>
           </div>
         </div>
+        <div class="locknote" id="goal-lock"></div>
       </div>
 
       <div class="rankline">

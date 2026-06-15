@@ -79,6 +79,11 @@ var weekGoals = (cached && cached.weekGoals) ? cached.weekGoals : {};
 function goalForWeek(wk){
   return (weekGoals[wk] != null) ? weekGoals[wk] : settings.goal;
 }
+// En uke er "låst" når minst én økt er ført inn i den — da kan ikke målet
+// for uka endres lenger (hindrer at man senker målet for å jukse fram streak).
+function isWeekLocked(wk){
+  return entries.some(function(e){ return weekKey(e.date) === wk; });
+}
 
 /* ---------- dato-hjelpere ---------- */
 function todayStr(){
@@ -189,14 +194,20 @@ function renderDashboard(){
   $("xp-fill").style.width=lvl.pct+"%";
   $("xp-text").textContent=lvl.next?(stats.xp+" XP · "+(lvl.next.xp-stats.xp)+" til «"+lvl.next.name+"»"):(stats.xp+" XP · toppnivå");
   // uke + is→ild-bar (ukens fremgang mot målet)
+  // Vises mot ukens LÅSTE mål (goalForWeek), ikke mot gjeldende default.
+  var curWk=weekKey(todayStr());
+  var curGoal=goalForWeek(curWk);
+  var locked=isWeekLocked(curWk);
   $("week-count").textContent=stats.thisWeek;
-  $("week-goal").textContent=settings.goal;
+  $("week-goal").textContent=curGoal;
   $("goal-val").textContent=settings.goal;
-  var goal=settings.goal||1;
+  var goal=curGoal||1;
   var pct=Math.max(0,Math.min(100,Math.round(stats.thisWeek/goal*100)));
   if($("if-fill")) $("if-fill").style.width=pct+"%";
   if($("if-edge")) $("if-edge").style.left=pct+"%";
   if($("if-pct"))  $("if-pct").textContent=pct+"%";
+  var gl=$("goal-lock");
+  if(gl) gl.textContent = locked ? ("🔒 låst på "+curGoal+" denne uka — endring teller fra neste uke") : "";
   // merker (klubb-crests)
   var earned=earnedBadges(stats);
   var bc=$("badge-count"); if(bc) bc.textContent=earned.length+" / "+D.badges.length+" låst opp";
@@ -294,10 +305,12 @@ function deleteEntry(id){
 
 function setGoal(goal){
   settings.goal = goal;
-  // Endring av målet gjelder fra og med inneværende uke — skriv det inn
-  // som ukens låste mål. Historiske uker beholder sine egne verdier.
+  // settings.goal er alltid "gjeldende mål framover". Inneværende uke får
+  // det nye målet KUN hvis uka ikke er låst (ingen økt ført ennå). Er den
+  // låst, gjelder endringen først fra neste uke.
   var curWk = weekKey(todayStr());
-  weekGoals[curWk] = goal;
+  var changedThisWeek = false;
+  if (!isWeekLocked(curWk)) { weekGoals[curWk] = goal; changedThisWeek = true; }
   saveCache();
   renderDashboard();
   apiPost({ action: 'bmSetSetting', user: USER, key: 'goal', value: String(goal) })
@@ -305,8 +318,10 @@ function setGoal(goal){
       console.error('bmSetSetting feilet:', err);
       window.BM.toast('Innstilling ikke lagret');
     });
-  apiPost({ action: 'bmSetWeekGoal', user: USER, week: curWk, value: String(goal) })
-    .catch(function(err){ console.warn('bmSetWeekGoal feilet:', err.message); });
+  if (changedThisWeek) {
+    apiPost({ action: 'bmSetWeekGoal', user: USER, week: curWk, value: String(goal) })
+      .catch(function(err){ console.warn('bmSetWeekGoal feilet:', err.message); });
+  }
 }
 
 /* ---------- eksport ---------- */
