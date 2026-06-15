@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Bygg motoren — treningslogg</title>
 
 <!-- PWA / hjemskjerm-ikon (iOS + Android) -->
@@ -80,12 +80,17 @@
   .pitchbg .box{ width:160px; height:80px; left:50%; top:-2px; transform:translateX(-50%); border-top:none; }
 
   /* tabs */
-  .tab{ position:fixed; top:var(--topH); left:0; right:0; bottom:var(--navH); overflow-y:auto; display:none; -webkit-overflow-scrolling:touch; }
+  .tab{ position:fixed; left:0; right:0;
+    top:calc(var(--topH) + env(safe-area-inset-top));
+    bottom:calc(var(--navH) + env(safe-area-inset-bottom));
+    overflow-y:auto; display:none; -webkit-overflow-scrolling:touch; }
   .tab.active{ display:block; }
   .inner{ position:relative; z-index:1; max-width:480px; margin:0 auto; padding:20px 18px 40px; }
 
-  /* nav */
-  .bottomnav{ position:fixed; left:0; right:0; bottom:0; height:var(--navH);
+  /* nav — løftes klar av iOS home-indikatoren via safe-area */
+  .bottomnav{ position:fixed; left:0; right:0; bottom:0;
+    height:calc(var(--navH) + env(safe-area-inset-bottom));
+    padding-bottom:env(safe-area-inset-bottom);
     background:rgba(5,16,11,.94); border-top:1px solid var(--line-strong); display:flex; z-index:40; }
   .bottomnav button{ flex:1; background:none; border:none; cursor:pointer; color:var(--muted-2);
     font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
@@ -290,13 +295,15 @@
   @media (prefers-reduced-motion: reduce){ .confetti-piece{ display:none; } .icefire .fire,.icefire .ice,.icefire .tongue,.badge.earned .crest,.badge.earned .crest::before{ animation:none; } }
 
   /* toast */
-  #toast{ position:fixed; left:50%; bottom:calc(var(--navH) + 16px); transform:translateX(-50%) translateY(20px);
+  #toast{ position:fixed; left:50%; bottom:calc(var(--navH) + env(safe-area-inset-bottom) + 16px); transform:translateX(-50%) translateY(20px);
     background:#06140c; color:var(--ink); font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.06em;
     border:1px solid var(--line-strong); padding:11px 18px; opacity:0; pointer-events:none; transition:all .2s ease; z-index:80; max-width:86vw; text-align:center; }
   #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
   /* ===== program-bytter (topp) ===== */
-  .progswitch{ position:fixed; top:0; left:0; right:0; height:var(--topH); z-index:45;
+  .progswitch{ position:fixed; top:0; left:0; right:0;
+    height:calc(var(--topH) + env(safe-area-inset-top));
+    padding-top:env(safe-area-inset-top); z-index:45;
     display:flex; background:rgba(5,10,12,.94); border-bottom:1px solid var(--line-strong); }
   .progswitch button{ flex:1; min-width:0; background:none; border:none; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
