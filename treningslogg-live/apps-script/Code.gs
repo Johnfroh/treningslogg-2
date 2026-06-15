@@ -683,10 +683,13 @@ function bmSetSetting(user, program, key, value) {
 // _setupBmSheets() slik at headers er oppdatert.
 function _migrateBmAddProgram() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // progColIdx er 0-indeksert i cols-arrayen (program ligger på index 2
+  // i bm_entries, index 1 i de to andre). Sheets-API tar 1-indeksert
+  // kolonnenummer, så vi gjør +1 ved getRange.
   const targets = [
-    { name: SHEET_NAMES.bmEntries,   cols: BM_ENTRY_COLS,    progCol: 3 },
-    { name: SHEET_NAMES.bmSettings,  cols: BM_SETTINGS_COLS, progCol: 2 },
-    { name: SHEET_NAMES.bmWeekGoals, cols: BM_WEEKGOAL_COLS, progCol: 2 },
+    { name: SHEET_NAMES.bmEntries,   cols: BM_ENTRY_COLS,    progColIdx: 2 },
+    { name: SHEET_NAMES.bmSettings,  cols: BM_SETTINGS_COLS, progColIdx: 1 },
+    { name: SHEET_NAMES.bmWeekGoals, cols: BM_WEEKGOAL_COLS, progColIdx: 1 },
   ];
   targets.forEach(t => {
     const sh = ss.getSheetByName(t.name);
@@ -698,17 +701,22 @@ function _migrateBmAddProgram() {
     }
     const lastRow = sh.getLastRow();
     if (lastRow < 2) { Logger.log(t.name + ': ingen rader å migrere'); return; }
-    const range = sh.getRange(2, t.progCol + 1, lastRow - 1, 1);
+    const sheetsCol = t.progColIdx + 1;
+    const range = sh.getRange(2, sheetsCol, lastRow - 1, 1);
     const vals = range.getValues();
-    let filled = 0;
+    let filled = 0, alreadySet = 0;
     for (let i = 0; i < vals.length; i++) {
-      if (!vals[i][0] || String(vals[i][0]).trim() === '') {
+      const cur = vals[i][0];
+      if (!cur || String(cur).trim() === '') {
         vals[i][0] = 'ungdom';
         filled++;
+      } else {
+        alreadySet++;
       }
     }
     range.setValues(vals);
-    Logger.log(t.name + ': fylte program på ' + filled + ' rader');
+    Logger.log(t.name + ' (kolonne ' + sheetsCol + '): fylte ' + filled +
+               ' rader (allerede satt: ' + alreadySet + ')');
   });
   Logger.log('Migrering fullført.');
 }
