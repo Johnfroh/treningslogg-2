@@ -101,7 +101,7 @@ $("od-save").addEventListener("click", function(){
 
   var badgesBefore=BM.earnedBadges(before);
   var lvlBefore=BM.levelInfo(before.xp);
-  BM.addEntry({ id: Date.now()+"-"+Math.random().toString(36).slice(2,7), date:date, okt:o.key, parts:parts, rekord:rekord, note:note, xp:xp });
+  BM.addEntry({ id: "bm-"+Date.now()+"-"+Math.random().toString(36).slice(2,7), date:date, okt:o.key, parts:parts, rekord:rekord, note:note, xp:xp });
   var after=BM.computeStats(BM.entries);
   var newBadges=BM.earnedBadges(after).filter(function(k){ return badgesBefore.indexOf(k)<0; });
   var lvlAfter=BM.levelInfo(after.xp);
