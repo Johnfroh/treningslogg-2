@@ -6,7 +6,7 @@
 <title>Bygg motoren — treningslogg</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Roboto+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Marcellus&amp;family=Roboto+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
 <style>
   :root{
     --ink:#eafff0; --ink-soft:#bfe0cc;
@@ -18,14 +18,23 @@
     --field:rgba(12,32,22,0.72);
     --display:'Anton',sans-serif;
     --mono:'Roboto Mono',monospace;
-    --navH:60px;
+    --navH:60px; --topH:50px;
     --ice:#8fd0ff; --fire:#ff8b2e;
+    /* tema-variabler som byttes per hefte */
+    --app-bg:radial-gradient(125% 80% at 50% 24%, #0f3a23 0%, #0a2114 46%, #050f0a 100%);
+    --hero-grad:linear-gradient(178deg,#e4f7ff 0%,#bfe6ff 36%,#ffe0a0 58%,#ff8b2e 100%);
+    --fire-grad:linear-gradient(90deg,#ff3d12 0%,#ff7a1e 55%,#ffce4a 100%);
+    --ice-grad:repeating-linear-gradient(115deg, rgba(190,230,255,.30) 0 11px, rgba(120,180,255,.13) 11px 22px);
+    --edge-glow:0 0 12px #ffd27a,0 0 22px #ff8b2e;
+    --rank-grad:linear-gradient(90deg,rgba(40,160,90,.18),rgba(255,150,40,.08));
+    --crest-frame:linear-gradient(165deg,#ffe49a,#e0992e);
+    --crest-inner:linear-gradient(165deg,#2fa860,#16623a);
   }
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
   body{
     font-family:var(--mono); color:var(--ink);
-    background:radial-gradient(125% 80% at 50% 24%, #0f3a23 0%, #0a2114 46%, #050f0a 100%);
+    background:var(--app-bg);
     background-attachment:fixed;
     overflow:hidden; -webkit-font-smoothing:antialiased;
   }
@@ -58,7 +67,7 @@
   .pitchbg .box{ width:160px; height:80px; left:50%; top:-2px; transform:translateX(-50%); border-top:none; }
 
   /* tabs */
-  .tab{ position:fixed; top:0; left:0; right:0; bottom:var(--navH); overflow-y:auto; display:none; -webkit-overflow-scrolling:touch; }
+  .tab{ position:fixed; top:var(--topH); left:0; right:0; bottom:var(--navH); overflow-y:auto; display:none; -webkit-overflow-scrolling:touch; }
   .tab.active{ display:block; }
   .inner{ position:relative; z-index:1; max-width:480px; margin:0 auto; padding:20px 18px 40px; }
 
@@ -93,7 +102,7 @@
   .fhero .fh-lbl{ font-family:var(--display); font-size:17px; letter-spacing:.08em; color:var(--ink); text-transform:uppercase; }
   .fhero .fh-lbl small{ display:block; font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.2em; color:var(--muted); margin-top:6px; text-transform:uppercase; }
   .bignum{ font-family:var(--display); font-size:128px; line-height:.84; margin-top:6px;
-    background:linear-gradient(178deg,#e4f7ff 0%,#bfe6ff 36%,#ffe0a0 58%,#ff8b2e 100%);
+    background:var(--hero-grad);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
     filter:drop-shadow(0 0 16px rgba(140,200,255,.5)) drop-shadow(0 0 22px rgba(255,140,40,.4)); }
   .fhero .unit{ font-family:var(--display); font-size:18px; letter-spacing:.2em; color:#9fe6c0; text-transform:uppercase; }
@@ -105,17 +114,17 @@
   .meterhead .mh-fire{ font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.18em; color:#ff9b4a; text-transform:uppercase; }
   .icefire{ position:relative; height:52px; border:2px solid var(--line-strong); background:#070f1e; overflow:hidden; }
   .icefire .ice{ position:absolute; inset:0;
-    background:repeating-linear-gradient(115deg, rgba(190,230,255,.30) 0 11px, rgba(120,180,255,.13) 11px 22px);
+    background:var(--ice-grad);
     background-size:200% 100%; animation:iceShimmer 6s linear infinite; }
   .icefire .frost i{ position:absolute; color:#dff1ff; font-size:11px; animation:twinkle 2.6s ease-in-out infinite; }
   .icefire .fire{ position:absolute; left:0; top:0; bottom:0; width:0%; overflow:visible;
-    background:linear-gradient(90deg,#ff3d12 0%,#ff7a1e 55%,#ffce4a 100%); background-size:220% 100%;
+    background:var(--fire-grad); background-size:220% 100%;
     animation:fireSlide 1.4s linear infinite, barPulse 2.4s ease-in-out infinite; transition:width .5s cubic-bezier(.3,.8,.3,1); }
   .icefire .fire .tongue{ position:absolute; bottom:0; transform-origin:50% 100%; border-radius:50% 50% 48% 48% / 62% 62% 38% 38%;
     filter:blur(4px); mix-blend-mode:screen; animation:flick var(--d,1.2s) ease-in-out infinite alternate;
     background:radial-gradient(ellipse at 50% 78%, #fff3c4 0%, #ffd23e 30%, #ff8b1e 60%, rgba(255,90,0,0) 76%); }
   .icefire .edge{ position:absolute; top:-7px; bottom:-7px; width:3px; left:0%; background:#fff7e0;
-    box-shadow:0 0 12px #ffd27a,0 0 22px #ff8b2e; transition:left .5s cubic-bezier(.3,.8,.3,1); }
+    box-shadow:var(--edge-glow); transition:left .5s cubic-bezier(.3,.8,.3,1); }
   .icefire .pct{ position:absolute; right:9px; top:50%; transform:translateY(-50%); font-family:var(--display); font-size:18px; color:#fff; letter-spacing:.04em; text-shadow:0 0 8px rgba(0,0,0,.6); z-index:4; }
 
   .goalrow{ display:flex; justify-content:space-between; align-items:center; margin-top:13px; }
@@ -131,7 +140,7 @@
 
   /* rank line */
   .rankline{ display:flex; justify-content:space-between; align-items:center; margin:18px 0 0; padding:11px 14px;
-    border:1px solid var(--line-strong); background:linear-gradient(90deg,rgba(40,160,90,.18),rgba(255,150,40,.08)); }
+    border:1px solid var(--line-strong); background:var(--rank-grad); }
   .rankline .rl-dan{ font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--green-bright); text-transform:uppercase; }
   .rankline .rl-name{ font-family:var(--display); font-size:21px; color:#fff; letter-spacing:.04em; text-shadow:0 0 12px rgba(120,230,170,.5); margin-top:2px; text-transform:uppercase; }
   .rankline .rl-xp{ font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.08em; color:var(--gold-bright); text-align:right; text-transform:uppercase; line-height:1.5; }
@@ -149,8 +158,8 @@
   .badge .crest{ width:54px; height:60px; margin:0 auto; position:relative; display:flex; align-items:center; justify-content:center;
     clip-path:polygon(50% 0,100% 0,100% 56%,50% 100%,0 56%,0 0); }
   .badge .crest::after{ content:""; position:absolute; inset:2.5px; clip-path:inherit; z-index:1; }
-  .badge.earned .crest{ background:linear-gradient(165deg,#ffe49a,#e0992e); animation:crestPulse 2.8s ease-in-out infinite; }
-  .badge.earned .crest::after{ background:linear-gradient(165deg,#2fa860,#16623a); }
+  .badge.earned .crest{ background:var(--crest-frame); animation:crestPulse 2.8s ease-in-out infinite; }
+  .badge.earned .crest::after{ background:var(--crest-inner); }
   .badge.earned .crest::before{ content:""; position:absolute; top:-40%; left:-70%; width:52%; height:200%; z-index:2;
     background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent); transform:rotate(18deg); animation:sweep 3.4s ease-in-out infinite; }
   .badge:not(.earned) .crest{ background:rgba(130,185,155,.26); }
@@ -203,7 +212,7 @@
   #tab-skann iframe{ width:100%; height:100%; border:none; display:block; background:#050f0a; }
 
   /* overlay */
-  .overlay{ position:fixed; inset:0; background:radial-gradient(125% 80% at 50% 24%, #0f3a23 0%, #0a2114 46%, #050f0a 100%); z-index:60; display:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .overlay{ position:fixed; inset:0; background:var(--app-bg); z-index:60; display:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .overlay.open{ display:block; }
   .ov-inner{ position:relative; z-index:1; max-width:480px; margin:0 auto; padding:18px 18px 44px; }
   .ov-topbar{ display:flex; justify-content:space-between; align-items:center; }
@@ -272,24 +281,64 @@
     background:#06140c; color:var(--ink); font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.06em;
     border:1px solid var(--line-strong); padding:11px 18px; opacity:0; pointer-events:none; transition:all .2s ease; z-index:80; max-width:86vw; text-align:center; }
   #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ===== program-bytter (topp) ===== */
+  .progswitch{ position:fixed; top:0; left:0; right:0; height:var(--topH); z-index:45;
+    display:flex; background:rgba(5,10,12,.94); border-bottom:1px solid var(--line-strong); }
+  .progswitch button{ flex:1; min-width:0; background:none; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    padding:0 4px; color:var(--muted-2); position:relative; border-right:1px solid rgba(255,255,255,.07); }
+  .progswitch button:last-child{ border-right:none; }
+  .progswitch .ps-row{ display:flex; align-items:center; gap:5px; max-width:100%; }
+  .progswitch .ps-dot{ width:7px; height:7px; border-radius:50%; background:var(--ps-dot); flex:none; opacity:.6; }
+  .progswitch .ps-name{ font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.03em;
+    text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .progswitch .ps-age{ font-family:var(--mono); font-size:7.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; opacity:.8; }
+  .progswitch button.active{ color:var(--ink-soft); background:rgba(255,255,255,.04); }
+  .progswitch button.active .ps-dot{ opacity:1; }
+  .progswitch button.active .ps-name{ color:var(--ps-dot); }
+  .progswitch button.active::after{ content:""; position:absolute; left:12%; right:12%; bottom:0; height:3px;
+    background:var(--ps-dot); box-shadow:0 0 10px var(--ps-dot); }
+
+  /* «Husk»-kort i øktdetalj */
+  .husk{ border-left:3px solid var(--green-bright); padding:8px 0 8px 14px; margin-top:16px; }
+  .husk .husk-lbl{ font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--green-bright); }
+  .husk p{ font-size:12px; line-height:1.55; color:var(--ink-soft); margin-top:6px; }
+
+  /* per-hefte bakgrunns-motiv */
+  body[data-program="junior"] .pitchbg .flood{ background:radial-gradient(closest-side at 50% -10%, rgba(255,220,120,.22), transparent 60%); }
+  body[data-program="rg"] .pitchbg .pl{ display:none; }
+  body[data-program="rg"] .pitchbg .flood{ background:
+    radial-gradient(closest-side at 12% -6%, rgba(255,170,220,.18), transparent 62%),
+    radial-gradient(closest-side at 88% -6%, rgba(185,140,255,.18), transparent 62%); }
+  body[data-program="rg"] .pagetitle h1,
+  body[data-program="rg"] .ov-head h2,
+  body[data-program="rg"] .cb-title{ letter-spacing:.04em; }
 </style>
 </head>
 <body>
+
+  <!-- ============ program-bytter ============ -->
+  <nav class="progswitch" aria-label="Velg hefte">
+    <button data-prog="ungdom" style="--ps-dot:#5fe0a0"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Bygg motoren</span></span><span class="ps-age">Ungdom · 13+</span></button>
+    <button data-prog="junior" style="--ps-dot:#ffd23e"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Sommerball</span></span><span class="ps-age">7–9 år</span></button>
+    <button data-prog="rg" style="--ps-dot:#ff8fc4"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Ball &amp; rytme</span></span><span class="ps-age">Turn · 9 år</span></button>
+  </nav>
 
   <!-- ============ HJEM / DASHBOARD ============ -->
   <div class="tab active" id="tab-hjem" data-screen-label="Dashboard">
     <div class="pitchbg"><div class="flood"></div><div class="pl box"></div><div class="pl circle"></div><div class="pl half"></div><div class="pl spot"></div></div>
     <div class="inner">
-      <div class="brandline"><span>Bygg motoren</span><span>Kroppen · Blikkene · Ballen</span></div>
+      <div class="brandline"><span id="brand-name">Bygg motoren</span><span id="brand-tagline">Kroppen · Blikkene · Ballen</span></div>
 
       <div class="fhero">
-        <div class="fh-lbl">Streak<small id="streak-sub">hold gløden</small></div>
+        <div class="fh-lbl"><span id="hero-top">Streak</span><small id="streak-sub">hold gløden</small></div>
         <div class="bignum"><span id="streak-num">0</span></div>
-        <div class="unit"><span id="streak-unit">uker</span> på rad</div>
+        <div class="unit"><span id="streak-unit">uker</span> <span id="streak-suffix">på rad</span></div>
       </div>
 
       <div class="meterwrap">
-        <div class="meterhead"><span class="mh-ice">Frossen</span><span class="mh-fire">Tent</span></div>
+        <div class="meterhead"><span class="mh-ice" id="meter-low">Frossen</span><span class="mh-fire" id="meter-high">Tent</span></div>
         <div class="icefire">
           <div class="ice"></div>
           <div class="frost">
@@ -329,14 +378,16 @@
 
       <div class="quotecard">
         <p id="quote-text"></p>
-        <div class="qsrc">Fra heftet «Vis at du vil ha den»</div>
+        <div class="qsrc" id="quote-src">Fra heftet «Vis at du vil ha den»</div>
       </div>
 
       <div class="seclabel">Merker <span id="badge-count"></span></div>
       <div class="badgegrid" id="badge-grid"></div>
 
-      <div class="seclabel">Beste rekorder</div>
-      <div id="record-list"></div>
+      <div id="record-section">
+        <div class="seclabel" id="record-title">Beste rekorder</div>
+        <div id="record-list"></div>
+      </div>
 
       <div class="seclabel">Siste økter</div>
       <div id="log-list"></div>
@@ -348,18 +399,13 @@
   <div class="tab" id="tab-okter" data-screen-label="Økter">
     <div class="pitchbg"><div class="flood"></div><div class="pl box"></div><div class="pl circle"></div><div class="pl half"></div><div class="pl spot"></div></div>
     <div class="inner">
-      <div class="brandline"><span>Bygg motoren</span><span>Velg dagens økt</span></div>
+      <div class="brandline"><span id="okter-brand">Bygg motoren</span><span id="okter-brandsub">Velg dagens økt</span></div>
       <div class="pagetitle">
-        <h1>Økt<span class="hl">ene</span></h1>
-        <div class="sub">Én økt per dag · to–tre i uka er nok</div>
+        <h1><span id="okter-pre">Økt</span><span class="hl" id="okter-hl">ene</span></h1>
+        <div class="sub" id="okter-sub">Én økt per dag · to–tre i uka er nok</div>
         <div class="title-rule"></div>
       </div>
-      <div class="seclabel">Ball og blikk <span>Økt 1–3</span></div>
-      <div id="okt-list-ball"></div>
-      <div class="seclabel">Bonus <span>A–D</span></div>
-      <div id="okt-list-bonus"></div>
-      <div class="seclabel">Fart og motor <span>Fart 1–2</span></div>
-      <div id="okt-list-fart"></div>
+      <div id="okt-groups"></div>
     </div>
   </div>
 
@@ -371,7 +417,7 @@
   <!-- ============ nav ============ -->
   <nav class="bottomnav">
     <button data-tab="tab-hjem" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 10v10h14V10"></path></svg>Hjem</button>
-    <button data-tab="tab-okter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>Økter</button>
+    <button data-tab="tab-okter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span id="nav-mid-label">Økter</span></button>
     <button data-tab="tab-skann"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>Skann</button>
   </nav>
 
@@ -396,7 +442,12 @@
         Åpne skannverktøyet
       </button>
 
-      <div class="rekordbox">
+      <div class="husk" id="od-husk" style="display:none;">
+        <span class="husk-lbl">Husk</span>
+        <p id="od-husk-text"></p>
+      </div>
+
+      <div class="rekordbox" id="od-rekordbox">
         <div class="rb-label">Dagens rekord</div>
         <div class="rb-desc" id="od-rekorddesc"></div>
         <div class="rb-row">
@@ -430,6 +481,9 @@
   <div id="toast"></div>
 
 <script src="app-data.js"></script>
+<script src="data-ungdom.js"></script>
+<script src="data-junior.js"></script>
+<script src="data-rg.js"></script>
 <script src="app-core.js"></script>
 <script src="app-ui.js"></script>
 <style id="__om-edit-overrides"></style>
