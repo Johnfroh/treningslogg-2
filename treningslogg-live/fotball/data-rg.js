@@ -11,12 +11,13 @@ window.BM_PROGRAMS.rg = {
   weekGoalDefault: 2,
   navMid: "Øvelser",
   okterTitle: { pre: "Aktivit", hl: "etene", sub: "Fire øvelser · turnballen og appen", brandsub: "Velg en øvelse" },
-  recordsEnabled: false,
-  recordTitle: "",
+  recordsEnabled: true,
+  recordTitle: "Beste rekorder",
   quoteSource: "Fra heftet «Ball og rytme»",
 
   groups: [
-    { key: "akt", title: "Aktivitetene", sub: "Fire øvelser" }
+    { key: "akt",  title: "Aktivitetene", sub: "Fire øvelser" },
+    { key: "kropp", title: "Kropp og tau", sub: "To øvelser" }
   ],
 
   theme: {
@@ -94,6 +95,33 @@ window.BM_PROGRAMS.rg = {
       ],
       note: "Egne serier er det som gjør en gymnast til sin egen. Akkurat som storebror lager sine egne finter, lager du dine egne bevegelser – de er dine.",
       rekord: null
+    },
+    {
+      key: "akt5", label: "Aktivitet 5", title: "Sterk og myk", group: "kropp",
+      meta: "15–20 min · matte eller mykt underlag", accent: "coral", skann: true,
+      intro: "Bak hver fin RG-bevegelse ligger en sterk mage, en god holdning og en myk kropp. Denne økta bygger nettopp det – tre deler: styrke, spenst, og tøyelighet.",
+      parts: [
+        { name: "Holdning og styrke", time: "5 min", desc: "Stå høy som en gymnast med stram mage og lange armer, hold i ti sekunder. Planke på albuene, rolig og rett i ryggen. Svane: ligg på magen og løft brystet mykt opp, kjenn at ryggen jobber." },
+        { name: "Spenst", time: "4 min", desc: "Små, lette hopp med strake knær og spisset tå, og lett landing. Sprang fra fot til fot, som om du svever et lite øyeblikk." },
+        { name: "Tøyelighet", time: "6 min", desc: "Spagat der du sklir så langt ut som det kjennes behagelig. Bro eller ryggbøy. Rolig fremoverbøy der du puster deg lengre ned. Hold hver tøyning rolig i 15–20 sekunder og pust." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La appen blinke et tall = antall spenst-hopp eller sprang. Eller en farge for tøyningen: rød = spagat, blå = bro, grønn = fremoverbøy. Da blir det en liten lek mot skjermen." }
+      ],
+      note: "Tøyelighet bygges over tid, ikke på én dag – og alltid på varme muskler. Strekk til det kjennes som et lett drag, aldri til det gjør vondt, og aldri rykk. Tving aldri en spagat; kroppen åpner seg av seg selv når du øver jevnt.",
+      rekord: null
+    },
+    {
+      key: "akt6", label: "Aktivitet 6", title: "Tauet", group: "kropp",
+      meta: "15 min · hoppetau (gjerne mykt RG-tau)", accent: "gold", skann: true,
+      intro: "Tauet er et av de fem redskapene i RG, og her er hopp det viktigste av alt. Tenk lett og høy, som om en usynlig tråd løfter deg opp fra issen.",
+      parts: [
+        { name: "Sving og sirkler", time: "3 min", desc: "Sving tauet rolig fra side til side foran deg, stort og mykt – som en halvmåne i lufta. Så store sirkler med tauet på hver side av kroppen." },
+        { name: "Hopp gjennom forover", time: "5 min", desc: "Små hopp gjennom tauet forover. Dette er det aller viktigste tau-elementet i RG, så her skal det bli mange. Hopp lett på forfoten, strake knær og spisset tå i svevet." },
+        { name: "Hopp gjennom bakover", time: "4 min", desc: "Når det sitter forover, prøv å hoppe bakover. Tauet kommer fra andre siden – rytmen er den samme, men det krever litt mer fokus." },
+        { name: "Sprang gjennom", time: "3 min", desc: "Kombiner et lite sprang eller svev gjennom tauet. Start sakte og la tauet bli en forlengelse av armen din." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La skjermen blinke et tall = antall hopp gjennom tauet før neste øvelse. En pil kan bety forover eller bakover, og en farge kan bety sving eller hopp." }
+      ],
+      note: "Knute i begge ender av tauet, og hold det løst i hendene. Rytme er målet – mykt og jevnt, ikke hardt.",
+      rekord: { desc: "Lengste serie hopp gjennom tauet uten å rote.", placeholder: "antall hopp", better: "higher" }
     }
   ],
 
@@ -116,17 +144,20 @@ window.BM_PROGRAMS.rg = {
     { xp: 450, name: "Egen stil" }
   ],
 
-  xpRules: { base: 20, allParts: 10, newRecord: 0 },
+  xpRules: { base: 20, allParts: 10, newRecord: 15 },
 
   badges: [
-    { key: "forste",  name: "Første øvelse", desc: "Gjorde din første øvelse",   icon: "star",     check: s => s.total >= 1 },
-    { key: "venn",    name: "Ballvenn",      desc: "Bli venn med ballen 3 ganger", icon: "heart",  check: s => (s.types.akt1 || 0) >= 3 },
-    { key: "mottak",  name: "Mykt mottak",   desc: "Kast og fang 3 ganger",       icon: "ball",     check: s => (s.types.akt2 || 0) >= 3 },
-    { key: "familier", name: "Fire familier", desc: "Gjorde Ballen og kroppen",   icon: "sparkle",  check: s => (s.types.akt3 || 0) >= 1 },
-    { key: "koreograf", name: "Koreograf",   desc: "Lagde din egen serie",        icon: "music",    check: s => (s.types.akt4 || 0) >= 1 },
-    { key: "allefire", name: "Alle fire",    desc: "Prøvd alle fire aktiviteter", icon: "ribbon",   check: s => s.distinct >= 4 },
-    { key: "uke1",    name: "Øveuke",        desc: "Nådde ukemålet en uke",       icon: "sun",      check: s => s.weeksMet >= 1 },
-    { key: "uke2",    name: "To på rad",     desc: "2 uker på rad",               icon: "flame",    check: s => s.bestStreak >= 2 },
-    { key: "sommer",  name: "Hele sommeren", desc: "6 uker med øving",            icon: "calendar", check: s => s.bestStreak >= 6 }
+    { key: "forste",   name: "Første øvelse", desc: "Gjorde din første øvelse",     icon: "star",     check: s => s.total >= 1 },
+    { key: "venn",     name: "Ballvenn",      desc: "Bli venn med ballen 3 ganger", icon: "heart",    check: s => (s.types.akt1 || 0) >= 3 },
+    { key: "mottak",   name: "Mykt mottak",   desc: "Kast og fang 3 ganger",        icon: "ball",     check: s => (s.types.akt2 || 0) >= 3 },
+    { key: "familier", name: "Fire familier", desc: "Gjorde Ballen og kroppen",     icon: "sparkle",  check: s => (s.types.akt3 || 0) >= 1 },
+    { key: "koreograf",name: "Koreograf",     desc: "Lagde din egen serie",         icon: "music",    check: s => (s.types.akt4 || 0) >= 1 },
+    { key: "sterkmyk", name: "Sterk og myk",  desc: "Sterk og myk 3 ganger",        icon: "sparkle",  check: s => (s.types.akt5 || 0) >= 3 },
+    { key: "tau",      name: "Tauhopper",     desc: "Tauet 3 ganger",               icon: "ribbon",   check: s => (s.types.akt6 || 0) >= 3 },
+    { key: "alleseks", name: "Alle seks",     desc: "Prøvd alle seks øvelser",      icon: "ribbon",   check: s => s.distinct >= 6 },
+    { key: "rekord",   name: "Egen rekord",   desc: "Slo din egen rekord",          icon: "trophy",   check: s => s.improvements >= 1 },
+    { key: "uke1",     name: "Øveuke",        desc: "Nådde ukemålet en uke",        icon: "sun",      check: s => s.weeksMet >= 1 },
+    { key: "uke2",     name: "To på rad",     desc: "2 uker på rad",                icon: "flame",    check: s => s.bestStreak >= 2 },
+    { key: "sommer",   name: "Hele sommeren", desc: "6 uker med øving",             icon: "calendar", check: s => s.bestStreak >= 6 }
   ]
 };
