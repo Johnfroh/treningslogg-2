@@ -22,6 +22,7 @@ window.BM_PROGRAMS.ungdom = {
 
   theme: {
     "--app-bg": "radial-gradient(125% 80% at 50% 24%, #0f3a23 0%, #0a2114 46%, #050f0a 100%)",
+    "--edge-bg": "#050f0a",
     "--display": "'Anton',sans-serif",
     "--ink": "#eafff0", "--ink-soft": "#bfe0cc",
     "--green": "#3ea86a", "--green-deep": "#2fa860", "--green-bright": "#5fe0a0",

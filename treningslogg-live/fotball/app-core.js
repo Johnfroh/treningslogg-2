@@ -25,7 +25,9 @@ var ICONS = {
   heart:'<path d="M12 20s-7-4.6-9.2-9C1.4 8.3 2.7 5 6 5c2 0 3 1.3 4 2.7C11 6.3 12 5 14 5c3.3 0 4.6 3.3 3.2 6-2.2 4.4-9.2 9-9.2 9z" transform="translate(2 0)"/>',
   sparkle:'<path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/><path d="M19 14l.8 2.4L22 17l-2.2.6L19 20l-.8-2.4L16 17l2.2-.6z"/>',
   music:'<path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
-  ribbon:'<circle cx="12" cy="9" r="6"/><path d="M9 14.5 6.5 22 12 19l5.5 3-2.5-7.5"/>'
+  ribbon:'<circle cx="12" cy="9" r="6"/><path d="M9 14.5 6.5 22 12 19l5.5 3-2.5-7.5"/>',
+  kettlebell:'<path d="M9.2 7.2a3 3 0 0 1 5.6 0"/><path d="M8.4 7.2C6.7 8.3 5.5 10.4 5.5 13a6.5 6.5 0 0 0 13 0c0-2.6-1.2-4.7-2.9-5.8z"/>',
+  anvil:'<path d="M3.5 8H15a4 4 0 0 1-4 3.5H9.5V15H14v2H6v-2h1.5v-3.5A5.5 5.5 0 0 1 3.5 8z"/><path d="M15 8l4-1.2V10"/>'
 };
 function ico(name){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[name]||'')+'</svg>'; }
 

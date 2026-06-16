@@ -14,7 +14,7 @@ function showTab(id){
 navBtns.forEach(function(b){ b.addEventListener("click", function(){ showTab(b.dataset.tab); }); });
 
 /* ---------- øktliste (bygges fra programmets grupper) ---------- */
-function verb(P){ return P.id==="ungdom" ? "gjennomført" : P.id==="junior" ? "spilt" : "gjort"; }
+function verb(P){ return (P.id==="ungdom" || P.id.indexOf("core")===0) ? "gjennomført" : P.id==="junior" ? "spilt" : "gjort"; }
 function renderOktList(){
   var P=BM.current;
   var host=$("okt-groups"); if(!host) return;
@@ -113,7 +113,8 @@ $("od-save").addEventListener("click", function(){
 var CHEERS_FOTBALL=["Sterkt!","Ført inn!","Møtte opp!","Motoren går!","Egentrent!","Den teller!"];
 var CHEERS_JUNIOR=["Bra jobba!","Så gøy!","Touch samlet!","Du leker fint!","Heia deg!","Den teller!"];
 var CHEERS_RG=["Så fint!","Mykt og flott!","Det fløt!","Elegant!","Vakkert!","Den teller!"];
-function cheers(){ var id=BM.current.id; return id==="junior"?CHEERS_JUNIOR:id==="rg"?CHEERS_RG:CHEERS_FOTBALL; }
+var CHEERS_CORE=["Sterkt!","Ført inn!","Reps i banken!","Helkropp – ferdig!","Grunnmuren står!","Den teller!"];
+function cheers(){ var id=BM.current.id; return id==="junior"?CHEERS_JUNIOR:id==="rg"?CHEERS_RG:id.indexOf("core")===0?CHEERS_CORE:CHEERS_FOTBALL; }
 
 function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec){
   var C=cheers();

@@ -22,6 +22,7 @@ window.BM_PROGRAMS.rg = {
 
   theme: {
     "--app-bg": "radial-gradient(120% 86% at 50% 14%, #5a2a6e 0%, #391a4e 44%, #190b27 100%)",
+    "--edge-bg": "#190b27",
     "--display": "'Marcellus',serif",
     "--ink": "#fdeffb", "--ink-soft": "#e3cdee",
     "--green": "#e85fa0", "--green-deep": "#d64f93", "--green-bright": "#ff8fc4",
