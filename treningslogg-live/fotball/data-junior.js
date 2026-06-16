@@ -22,6 +22,7 @@ window.BM_PROGRAMS.junior = {
 
   theme: {
     "--app-bg": "radial-gradient(120% 88% at 50% 14%, #2f9fd6 0%, #176aa0 44%, #08395f 100%)",
+    "--edge-bg": "#08395f",
     "--display": "'Anton',sans-serif",
     "--ink": "#fffdf5", "--ink-soft": "#dff1ff",
     "--green": "#ffb43d", "--green-deep": "#ff9e2e", "--green-bright": "#ffd23e",

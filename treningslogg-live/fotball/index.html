@@ -45,13 +45,17 @@
   }
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
-  /* html får samme programbakgrunn som body — ellers blir iOS sine
-     safe-area-soner (under home-indikator, bak dynamic island) hvite
-     i standalone-PWA. Følger aktivt program via --app-bg på :root. */
-  html{ background:var(--app-bg); background-attachment:fixed; }
+  /* Solid bunnfarge (--edge-bg) på html OG body. En radial-gradient males
+     bare INNI elementet — iOS sin rubber-band-overscroll og safe-area-
+     soner males med background-COLOR. Uten en solid farge blir disse
+     hvite i standalone-PWA. --edge-bg settes per program (mørkeste kant-
+     tone) av applyTheme; faller tilbake til grønn-svart. Gradienten
+     ligger oppå som vanlig. */
+  html{ background-color:var(--edge-bg,#050f0a); background-image:var(--app-bg); background-attachment:fixed; }
   body{
     font-family:var(--mono); color:var(--ink);
-    background:var(--app-bg);
+    background-color:var(--edge-bg,#050f0a);
+    background-image:var(--app-bg);
     background-attachment:fixed;
     overflow:hidden; -webkit-font-smoothing:antialiased;
   }
@@ -341,6 +345,10 @@
   body[data-program="rg"] .pagetitle h1,
   body[data-program="rg"] .ov-head h2,
   body[data-program="rg"] .cb-title{ letter-spacing:.04em; }
+  body[data-program^="core"] .pitchbg .pl{ display:none; }
+  body[data-program="core_a"] .pitchbg .flood{ background:
+    radial-gradient(closest-side at 50% -8%, rgba(255,140,60,.22), transparent 62%),
+    radial-gradient(closest-side at 86% 4%, rgba(255,90,30,.12), transparent 58%); }
 </style>
 </head>
 <body>
@@ -350,6 +358,7 @@
     <button data-prog="ungdom" style="--ps-dot:#5fe0a0"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Bygg motoren</span></span><span class="ps-age">Ungdom · 13+</span></button>
     <button data-prog="junior" style="--ps-dot:#ffd23e"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Sommerball</span></span><span class="ps-age">7–9 år</span></button>
     <button data-prog="rg" style="--ps-dot:#ff8fc4"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">Ball &amp; rytme</span></span><span class="ps-age">Turn · 9 år</span></button>
+    <button data-prog="core_a" style="--ps-dot:#ff8a3d"><span class="ps-row"><span class="ps-dot"></span><span class="ps-name">CORE</span></span><span class="ps-age">Smia</span></button>
   </nav>
 
   <!-- ============ HJEM / DASHBOARD ============ -->
@@ -511,6 +520,8 @@
 <script src="data-ungdom.js"></script>
 <script src="data-junior.js"></script>
 <script src="data-rg.js"></script>
+<script src="data-core-shared.js"></script>
+<script src="data-core-a.js"></script>
 <script src="app-core.js"></script>
 <script src="app-ui.js"></script>
 <style id="__om-edit-overrides"></style>
