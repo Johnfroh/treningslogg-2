@@ -1,22 +1,23 @@
 /* ============================================================
-   HEFTE: JUNIOR — «Sommerball»  (fotball-leker, 7–9 år)
-   Lett, solrikt og leketøff. Ingen rekorder – bare touch og moro.
+   HEFTE: JUNIOR — «Sommerball» v2  (fotball-leker, 7–9 år)
+   Fire økter for sommeren — for barn som har funnet trikse-gleden.
+   Rekorder på trikseserier (Trikseskolen + Kompisøkta), ellers ren lek.
    ============================================================ */
 window.BM_PROGRAMS = window.BM_PROGRAMS || {};
 window.BM_PROGRAMS.junior = {
   id: "junior",
-  brand: { name: "Sommerball", tagline: "Lek · Touch · Sommer", short: "Sommerball", age: "7–9 år", dot: "#ffd23e" },
-  hero: { top: "Sommer", subLow: "kom i gang i sommer", subHigh: "fortsett – det går så bra!", unit: "uker", unitOne: "uke", suffix: "med lek" },
+  brand: { name: "Sommerball", tagline: "Sommer · Touch · Triks", short: "Sommerball", age: "7–9 år", dot: "#ffd23e" },
+  hero: { top: "Sommer", subLow: "kom i gang i sommer", subHigh: "fortsett – det går så bra!", unit: "uker", unitOne: "uke", suffix: "med ball" },
   meter: { low: "Skyet", high: "Solskinn" },
   weekGoalDefault: 2,
-  navMid: "Leker",
-  okterTitle: { pre: "Sommer", hl: "lekene", sub: "Tre leker · en ball og litt plass", brandsub: "Velg en lek" },
-  recordsEnabled: false,
-  recordTitle: "",
+  navMid: "Økter",
+  okterTitle: { pre: "Sommer", hl: "ballen", sub: "Fire økter · en ball og litt plass", brandsub: "Velg en økt" },
+  recordsEnabled: true,
+  recordTitle: "Beste rekorder",
   quoteSource: "Fra heftet «Sommerball»",
 
   groups: [
-    { key: "lek", title: "Sommerlekene", sub: "Tre leker" }
+    { key: "lek", title: "Sommeralt", sub: "Fire økter" }
   ],
 
   theme: {
@@ -42,54 +43,68 @@ window.BM_PROGRAMS.junior = {
 
   okter: [
     {
-      key: "lek1", label: "Lek 1", title: "Fargejakten", group: "lek",
-      meta: "5–10 min · egen ball", accent: "green", skann: true,
-      intro: "En voksen eller storesøsken roper en farge – og du fører ballen bort til noe i den fargen så fort du klarer, uten å miste den.",
+      key: "lek1", label: "Økt 1", title: "Sålemesteren", group: "lek",
+      meta: "10–15 min · egen ball", accent: "green", skann: true,
+      intro: "En farge ropes eller blinkes – og du fører ballen dit. Men på veien skal du rulle ballen fram og tilbake med sålen og gjøre minst én vending bakover.",
       parts: [
-        { name: "Spre fargene", time: "1 min", desc: "Legg ut kjegler eller ting i ulike farger rundt i hagen, på løkka eller på stranda." },
-        { name: "Jakt på fargen", time: "5 min", desc: "Den voksne roper en farge. Før ballen bort til noe i den fargen – så fort du klarer, men uten å miste ballen." },
-        { name: "Gjør det vrient", time: "3 min", desc: "Når det blir lett: to farger etter hverandre, eller «løp til motsatt farge av der du står»." },
-        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "Sett appen på et bord eller en stol – så blinker den fargen i stedet for at noen roper. Da må du kikke opp på skjermen mens du fører, akkurat som de store fotballspillerne gjør i kamp." }
+        { name: "Spre fargene", time: "2 min", desc: "Spre kjegler i ulike farger rundt i hagen, på løkka eller på stranda." },
+        { name: "Sålerull og vending", time: "5 min", desc: "En farge ropes (eller blinkes på skjermen) – du fører ballen dit. På veien: rull ballen fram og tilbake med sålen og gjør minst én vending bakover (dra ballen bakover med sålen, snu deg, fortsett). Ved kjeglen: en rolig såledragning rundt før neste farge." },
+        { name: "Variér vendingene", time: "4 min", desc: "Krev ulike vendinger: såledrag bakover, V-dragning (dra inn med sålen, dytt ut med innsiden), og utsidevending. Rolig og kontrollert – ballen skal være som limt til foten." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La skjermen blinke fargen. For deg som er rask: en pil viser hvilken vei du skal vende før du fortsetter." }
       ],
-      note: "Det viktigste er ikke å være raskest – det er å se seg rundt og holde ballen nær. Det er gøyest når alle ler.",
+      note: "Det er ikke farten som teller, men kontrollen. God sålekontroll er starten på alt annet i fotball – og du er allerede godt i gang.",
       rekord: null
     },
     {
-      key: "lek2", label: "Lek 2", title: "Trafikklyset", group: "lek",
-      meta: "5–10 min · egen ball", accent: "coral", skann: true,
-      intro: "Grønt: før ballen i god fart. Gult: helt rolig, små touch oppå ballen. Rødt: stopp med foten på ballen. Den voksne bytter farge – og prøver å lure deg!",
+      key: "lek2", label: "Økt 2", title: "Trikseskolen", group: "lek",
+      meta: "10–15 min · egen ball", accent: "gold", skann: true,
+      intro: "Vipp opp, hold gående, og tell. Terping er hele hemmeligheten – verken Messi eller Ronaldo ble født med dette.",
       parts: [
-        { name: "Grønt – kjør!", time: "2 min", desc: "Før ballen rundt i god fart. Hold ballen nær." },
-        { name: "Gult – rolig", time: "2 min", desc: "Helt rolig, små touch med foten oppå ballen." },
-        { name: "Rødt – stopp!", time: "2 min", desc: "Stopp med foten på ballen, helt stille. Bråstoppene er det morsomste – hold gult lenge, og så plutselig rødt!" },
-        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La skann-appen vise fargen på skjermen. Da kan fargene bytte enda raskere, og du må følge med med øynene mens beina jobber." }
+        { name: "Vipp opp fra bakken", time: "3 min", desc: "Legg foten litt under ballen og løft den rolig opp. Øv med begge bein. Når du klarer det: vipp opp og ta imot med hendene." },
+        { name: "Ett touch og grip", time: "3 min", desc: "Vipp opp, ett touch med foten, og grip ballen før den treffer bakken. Bygg på steg for steg, og ikke ha hastverk." },
+        { name: "Trikseserie", time: "5 min", desc: "Vipp opp og hold ballen gående så lenge du klarer – fot, lår, hode, fot igjen. NFF sitt teknikkmerke teller ett tilslag med hver kroppsdel, så veksle: fot, lår, fot igjen." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "Skjermen blinker et tall = målet ditt for triksingen denne runden. Eller en farge for kroppsdelen: rød = fot, blå = lår, grønn = hode." }
       ],
-      note: "Rødt-stoppet er hemmeligheten: å ha foten klar oppå ballen er starten på all god ballkontroll.",
+      note: "NFF sitt teknikkmerke krever faktisk at du vipper opp ballen med foten på de øverste gradene – så nå trener du mot et ekte merke.",
+      rekord: { desc: "Flest trikk på rad uten at ballen treffer bakken.", placeholder: "antall trikk", better: "higher" }
+    },
+    {
+      key: "lek3", label: "Økt 3", title: "Trafikklyset", group: "lek",
+      meta: "10–15 min · egen ball", accent: "coral", skann: true,
+      intro: "Grønt: kjør! Gult: rolig på stedet. Rødt: stopp. Blått: vipp opp og grip. Den voksne (eller skjermen) bytter farger – og prøver å lure deg.",
+      parts: [
+        { name: "Grønt – kjør", time: "2 min", desc: "Før ballen rundt i god fart. Hold ballen nær." },
+        { name: "Gult – rolig", time: "2 min", desc: "Sålerulling fram og tilbake og små dragninger bakover. Helt rolig på stedet." },
+        { name: "Rødt – stopp", time: "2 min", desc: "Foten oppå ballen, helt stille. Moroa ligger i bråstoppene – hold gult lenge, så plutselig rødt!" },
+        { name: "Blått – vipp opp", time: "3 min", desc: "Vipp ballen opp fra bakken og grip den. Ny farge fra heftet — den krever at du har øvd på Trikseskolen." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La skann-appen vise fargen. Da kan fargene skifte raskere enn en stemme klarer, og du må følge med med øynene mens beina og ballen jobber." }
+      ],
+      note: "Rødt-stoppet og sålekontrollen er grunnmuren. Vis fram den fineste, roligste sålerullingen din – ikke bare den raskeste starten.",
       rekord: null
     },
     {
-      key: "lek3", label: "Lek 3", title: "Talltrollene", group: "lek",
-      meta: "5–10 min · egen ball", accent: "gold", skann: true,
-      intro: "Du fører ballen rundt. Når et tall dukker opp, gjør du så mange touch – og fortsetter.",
+      key: "lek4", label: "Økt 4", title: "Kompisøkta", group: "lek",
+      meta: "10–15 min · to stykker · ball", accent: "green", skann: true,
+      intro: "Spill mot en venn er den beste treningen som finnes – mest moro, og flest situasjoner som ligner ekte fotball. Velg en eller flere av disse.",
       parts: [
-        { name: "Velg en touch", time: "1 min", desc: "Den voksne sier hvilken touch som gjelder: fem touch med sålen, tre små dytt med innsiden …" },
-        { name: "Tallet bestemmer", time: "4 min", desc: "Når et tall dukker opp, gjør du så mange touch før du fører videre. «Talltrollet sier FEM! Fem såletouch før det slipper deg videre!»" },
-        { name: "Tell høyt sammen", time: "3 min", desc: "Tell høyt sammen første gang. Det handler om mange berøringer og om å se opp – ikke om at alle teller helt likt." },
-        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "Skann-appen kan være talltrollet – den blinker tallet, du leser det og gjør touchene. Litt eldre? La tallet blinke bare et lite sekund, så må du fange det kjapt." }
+        { name: "Pasningsrytme", time: "3 min", desc: "Spill ballen mellom dere og beveg dere – først to touch, så ett. Lett, jevnt tempo." },
+        { name: "Trikse-tennis", time: "4 min", desc: "Hold ballen gående i lufta mellom dere uten at den treffer bakken (eller med ett sprett imellom). Tell serien." },
+        { name: "1 mot 1", time: "4 min", desc: "Liten firkant uten mål – kjemp om å beholde ballen lengst. Eller med mål: én angriper, én forsvarer, så bytt. Vegg og avslutning hvis dere har et mål: spill kompisen, få den i retur, og avslutt." },
+        { name: "Skann-appen", time: "valgfritt", skann: true, desc: "La skjermen bestemme: den kan blinke hvem som angriper, eller hvilket hjørne du skal sikte i. Da må dere begge følge med og reagere kjapt." }
       ],
-      note: "Det handler om mange touch og om å se opp – ikke om at alle teller helt likt.",
-      rekord: null
+      note: "Lite mål gir mer presisjon, stort mål mer fart og kraft. Det viktigste er at det blir mange situasjoner og mye latter.",
+      rekord: { desc: "Lengste trikse-tennis-serie sammen.", placeholder: "antall touch", better: "higher" }
     }
   ],
 
   quotes: [
-    "Det gøyeste er ikke å bli best. Det er å leke mye og le mye.",
-    "Se deg rundt og hold ballen nær – så blir ballen vennen din.",
-    "Det er gøyest når alle ler.",
-    "Mange touch og mye moro. Det er hele greia.",
-    "Løft blikket fra ballen – akkurat som de store gjør.",
-    "Rødt-stoppet er hemmeligheten: ha foten klar oppå ballen.",
-    "Ingen mål, ingen som taper. Bare ball og sommer."
+    "Det gøyeste er ikke å bli best – det er å lære nye ting og kjenne at ballen blir vennen din.",
+    "Vipp opp, hold den gående, og ha det moro.",
+    "Terping er hele hemmeligheten – verken Messi eller Ronaldo ble født med dette.",
+    "Det er ikke farten som teller, men kontrollen.",
+    "Sålekontrollen er starten på alt annet i fotball.",
+    "Spill mot en venn er den beste treningen som finnes.",
+    "Bommer du, er det bare å le og fortsette."
   ],
 
   levels: [
@@ -101,17 +116,19 @@ window.BM_PROGRAMS.junior = {
     { xp: 450, name: "Sommerstjerne" }
   ],
 
-  xpRules: { base: 20, allParts: 10, newRecord: 0 },
+  xpRules: { base: 20, allParts: 10, newRecord: 15 },
 
   badges: [
-    { key: "forste",  name: "Første lek",  desc: "Spilte din første lek",      icon: "ball",     check: s => s.total >= 1 },
-    { key: "farge",   name: "Fargejeger",  desc: "Fargejakten 3 ganger",       icon: "palette",  check: s => (s.types.lek1 || 0) >= 3 },
-    { key: "trafikk", name: "Trafikksjef", desc: "Trafikklyset 3 ganger",      icon: "traffic",  check: s => (s.types.lek2 || 0) >= 3 },
-    { key: "tall",    name: "Talltroll",   desc: "Talltrollene 3 ganger",      icon: "hash",     check: s => (s.types.lek3 || 0) >= 3 },
-    { key: "alletre", name: "Alle tre",    desc: "Prøvd alle tre lekene",      icon: "star",     check: s => s.distinct >= 3 },
-    { key: "uke1",    name: "Sommeruke",   desc: "Nådde ukemålet en uke",      icon: "sun",      check: s => s.weeksMet >= 1 },
-    { key: "uke2",    name: "To på rad",   desc: "2 sommeruker på rad",        icon: "flame",    check: s => s.bestStreak >= 2 },
-    { key: "ferie",   name: "Hele ferien", desc: "6 uker med lek",             icon: "calendar", check: s => s.bestStreak >= 6 },
-    { key: "touch20", name: "Touch-konge", desc: "20 leker totalt",            num: "20",        check: s => s.total >= 20 }
+    { key: "forste",   name: "Første økt",   desc: "Spilte din første økt",       icon: "ball",     check: s => s.total >= 1 },
+    { key: "sale",     name: "Sålemester",   desc: "Sålemesteren 3 ganger",       icon: "palette",  check: s => (s.types.lek1 || 0) >= 3 },
+    { key: "trikse",   name: "Trikseskolen", desc: "Trikseskolen 3 ganger",       icon: "sparkle",  check: s => (s.types.lek2 || 0) >= 3 },
+    { key: "lys",      name: "Trafikksjef",  desc: "Trafikklyset 3 ganger",       icon: "traffic",  check: s => (s.types.lek3 || 0) >= 3 },
+    { key: "kompis",   name: "Kompis",       desc: "Kompisøkta 3 ganger",         icon: "heart",    check: s => (s.types.lek4 || 0) >= 3 },
+    { key: "allefire", name: "Alle fire",    desc: "Prøvd alle fire øktene",      icon: "star",     check: s => s.distinct >= 4 },
+    { key: "rekord",   name: "Rekordbyttet", desc: "Slo din egen rekord",         icon: "trophy",   check: s => s.improvements >= 1 },
+    { key: "uke1",     name: "Sommeruke",    desc: "Nådde ukemålet en uke",       icon: "sun",      check: s => s.weeksMet >= 1 },
+    { key: "uke2",     name: "To på rad",    desc: "2 sommeruker på rad",         icon: "flame",    check: s => s.bestStreak >= 2 },
+    { key: "ferie",    name: "Hele ferien",  desc: "6 uker med ball",             icon: "calendar", check: s => s.bestStreak >= 6 },
+    { key: "touch20",  name: "Touch-konge",  desc: "20 økter totalt",             num: "20",        check: s => s.total >= 20 }
   ]
 };
