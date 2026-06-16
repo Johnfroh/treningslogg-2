@@ -45,6 +45,10 @@
   }
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; }
+  /* html får samme programbakgrunn som body — ellers blir iOS sine
+     safe-area-soner (under home-indikator, bak dynamic island) hvite
+     i standalone-PWA. Følger aktivt program via --app-bg på :root. */
+  html{ background:var(--app-bg); background-attachment:fixed; }
   body{
     font-family:var(--mono); color:var(--ink);
     background:var(--app-bg);
@@ -234,7 +238,8 @@
   /* overlay */
   .overlay{ position:fixed; inset:0; background:var(--app-bg); z-index:60; display:none; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .overlay.open{ display:block; }
-  .ov-inner{ position:relative; z-index:1; max-width:480px; margin:0 auto; padding:18px 18px 44px; }
+  .ov-inner{ position:relative; z-index:1; max-width:480px; margin:0 auto;
+    padding:calc(18px + env(safe-area-inset-top)) 18px calc(44px + env(safe-area-inset-bottom)); }
   .ov-topbar{ display:flex; justify-content:space-between; align-items:center; }
   .ov-close{ width:44px; height:44px; background:transparent; border:1px solid var(--line-strong); font-size:16px; color:var(--ink); cursor:pointer; }
   .ov-kick{ font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gold-bright); }
