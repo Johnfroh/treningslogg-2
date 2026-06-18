@@ -53,11 +53,16 @@ function MembersProvider({ children }) {
 
   const reload = React.useCallback(() => {
     setLoading(true);
-    return DASH_API.fetchWhoami().then(who => {
+    // Robust mot at en gammel cachet api.js mangler fetchWhoami: bruk
+    // Promise.resolve(...) så et synkront kast blir en avvist promise som
+    // .catch tar — da svartlegges aldri hele appen.
+    const whoamiP = Promise.resolve().then(() =>
+      (DASH_API.fetchWhoami ? DASH_API.fetchWhoami() : { email: null, isStyre: false }));
+    return whoamiP.then(who => {
       setAccess(who);
       return Promise.all([
         DASH_API.fetchDash(),
-        who.isStyre ? DASH_API.fetchOkonomi().catch(() => ({})) : Promise.resolve({}),
+        who.isStyre && DASH_API.fetchOkonomi ? DASH_API.fetchOkonomi().catch(() => ({})) : Promise.resolve({}),
       ]).then(([dash, months]) => {
         setMembers(dash.members);
         setMeta(dash.meta || {});
