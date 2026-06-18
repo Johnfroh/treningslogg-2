@@ -3,29 +3,40 @@
 Fullverdig klubbpanel for Bodø Jiu Jitsu. Samme stack som trener-appen
 (React via Babel-standalone, ingen build-step), Daylight-tema.
 
-## Status: Fase 1 (skjelett + lesedata)
+## Status: Fase 2 (register + gradering + import mot Sheets)
 
-UI-en er integrert og kjører på `/dashboard` med **anonymiserte demo-data**.
-Seks faner: Oversikt · Medlemmer · Medlemsstatistikk · Oppmøte · Økonomi ·
-Kohort & Churn.
+UI-en kjører på `/dashboard`. **Medlemsregister, gradering og økonomi
+leses/skrives mot Google Sheets** via Apps Script (`dashList`, `dashGrade`,
+`dashUndoLast`, `dashImportRoster`, `dashImportOkonomi`) — samme `/api`-proxy
+og Cloudflare Access som trener-appen. De aggregerte KPI-ene (oppmøte-heatmap,
+kohort, leaderboard) leses fortsatt fra statisk `data/kpis.json`.
+
+Backend-ark (opprettes av `_setupDashSheets` i Code.gs):
+
+- `dash_members` — medlemsregister (gjeldende belte denormalisert).
+- `dash_grading` — én rad per graderingshendelse (full historikk).
+- `dash_okonomi` — faktiske månedstall fra Spond.
 
 Gjenstår (kommende faser):
 
-- **Fase 2** — register + gradering skriver til Google Sheets (ikke localStorage),
-  månedlig medlemsimport mot backend.
-- **Fase 3** — økonomi-import til Sheets, økonomi-fanen skjult pr. e-post,
-  bygget separerbar så den senere kan flyttes til egen tilgangs-app (slik
-  `/fotball` er skilt ut i dag).
-- **Fase 4** — polering, konvergering av oppmøtedata med trener-appen, eksport.
+- **Fase 3** — økonomi-fanen skjult pr. e-post, bygget separerbar så den
+  senere kan flyttes til egen tilgangs-app (slik `/fotball` er skilt ut).
+- **Fase 4** — samkjøre `dash_members` med trener-appens medlems-/oppmøtedata,
+  eksport til årsrapport.
+
+> Merk: registeret er tomt til første månedlige import er kjørt fra
+> «Importer»-knappen i Medlemmer-fanen.
 
 ## Datalag — ett byttepunkt
 
 `api.js` (`window.DASH_API`) er **eneste sted** datakilden bestemmes:
 
-- I dag: leser `data/*.json` (anonymiserte demo-data).
-- Fase 2/3: bytt funksjonskroppene til kall mot `/api` (Google Sheets via
-  Apps Script — samme proxy og samme Cloudflare Access som trener-appen).
-  Resten av appen er uendret så lenge signaturene holdes like.
+- `fetchDash()` → register + økonomi fra `/api` (Sheets via Apps Script).
+- `grade()` / `undoLast()` / `importRoster()` / `importOkonomi()` → skriving.
+- `fetchKpis()` → fortsatt statisk `data/kpis.json` (aggregater).
+
+Bytter man kilde senere er det her det gjøres — resten av appen er uendret
+så lenge signaturene holdes like.
 
 ## Personvern (mindreårige)
 

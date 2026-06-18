@@ -31,6 +31,12 @@ const SHEET_NAMES = {
   bmEntries: 'bm_entries',
   bmSettings: 'bm_settings',
   bmWeekGoals: 'bm_week_goals',
+  // Klubbdashboard på /dashboard — eget medlemsregister med gradering + økonomi.
+  // Holdt adskilt fra 'members' (oppmøte-matching) i denne fasen; samkjøring
+  // av de to medlemslistene er planlagt til en senere fase.
+  dashMembers: 'dash_members',
+  dashGrading: 'dash_grading',
+  dashOkonomi: 'dash_okonomi',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -46,6 +52,18 @@ const BM_SETTINGS_COLS = ['user','program','key','value'];
 // Ukemål per uke — låser inn hvilket mål som gjaldt da uka pågikk, så
 // streak ikke regnes feil med tilbakevirkende kraft når målet endres.
 const BM_WEEKGOAL_COLS = ['user','program','week','goal'];
+
+// ─── Dashboard (/dashboard) ────────────────────────────────────────
+// dash_members: medlemsregister. Gjeldende belte denormaliseres hit for
+// lesbarhet i Sheets; full historikk ligger i dash_grading.
+const DASH_MEMBER_COLS = ['id','fornavn','etternavn','navn','kategori','medlemstype',
+  'prisMnd','epost','mobil','kjonn','innmeldingsdato','fodselsdato','alder','adresse',
+  'postnr','poststed','minor','beltCurrent','stripesCurrent','beltSince',
+  'oppmoteCheckins','oppmotePct','oppmoteSiste','updatedAt'];
+// dash_grading: én rad per graderingshendelse.
+const DASH_GRADING_COLS = ['memberId','eventId','date','kind','belt','stripes','by','note','seq','createdAt'];
+// dash_okonomi: faktiske månedstall fra Spond. byKategori lagres som JSON-streng.
+const DASH_OKONOMI_COLS = ['month','netto','brutto','avgifter','antall','byKategori','updatedAt'];
 
 function bmProgram(p){ var s = String(p || '').trim().toLowerCase(); return s || 'ungdom'; }
 
@@ -88,6 +106,13 @@ function handle(e, method) {
       case 'bmDelete':        return json({ ok: true, data: deleteRow(SHEET_NAMES.bmEntries, body.id) });
       case 'bmSetSetting':    return json({ ok: true, data: bmSetSetting(body.user, body.program, body.key, body.value) });
       case 'bmSetWeekGoal':   return json({ ok: true, data: bmSetWeekGoal(body.user, body.program, body.week, body.value) });
+      // Klubbdashboard (/dashboard)
+      case 'dashList':          return json({ ok: true, data: dashList() });
+      case 'dashGrade':         return json({ ok: true, data: dashGrade(body.events) });
+      case 'dashUndoLast':      return json({ ok: true, data: dashUndoLast(body.memberId) });
+      case 'dashImportRoster':  return json({ ok: true, data: dashImportRoster(body.members) });
+      case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
+
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
       default:                return json({ ok: false, error: 'unknown action: ' + action });
     }
@@ -297,6 +322,229 @@ function importAttendance(rows) {
   return { count: data.length, newMembers: newNames.length };
 }
 
+// ─── Dashboard (/dashboard) ────────────────────────────────────────
+
+function dashList() {
+  return { members: dashReadMembers(), okonomi: { months: dashReadOkonomi() } };
+}
+
+// Les rader fra et ark som objekter (header-styrt), uten parsing/filtrering.
+function dashRows(name, cols) {
+  const sh = sheet(name);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, cols.length).getValues().map(r => rowToObj(r, cols));
+}
+
+function dashReadGradingGrouped() {
+  const rows = dashRows(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
+  const by = {};
+  rows.forEach(r => {
+    const id = String(r.memberId || '');
+    if (!id) return;
+    (by[id] || (by[id] = [])).push(r);
+  });
+  return by;
+}
+
+function dashReadMembers() {
+  const grouped = dashReadGradingGrouped();
+  return dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
+    .filter(o => o.id !== '' && o.id != null)
+    .map(o => dashMemberObj(o, grouped[String(o.id)] || []));
+}
+
+function dashMemberObj(o, events) {
+  let history = events.map(e => ({
+    id: String(e.eventId || ''),
+    date: ymd(e.date),
+    kind: String(e.kind || ''),
+    belt: String(e.belt || 'Hvit'),
+    stripes: Number(e.stripes || 0),
+    by: e.by === '' || e.by == null ? null : String(e.by),
+    note: String(e.note || ''),
+    _seq: Number(e.seq || 0),
+  }));
+  if (!history.length) {
+    const since = o.innmeldingsdato ? ymd(o.innmeldingsdato) : (o.beltSince ? ymd(o.beltSince) : '');
+    history = [{ id: 'g_innm', date: since, kind: 'innmelding', belt: 'Hvit', stripes: 0, by: null, note: 'Innmeldt', _seq: 1 }];
+  }
+  history.sort((a, b) => a.date === b.date ? (a._seq - b._seq) : String(a.date).localeCompare(String(b.date)));
+  const last = history[history.length - 1];
+  return {
+    id: String(o.id),
+    fornavn: String(o.fornavn || ''),
+    etternavn: String(o.etternavn || ''),
+    navn: String(o.navn || ((o.fornavn || '') + ' ' + (o.etternavn || '')).trim()),
+    kategori: String(o.kategori || 'Annet'),
+    medlemstype: String(o.medlemstype || ''),
+    prisMnd: o.prisMnd === '' || o.prisMnd == null ? 0 : Number(o.prisMnd),
+    epost: String(o.epost || ''),
+    mobil: String(o.mobil || ''),
+    kjonn: String(o.kjonn || 'Ukjent'),
+    innmeldingsdato: o.innmeldingsdato ? ymd(o.innmeldingsdato) : null,
+    fodselsdato: o.fodselsdato ? ymd(o.fodselsdato) : null,
+    alder: o.alder === '' || o.alder == null ? null : Number(o.alder),
+    adresse: String(o.adresse || ''),
+    postnr: String(o.postnr || ''),
+    poststed: String(o.poststed || ''),
+    minor: o.minor === true || o.minor === 'true' || o.minor === 1,
+    foresatte: [],
+    oppmote: {
+      checkins: o.oppmoteCheckins === '' || o.oppmoteCheckins == null ? 0 : Number(o.oppmoteCheckins),
+      pct: o.oppmotePct === '' || o.oppmotePct == null ? null : Number(o.oppmotePct),
+      sisteOppmote: o.oppmoteSiste ? ymd(o.oppmoteSiste) : null,
+    },
+    grading: { current: { belt: last.belt, stripes: last.stripes, since: last.date }, history: history },
+  };
+}
+
+function dashReadOkonomi() {
+  const months = {};
+  dashRows(SHEET_NAMES.dashOkonomi, DASH_OKONOMI_COLS).forEach(r => {
+    const m = String(r.month || '');
+    if (!m) return;
+    let byKat = {};
+    try { byKat = r.byKategori ? JSON.parse(r.byKategori) : {}; } catch (e) { byKat = {}; }
+    months[m] = {
+      netto: Number(r.netto || 0), brutto: Number(r.brutto || 0),
+      avgifter: Number(r.avgifter || 0), antall: Number(r.antall || 0), byKategori: byKat,
+    };
+  });
+  return months;
+}
+
+// Tøm dataradene i et ark (behold header).
+function dashClear(name, cols) {
+  const sh = sheet(name);
+  const last = sh.getLastRow();
+  if (last >= 2) sh.getRange(2, 1, last - 1, cols.length).clearContent();
+}
+
+// Oppdater denormalisert gjeldende belte for ett medlem.
+function dashUpdateCurrent(id, cur) {
+  const sh = sheet(SHEET_NAMES.dashMembers);
+  const idx = findRowIndex(sh, id);
+  if (idx === -1) return;
+  const obj = rowToObj(sh.getRange(idx, 1, 1, DASH_MEMBER_COLS.length).getValues()[0], DASH_MEMBER_COLS);
+  obj.beltCurrent = cur.belt;
+  obj.stripesCurrent = cur.stripes;
+  obj.beltSince = cur.since;
+  obj.updatedAt = new Date().toISOString();
+  writeRow(sh, idx, DASH_MEMBER_COLS, obj);
+}
+
+// Full overskriving av register + graderingslogg fra klientens sammenslåtte
+// liste (klienten har gjort diff/merge og bevart historikk for matchede).
+function dashImportRoster(members) {
+  if (!Array.isArray(members)) throw new Error('members må være array');
+  dashClear(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS);
+  dashClear(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
+  const now = new Date().toISOString();
+  const mRows = [];
+  const gRows = [];
+  members.forEach(m => {
+    const g = m.grading || {};
+    const cur = g.current || { belt: 'Hvit', stripes: 0, since: '' };
+    const rowObj = {
+      id: m.id, fornavn: m.fornavn || '', etternavn: m.etternavn || '', navn: m.navn || '',
+      kategori: m.kategori || '', medlemstype: m.medlemstype || '', prisMnd: m.prisMnd || 0,
+      epost: m.epost || '', mobil: m.mobil || '', kjonn: m.kjonn || '',
+      innmeldingsdato: m.innmeldingsdato || '', fodselsdato: m.fodselsdato || '',
+      alder: m.alder == null ? '' : m.alder, adresse: m.adresse || '',
+      postnr: m.postnr || '', poststed: m.poststed || '', minor: m.minor ? true : false,
+      beltCurrent: cur.belt || 'Hvit', stripesCurrent: cur.stripes || 0, beltSince: cur.since || '',
+      oppmoteCheckins: (m.oppmote && m.oppmote.checkins) || 0,
+      oppmotePct: (m.oppmote && m.oppmote.pct != null) ? m.oppmote.pct : '',
+      oppmoteSiste: (m.oppmote && m.oppmote.sisteOppmote) || '',
+      updatedAt: now,
+    };
+    mRows.push(DASH_MEMBER_COLS.map(c => objField(rowObj, c)));
+    ((g.history) || []).forEach(e => {
+      gRows.push([String(m.id), String(e.id || ('g' + Math.random().toString(36).slice(2, 9))),
+        ymd(e.date), String(e.kind || ''), String(e.belt || 'Hvit'), Number(e.stripes || 0),
+        e.by == null ? '' : String(e.by), String(e.note || ''), Number(e._seq || 0), now]);
+    });
+  });
+  if (mRows.length) sheet(SHEET_NAMES.dashMembers).getRange(2, 1, mRows.length, DASH_MEMBER_COLS.length).setValues(mRows);
+  if (gRows.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gRows.length, DASH_GRADING_COLS.length).setValues(gRows);
+  return { total: members.length, gradingEvents: gRows.length };
+}
+
+// Legg til graderingshendelser (klienten har resolvert belte/striper pr. medlem).
+function dashGrade(events) {
+  if (!Array.isArray(events)) throw new Error('events må være array');
+  const gsh = sheet(SHEET_NAMES.dashGrading);
+  const grouped = dashReadGradingGrouped();
+  const now = new Date().toISOString();
+  const append = [];
+  const updates = {};
+  events.forEach(ev => {
+    const id = String(ev.memberId || '');
+    if (!id) return;
+    const existing = grouped[id] || [];
+    const pendingForId = append.filter(a => a[0] === id).length;
+    const seq = existing.reduce((mx, e) => Math.max(mx, Number(e.seq || 0)), 0) + 1 + pendingForId;
+    append.push([id, 'g' + Math.random().toString(36).slice(2, 9), ymd(ev.date) || ymd(now),
+      String(ev.kind || ''), String(ev.belt || 'Hvit'), Number(ev.stripes || 0),
+      ev.by == null ? '' : String(ev.by), String(ev.note || ''), seq, now]);
+    updates[id] = { belt: String(ev.belt || 'Hvit'), stripes: Number(ev.stripes || 0), since: ymd(ev.date) || ymd(now) };
+  });
+  if (append.length) gsh.getRange(gsh.getLastRow() + 1, 1, append.length, DASH_GRADING_COLS.length).setValues(append);
+  Object.keys(updates).forEach(id => dashUpdateCurrent(id, updates[id]));
+  return { applied: append.length };
+}
+
+// Fjern siste (ikke-innmelding) hendelse for et medlem, rekalkuler gjeldende.
+function dashUndoLast(memberId) {
+  const id = String(memberId || '');
+  if (!id) throw new Error('memberId mangler');
+  const gsh = sheet(SHEET_NAMES.dashGrading);
+  const last = gsh.getLastRow();
+  if (last < 2) return { undone: false };
+  const rows = gsh.getRange(2, 1, last - 1, DASH_GRADING_COLS.length).getValues();
+  let targetRow = -1;
+  let targetSeq = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) === id && String(rows[i][3]) !== 'innmelding') {
+      const seq = Number(rows[i][8] || 0);
+      if (seq >= targetSeq) { targetSeq = seq; targetRow = i + 2; }
+    }
+  }
+  if (targetRow === -1) return { undone: false };
+  gsh.deleteRow(targetRow);
+  const grouped = dashReadGradingGrouped();
+  const hist = (grouped[id] || []).slice().sort((a, b) =>
+    String(a.date) === String(b.date) ? Number(a.seq || 0) - Number(b.seq || 0) : String(a.date).localeCompare(String(b.date)));
+  const cur = hist.length ? hist[hist.length - 1] : { belt: 'Hvit', stripes: 0, date: '' };
+  dashUpdateCurrent(id, { belt: String(cur.belt || 'Hvit'), stripes: Number(cur.stripes || 0), since: cur.date ? ymd(cur.date) : '' });
+  return { undone: true };
+}
+
+// Slå sammen importerte måneder med eksisterende (idempotent re-import).
+function dashImportOkonomi(months) {
+  if (!months || typeof months !== 'object') throw new Error('months mangler');
+  const sh = sheet(SHEET_NAMES.dashOkonomi);
+  const now = new Date().toISOString();
+  const merged = dashReadOkonomi();
+  Object.keys(months).forEach(k => { merged[k] = months[k]; });
+  dashClear(SHEET_NAMES.dashOkonomi, DASH_OKONOMI_COLS);
+  const keys = Object.keys(merged).sort();
+  const rows = keys.map(k => {
+    const m = merged[k];
+    return [k, Number(m.netto || 0), Number(m.brutto || 0), Number(m.avgifter || 0),
+      Number(m.antall || 0), JSON.stringify(m.byKategori || {}), now];
+  });
+  if (rows.length) sh.getRange(2, 1, rows.length, DASH_OKONOMI_COLS.length).setValues(rows);
+  return { months: keys.length, added: Object.keys(months).length };
+}
+
+// Kjør én gang fra editoren for å opprette dashboard-arkene.
+function _setupDashSheets() {
+  [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi].forEach(n => sheet(n));
+  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi.');
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 function sheet(name) {
@@ -312,6 +560,9 @@ function sheet(name) {
               : name === SHEET_NAMES.bmEntries  ? BM_ENTRY_COLS
               : name === SHEET_NAMES.bmSettings ? BM_SETTINGS_COLS
               : name === SHEET_NAMES.bmWeekGoals ? BM_WEEKGOAL_COLS
+              : name === SHEET_NAMES.dashMembers ? DASH_MEMBER_COLS
+              : name === SHEET_NAMES.dashGrading ? DASH_GRADING_COLS
+              : name === SHEET_NAMES.dashOkonomi ? DASH_OKONOMI_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
