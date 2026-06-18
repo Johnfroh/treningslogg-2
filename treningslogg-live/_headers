@@ -24,6 +24,17 @@
 /fotball/*.js
   Content-Type: text/javascript; charset=utf-8
 
+# Klubbdashboardet (/dashboard) — samme prinsipp som fotball: fersk build
+# plukkes opp raskt, og eksplisitt charset så æøå i JSON/JS ikke mojibakes.
+/dashboard/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/dashboard/*.js
+  Content-Type: text/javascript; charset=utf-8
+
+/dashboard/*.json
+  Content-Type: application/json; charset=utf-8
+
 # Statiske assets med fingerprint-eller-stabile-paths kan caches
 /icons/*
   Cache-Control: public, max-age=86400
