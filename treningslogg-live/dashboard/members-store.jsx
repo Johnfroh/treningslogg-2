@@ -47,14 +47,16 @@ function diffRoster(current, incoming) {
 function MembersProvider({ children }) {
   const [members, setMembers] = React.useState(null);
   const [okonomi, setOkonomi] = React.useState(null);
+  const [meta, setMeta] = React.useState({});
   const [loading, setLoading] = React.useState(false);
 
   const reload = React.useCallback(() => {
     setLoading(true);
     return DASH_API.fetchDash()
-      .then(({ members, okonomi }) => {
+      .then(({ members, okonomi, meta }) => {
         setMembers(members);
         setOkonomi({ months: okonomi, keys: Object.keys(okonomi).sort() });
+        setMeta(meta || {});
       })
       .catch(e => {
         console.warn('[dashboard] kunne ikke laste data:', e.message);
@@ -148,7 +150,7 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, loading } }, children);
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, loading } }, children);
 }
 
 function useMembers() { return useContext(MembersCtx); }

@@ -87,6 +87,7 @@ window.DASH_API = (function () {
       return get('dashList').then(d => ({
         members: maskMembers(d.members),
         okonomi: (d.okonomi && d.okonomi.months) || {},
+        meta: d.meta || {},
       }));
     },
 

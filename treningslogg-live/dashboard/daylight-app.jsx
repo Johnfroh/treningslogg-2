@@ -34,11 +34,53 @@ const TABS = [
 
 const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 
+function fmtDateTime(v){
+  if(!v) return '—';
+  const d = new Date(v);
+  if(isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'})
+    + ', ' + d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
+}
+
+// Slå sammen statiske KPI-er (oppmøte/historikk fra kpis.json) med live
+// medlems-aggregater regnet fra registeret. Øyeblikksbilde-feltene
+// (antall, kategori, kjønn, belte, alder, pris/MRR) overstyres med live-data
+// så de stemmer med registeret; oppmøte- og historikkfelt beholdes statiske.
+function mergeLiveKpis(kpis, members){
+  if(!kpis) return null;
+  if(!members || !members.length) return kpis;
+  const byKategori={}, byKjonn={Mann:0,Kvinne:0}, byBelt={}, byAgeBucket={}, byPostnr={};
+  const pricing={};
+  let mrr=0;
+  members.forEach(m=>{
+    byKategori[m.kategori||'Annet']=(byKategori[m.kategori||'Annet']||0)+1;
+    const kj=m.kjonn||'Ukjent'; byKjonn[kj]=(byKjonn[kj]||0)+1;
+    const belt=(m.grading&&m.grading.current.belt)||'Hvit'; byBelt[belt]=(byBelt[belt]||0)+1;
+    const a=m.alder;
+    const bucket = a==null?'Ukjent' : a<13?'Under 13' : a<18?'13–17' : a<30?'18–29' : a<45?'30–44' : '45+';
+    byAgeBucket[bucket]=(byAgeBucket[bucket]||0)+1;
+    if(m.postnr) byPostnr[m.postnr]=(byPostnr[m.postnr]||0)+1; // barn er maskert → kun voksne
+    const type=m.medlemstype||'Ukjent';
+    const p=pricing[type]||(pricing[type]={count:0, monthly:m.prisMnd||0, mrr:0});
+    p.count++; if(m.prisMnd) p.monthly=m.prisMnd; p.mrr+=(m.prisMnd||0);
+    mrr+=(m.prisMnd||0);
+  });
+  return {
+    ...kpis,
+    byKategori, byKjonn, byBelt, byAgeBucket, byPostnr,
+    pricingBreakdown: pricing,
+    totals: { ...kpis.totals, activeMembers: members.length, mrr, arr: mrr*12 },
+  };
+}
+
 function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState('oversikt');
-  const kpis = useKpis();
+  const staticKpis = useKpis();
+  const { members, meta } = useMembers();
+  const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
+  const lastUpdated = (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated);
 
   useEffect(() => {
     const r = document.documentElement.style;
@@ -69,13 +111,21 @@ function App() {
             </button>
           ))}
         </div>
-        <div className="live"><span className="pulse"/>live · oppdatert {kpis.generated}<br/><strong>{kpis.totals.activeMembers}</strong> aktive medlemmer</div>
+        <div className="live">
+          <span className="pulse"/><strong>{kpis.totals.activeMembers}</strong> aktive medlemmer
+          {meta && meta.rosterImportedAt
+            ? <div style={{marginTop:8, fontSize:11, lineHeight:1.5}}>
+                <div>Medlemsimport: {fmtDateTime(meta.rosterImportedAt)}{meta.rosterCount?` · ${meta.rosterCount} medl.`:''}</div>
+                {meta.okonomiImportedAt && <div>Økonomiimport: {fmtDateTime(meta.okonomiImportedAt)}{meta.okonomiMonths?` · ${meta.okonomiMonths} mnd`:''}</div>}
+              </div>
+            : <div className="muted" style={{marginTop:8, fontSize:11}}>Ingen import kjørt ennå</div>}
+        </div>
       </aside>
       <main className="main">
         <div className="topbar">
           <div>
             <div className="crumbs">dashboard / <span className="cur">{tabLabel}</span></div>
-            <h1 className="h1">{tabLabel} <small>oppdatert {kpis.generated}</small></h1>
+            <h1 className="h1">{tabLabel} <small>oppdatert {fmtDateTime(lastUpdated)}</small></h1>
           </div>
           <div className="topbar-pills">
             <span className="pill" title="Konsolidert oppmøtefil"><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
@@ -392,10 +442,12 @@ function Okonomi({ kpis, charts }) {
   const t = kpis.totals;
   const { okonomi, okonomiActions } = useMembers();
   const [impOpen, setImpOpen] = useState(false);
+  const [trendMonths, setTrendMonths] = useState(24);
   const ok = okonomi;
   const latestKey = ok && ok.keys.length ? ok.keys[ok.keys.length-1] : null;
   const latest = latestKey ? ok.months[latestKey] : null;
-  const maxNet = ok && ok.keys.length ? Math.max(1, ...ok.keys.map(k=>ok.months[k].netto)) : 1;
+  const shownKeys = ok ? (trendMonths === 'all' ? ok.keys : ok.keys.slice(-trendMonths)) : [];
+  const maxNet = shownKeys.length ? Math.max(1, ...shownKeys.map(k=>ok.months[k].netto)) : 1;
   return (
     <div>
       <div className="section-h">Faktiske utbetalinger<span className="meta">importert fra Spond · netto etter avgifter</span></div>
@@ -405,18 +457,28 @@ function Okonomi({ kpis, charts }) {
         <KPI label={latest? 'Netto · '+monthLabel(latestKey):'Netto'} value={latest?fmtN(latest.netto):'—'} unit=" kr" delta={latest?`${latest.antall} betalinger`:'ingen data'} accent="green"/>
         <KPI label="Brutto" value={latest?fmtN(latest.brutto):'—'} unit=" kr" delta="før avgifter" accent="amber"/>
         <KPI label="Spond-avgifter" value={latest?fmtN(latest.avgifter):'—'} unit=" kr" delta={latest&&latest.brutto?fmtPct(latest.avgifter/latest.brutto,1):''} deltaClass="down" accent="coral"/>
-        <KPI label="Måneder i trend" value={ok.keys.length} delta="importer flere for trend" accent="blue"/>
+        <KPI label="Måneder i trend" value={ok.keys.length} delta={ok.keys.length>1 ? monthLabel(ok.keys[0])+' → '+monthLabel(latestKey) : 'importer flere for trend'} accent="blue"/>
       </div>
 
-      <div className="section-h" style={{marginTop:26}}>Inntektstrend<span className="meta"><button className="btn primary sm" onClick={()=>setImpOpen(true)}>Importer økonomi</button></span></div>
+      <div className="section-h" style={{marginTop:26}}>Inntektstrend
+        <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
+          <span className="chips">
+            {[['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
+              <button key={v} className={'chip'+(String(trendMonths)===v?' active':'')}
+                onClick={()=>setTrendMonths(v==='all'?'all':Number(v))}>{l}</button>
+            ))}
+          </span>
+          <button className="btn primary sm" onClick={()=>setImpOpen(true)}>Importer økonomi</button>
+        </span>
+      </div>
       <Tile title="netto pr. måned" corner="faktisk">
-        {ok.keys.length>0 ? (
+        {shownKeys.length>0 ? (
           <div className="okbars">
-            {ok.keys.map(k=>(
+            {shownKeys.map(k=>(
               <div key={k} className="okbar">
                 <div className="okbar-v tabular">{fmtN(ok.months[k].netto/1000)}k</div>
                 <div className="okbar-track"><div className="okbar-fill" style={{height:(ok.months[k].netto/maxNet)*100+'%'}}/></div>
-                <div className="okbar-l">{monthLabel(k)}</div>
+                <div className="okbar-l" title={monthLabel(k)}>{String(k).slice(5)==='01' ? String(k).slice(0,4) : ''}</div>
               </div>
             ))}
           </div>
