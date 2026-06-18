@@ -6,7 +6,7 @@ const { useState: useSo } = React;
 function okSerialISO(n){ const f=parseFloat(n); if(isNaN(f)) return null; return new Date(Date.UTC(1899,11,30)+Math.round(f)*86400000).toISOString().slice(0,10); }
 function okKat(s){ s=(s||'').toLowerCase(); if(s.includes('voksen'))return'Voksen'; if(s.includes('student'))return'Student'; if(s.includes('junior'))return'Junior'; if(s.includes('familie'))return'Familie'; if(s.includes('kn'))return'Knøtte'; return'Annet'; }
 const MND_NO = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
-function monthLabel(ym){ const [y,m]=ym.split('-'); return MND_NO[parseInt(m)-1]+' '+y; }
+function monthLabel(ym){ const s=String(ym||''); const m=s.match(/^(\d{4})-(\d{2})/); if(!m) return s; return MND_NO[parseInt(m[2])-1]+' '+m[1]; }
 
 async function okInflate(comp){
   const ds=new DecompressionStream('deflate-raw'); const w=ds.writable.getWriter(); w.write(comp); w.close();

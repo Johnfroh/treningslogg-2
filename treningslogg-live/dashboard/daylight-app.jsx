@@ -405,7 +405,7 @@ function Okonomi({ kpis, charts }) {
         <KPI label={latest? 'Netto · '+monthLabel(latestKey):'Netto'} value={latest?fmtN(latest.netto):'—'} unit=" kr" delta={latest?`${latest.antall} betalinger`:'ingen data'} accent="green"/>
         <KPI label="Brutto" value={latest?fmtN(latest.brutto):'—'} unit=" kr" delta="før avgifter" accent="amber"/>
         <KPI label="Spond-avgifter" value={latest?fmtN(latest.avgifter):'—'} unit=" kr" delta={latest&&latest.brutto?fmtPct(latest.avgifter/latest.brutto,1):''} deltaClass="down" accent="coral"/>
-        <KPI label="Måneder i trend" value={ok.keys.length} delta="importer flere for trend" accent="blue"/>
+        <KPI label="Måneder i trend" value={ok.keys.length} delta={ok.keys.length>1 ? monthLabel(ok.keys[0])+' → '+monthLabel(latestKey) : 'importer flere for trend'} accent="blue"/>
       </div>
 
       <div className="section-h" style={{marginTop:26}}>Inntektstrend<span className="meta"><button className="btn primary sm" onClick={()=>setImpOpen(true)}>Importer økonomi</button></span></div>
@@ -416,7 +416,7 @@ function Okonomi({ kpis, charts }) {
               <div key={k} className="okbar">
                 <div className="okbar-v tabular">{fmtN(ok.months[k].netto/1000)}k</div>
                 <div className="okbar-track"><div className="okbar-fill" style={{height:(ok.months[k].netto/maxNet)*100+'%'}}/></div>
-                <div className="okbar-l">{monthLabel(k)}</div>
+                <div className="okbar-l" title={monthLabel(k)}>{String(k).slice(5)==='01' ? String(k).slice(0,4) : ''}</div>
               </div>
             ))}
           </div>

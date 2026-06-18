@@ -402,7 +402,7 @@ function dashMemberObj(o, events) {
 function dashReadOkonomi() {
   const months = {};
   dashRows(SHEET_NAMES.dashOkonomi, DASH_OKONOMI_COLS).forEach(r => {
-    const m = String(r.month || '');
+    const m = ymKey(r.month);
     if (!m) return;
     let byKat = {};
     try { byKat = r.byKategori ? JSON.parse(r.byKategori) : {}; } catch (e) { byKat = {}; }
@@ -412,6 +412,16 @@ function dashReadOkonomi() {
     };
   });
   return months;
+}
+
+// Måned-nøkkel som ren 'YYYY-MM'. Google Sheets tolker gjerne "2021-09" som
+// en dato og lagrer den som Date — denne henter måneden tilbake uansett.
+function ymKey(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'string' && /^\d{4}-\d{2}$/.test(v)) return v;
+  const d = (v instanceof Date) ? v : new Date(v);
+  if (!isNaN(d.getTime())) return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  return String(v);
 }
 
 // Tøm dataradene i et ark (behold header).
@@ -535,7 +545,12 @@ function dashImportOkonomi(months) {
     return [k, Number(m.netto || 0), Number(m.brutto || 0), Number(m.avgifter || 0),
       Number(m.antall || 0), JSON.stringify(m.byKategori || {}), now];
   });
-  if (rows.length) sh.getRange(2, 1, rows.length, DASH_OKONOMI_COLS.length).setValues(rows);
+  if (rows.length) {
+    // Tving måned-kolonna til tekst FØR skriving, ellers omkoder Sheets
+    // "2021-09" til en dato.
+    sh.getRange(2, 1, rows.length, 1).setNumberFormat('@');
+    sh.getRange(2, 1, rows.length, DASH_OKONOMI_COLS.length).setValues(rows);
+  }
   return { months: keys.length, added: Object.keys(months).length };
 }
 
