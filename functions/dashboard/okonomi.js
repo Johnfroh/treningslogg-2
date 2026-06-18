@@ -21,6 +21,32 @@ function styreList(env) {
     .split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 }
 
+// Hent innlogget e-post. Cloudflare Pages videresender ikke alltid
+// convenience-headeren Cf-Access-Authenticated-User-Email til Functions,
+// så vi leser primært e-posten fra Access-JWT-en (Cf-Access-Jwt-Assertion
+// eller CF_Authorization-cookien). JWT-en settes kun av Cloudflare Access.
+function decodeJwtEmail(token) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length < 2) return '';
+    let p = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    p += '==='.slice((p.length + 3) % 4);
+    const obj = JSON.parse(atob(p));
+    return String(obj.email || obj.identity || obj.sub || '');
+  } catch (e) { return ''; }
+}
+function readCookie(request, name) {
+  const raw = request.headers.get('Cookie') || '';
+  const m = raw.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+  return m ? m[1] : '';
+}
+function getEmail(request) {
+  const header = request.headers.get('Cf-Access-Authenticated-User-Email');
+  if (header) return header;
+  const jwt = request.headers.get('Cf-Access-Jwt-Assertion') || readCookie(request, 'CF_Authorization');
+  return jwt ? decodeJwtEmail(jwt) : '';
+}
+
 function json(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
@@ -32,7 +58,7 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  const email = request.headers.get('Cf-Access-Authenticated-User-Email') || '';
+  const email = getEmail(request);
   const list = styreList(env);
   const isStyre = !!email && list.indexOf(email.toLowerCase()) !== -1;
 

@@ -147,7 +147,7 @@ module.exports = [
       sourceType: 'module',
       globals: {
         fetch: 'readonly', Response: 'readonly', Request: 'readonly',
-        URL: 'readonly', console: 'readonly',
+        URL: 'readonly', console: 'readonly', atob: 'readonly',
       },
     },
     rules: sharedRules,
