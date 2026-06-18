@@ -63,9 +63,21 @@ export async function onRequest(context) {
   const isStyre = !!email && list.indexOf(email.toLowerCase()) !== -1;
 
   // Identitet/tilgang — ingen økonomidata, alltid ok (frontend bruker dette
-  // til å vise/skjule Økonomi-fanen).
+  // til å vise/skjule Økonomi-fanen). Inkluderer diagnostikk som viser hvilke
+  // Access-spor som faktisk når funksjonen (kun header-navn, ingen verdier).
   if (url.searchParams.get('action') === 'whoami') {
-    return json({ ok: true, email: email, isStyre: isStyre, configured: list.length > 0 });
+    const cookie = request.headers.get('Cookie') || '';
+    const cfHeaders = [];
+    request.headers.forEach((v, k) => { if (k.toLowerCase().indexOf('cf-') === 0) cfHeaders.push(k); });
+    return json({
+      ok: true, email: email, isStyre: isStyre, configured: list.length > 0,
+      debug: {
+        emailHeader: !!request.headers.get('Cf-Access-Authenticated-User-Email'),
+        jwtHeader: !!request.headers.get('Cf-Access-Jwt-Assertion'),
+        cfAuthCookie: cookie.indexOf('CF_Authorization=') !== -1,
+        cfHeaders: cfHeaders,
+      },
+    });
   }
 
   // Alt annet (lese/skrive økonomi) krever styre-tilgang.
