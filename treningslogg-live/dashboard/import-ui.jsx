@@ -25,9 +25,13 @@ function ImportModal({ onClose }){
     setBusy(false);
   }
   function onDrop(e){ e.preventDefault(); setDrag(false); const f=e.dataTransfer.files[0]; handleFile(f); }
-  function apply(){
-    const summary = actions.importRoster(parsed.members);
-    setDone(summary);
+  async function apply(){
+    setBusy(true);
+    try {
+      const summary = await actions.importRoster(parsed.members);
+      setDone(summary);
+    } catch(e){ setErr(e.message || 'Import feilet.'); }
+    setBusy(false);
   }
 
   const hasBelt = parsed && /Belte-CSV/.test(parsed.format);

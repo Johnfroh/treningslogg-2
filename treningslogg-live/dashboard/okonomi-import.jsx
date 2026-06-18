@@ -89,7 +89,11 @@ function OkonomiImportModal({ onClose }){
     try { const res=await parseOkonomiFile(file); if(!res.monthKeys.length) throw new Error('Fant ingen betalinger med dato og netto-beløp i fila.'); setParsed(res); }
     catch(e){ setErr(e.message||'Kunne ikke lese fila.'); } setBusy(false);
   }
-  function apply(){ const s=okonomiActions.importMonths(parsed.months); setDone(s); }
+  async function apply(){ setBusy(true);
+    try { const s=await okonomiActions.importMonths(parsed.months); setDone(s); }
+    catch(e){ setErr(e.message||'Import feilet.'); }
+    setBusy(false);
+  }
   const totalNet = parsed? parsed.monthKeys.reduce((a,k)=>a+parsed.months[k].netto,0):0;
 
   return (
