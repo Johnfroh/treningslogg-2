@@ -1,0 +1,16 @@
+{
+ "generated": "2026-06-01",
+ "source": "Spond utbetalinger",
+ "months": {
+  "2021-01": {
+   "netto": 23893,
+   "brutto": 24557,
+   "avgifter": 664,
+   "antall": 25,
+   "byKategori": {
+    "Voksen": 20229,
+    "Junior": 3664
+   }
+  }
+ }
+}

@@ -99,6 +99,48 @@ module.exports = [
     rules: sharedRules,
   },
   {
+    // Klubbdashboardet (/dashboard) — egne kryss-fil-globaler eksponert via
+    // window/Object.assign, samt Web-API-er brukt av import-parserne. Disse
+    // merges med den generelle treningslogg-live-blokka over.
+    files: ['treningslogg-live/dashboard/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        // Web-API-er (xlsx/okonomi-parsing + tweaks-panel)
+        TextDecoder: 'readonly', TextEncoder: 'readonly', DecompressionStream: 'readonly',
+        CustomEvent: 'readonly',
+        // api.js
+        DASH_API: 'readonly',
+        // dashboard-shared.jsx
+        useKpis: 'readonly', deriveCharts: 'readonly',
+        fmtN: 'readonly', fmtKr: 'readonly', fmtPct: 'readonly', WD: 'readonly',
+        HBar: 'readonly', Spark: 'readonly', Donut: 'readonly',
+        Heatmap: 'readonly', CohortBar: 'readonly',
+        // belt-system.jsx
+        BELT_META: 'readonly', ADULT_BELTS: 'readonly', JUNIOR_BELTS: 'readonly',
+        ALL_BELTS: 'readonly', maxStripes: 'readonly', beltMeta: 'readonly',
+        isJuniorBelt: 'readonly', beltLadder: 'readonly', nextBelt: 'readonly',
+        BeltGraphic: 'readonly', BeltChip: 'readonly',
+        // members-store.jsx
+        MembersProvider: 'readonly', useMembers: 'readonly', membersToCSV: 'readonly',
+        gradingLogToCSV: 'readonly', downloadText: 'readonly', diffRoster: 'readonly',
+        // xlsx-import.jsx / import-ui.jsx
+        parseMemberFile: 'readonly', ImportModal: 'readonly',
+        // okonomi-import.jsx
+        parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
+        monthLabel: 'readonly', MND_NO: 'readonly',
+        // register-profile.jsx
+        GradeDialog: 'readonly', MemberProfile: 'readonly', Timeline: 'readonly',
+        Stepper: 'readonly', fmtDate: 'readonly', tenure: 'readonly',
+        initials: 'readonly', INSTRUKTORER: 'readonly',
+        // register-app.jsx
+        Register: 'readonly',
+        // daylight-app.jsx (window.KPI / window.Tile)
+        KPI: 'readonly', Tile: 'readonly',
+      },
+    },
+    rules: sharedRules,
+  },
+  {
     files: ['functions/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,

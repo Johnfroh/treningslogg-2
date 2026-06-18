@@ -1,0 +1,4505 @@
+{
+ "generated": "2026-06-01",
+ "members": [
+  {
+   "id": "even-larsen-0",
+   "fornavn": "Even",
+   "etternavn": "Larsen",
+   "navn": "Even Larsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "even.larsen@example.no",
+   "mobil": "+4740419610",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2024-10-23",
+   "fodselsdato": "2002-02-17",
+   "alder": 24,
+   "adresse": "Parkveien 32",
+   "postnr": "8019",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2024-10-23"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2024-10-23",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 67,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-25"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-andersen-1",
+   "fornavn": "Aksel",
+   "etternavn": "Andersen",
+   "navn": "Aksel Andersen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "aksel.andersen@example.no",
+   "mobil": "+4741719583",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-06-25",
+   "fodselsdato": "1986-09-29",
+   "alder": 39,
+   "adresse": "Dronningens gate 12",
+   "postnr": "8006",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-06-25"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-06-25",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 498,
+    "invitert": 454,
+    "pct": 1.0969162995594715,
+    "sisteOppmote": "2026-05-06"
+   },
+   "minor": false
+  },
+  {
+   "id": "halvard-johnsen-2",
+   "fornavn": "Halvard",
+   "etternavn": "Johnsen",
+   "navn": "Halvard Johnsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "halvard.johnsen@example.no",
+   "mobil": "+4740533224",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2022-12-02",
+   "fodselsdato": "1995-09-29",
+   "alder": 30,
+   "adresse": "Storgata 12",
+   "postnr": "8028",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2022-12-02"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2022-12-02",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 450,
+    "invitert": 455,
+    "pct": 0.989010989010989,
+    "sisteOppmote": "2026-05-30"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-kristiansen-3",
+   "fornavn": "Filip",
+   "etternavn": "Kristiansen",
+   "navn": "Filip Kristiansen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "filip.kristiansen@example.no",
+   "mobil": "+4748478454",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-10-20",
+   "fodselsdato": "1984-07-11",
+   "alder": 41,
+   "adresse": "Dronningens gate 4",
+   "postnr": "8021",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-10-20"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-10-20",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 517,
+    "invitert": 470,
+    "pct": 1.1,
+    "sisteOppmote": "2026-05-16"
+   },
+   "minor": false
+  },
+  {
+   "id": "aurora-nilsen-4",
+   "fornavn": "Aurora",
+   "etternavn": "Nilsen",
+   "navn": "Aurora Nilsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "aurora.nilsen@example.no",
+   "mobil": "+4749142600",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": null,
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Bankgata 29",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-06-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-06-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 211,
+    "invitert": 450,
+    "pct": 0.4688888888888889,
+    "sisteOppmote": "2026-05-25"
+   },
+   "minor": false
+  },
+  {
+   "id": "elias-halvorsen-5",
+   "fornavn": "Elias",
+   "etternavn": "Halvorsen",
+   "navn": "Elias Halvorsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "elias.halvorsen@example.no",
+   "mobil": "+4744667265",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2016-01-01",
+   "fodselsdato": "1980-04-13",
+   "alder": 46,
+   "adresse": "Storgata 21",
+   "postnr": "8029",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2016-01-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2016-01-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 209,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-10"
+   },
+   "minor": false
+  },
+  {
+   "id": "andreas-johnsen-6",
+   "fornavn": "Andreas",
+   "etternavn": "Johnsen",
+   "navn": "Andreas Johnsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "andreas.johnsen@example.no",
+   "mobil": "+4745708456",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-18",
+   "fodselsdato": "1984-02-27",
+   "alder": 42,
+   "adresse": "Parkveien 20",
+   "postnr": "8072",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-18"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-18",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 232,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-27"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-kristoffersen-7",
+   "fornavn": "Filip",
+   "etternavn": "Kristoffersen",
+   "navn": "Filip Kristoffersen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "filip.kristoffersen@example.no",
+   "mobil": "+4745647119",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-20",
+   "fodselsdato": "1977-07-26",
+   "alder": 48,
+   "adresse": "Storgata 12",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-20"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-20",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 426,
+    "invitert": 474,
+    "pct": 0.8987341772151899,
+    "sisteOppmote": "2026-05-19"
+   },
+   "minor": false
+  },
+  {
+   "id": "mathias-larsen-8",
+   "fornavn": "Mathias",
+   "etternavn": "Larsen",
+   "navn": "Mathias Larsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "mathias.larsen@example.no",
+   "mobil": "+4746022674",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-21",
+   "fodselsdato": "1993-11-02",
+   "alder": 32,
+   "adresse": "Parkveien 78",
+   "postnr": "8030",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-21"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-21",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 251,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-17"
+   },
+   "minor": false
+  },
+  {
+   "id": "henrik-strand-9",
+   "fornavn": "Henrik",
+   "etternavn": "Strand",
+   "navn": "Henrik Strand",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "henrik.strand@example.no",
+   "mobil": "+4740728977",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-30",
+   "fodselsdato": "1985-08-28",
+   "alder": 40,
+   "adresse": "Bankgata 69",
+   "postnr": "8073",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-30"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-30",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 299,
+    "invitert": 450,
+    "pct": 0.6644444444444444,
+    "sisteOppmote": "2026-05-27"
+   },
+   "minor": false
+  },
+  {
+   "id": "oliver-nygård-10",
+   "fornavn": "Oliver",
+   "etternavn": "Nygård",
+   "navn": "Oliver Nygård",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "oliver.nygård@example.no",
+   "mobil": "+4746350753",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-01-04",
+   "fodselsdato": "1972-06-08",
+   "alder": 53,
+   "adresse": "Storgata 71",
+   "postnr": "8076",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-01-04"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-01-04",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 561,
+    "invitert": 451,
+    "pct": 1.2439024390243902,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "sander-aune-11",
+   "fornavn": "Sander",
+   "etternavn": "Aune",
+   "navn": "Sander Aune",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "sander.aune@example.no",
+   "mobil": "+4746067228",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2024-08-29",
+   "fodselsdato": "2005-10-01",
+   "alder": 20,
+   "adresse": "Dronningens gate 25",
+   "postnr": "8076",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2024-08-29"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2024-08-29",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 96,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-03"
+   },
+   "minor": false
+  },
+  {
+   "id": "andreas-olsen-12",
+   "fornavn": "Andreas",
+   "etternavn": "Olsen",
+   "navn": "Andreas Olsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "andreas.olsen@example.no",
+   "mobil": "+4740768805",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-08-17",
+   "fodselsdato": "1986-03-25",
+   "alder": 40,
+   "adresse": "Sjøgata 38",
+   "postnr": "8028",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 257,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-09"
+   },
+   "minor": false
+  },
+  {
+   "id": "emil-lie-13",
+   "fornavn": "Emil",
+   "etternavn": "Lie",
+   "navn": "Emil Lie",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "emil.lie@example.no",
+   "mobil": "+4743905582",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2024-04-22",
+   "fodselsdato": "2007-08-22",
+   "alder": 18,
+   "adresse": "Storgata 49",
+   "postnr": "8007",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2024-04-22"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2024-04-22",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 88,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-31"
+   },
+   "minor": false
+  },
+  {
+   "id": "henrik-andreassen-14",
+   "fornavn": "Henrik",
+   "etternavn": "Andreassen",
+   "navn": "Henrik Andreassen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "henrik.andreassen@example.no",
+   "mobil": "+4746120868",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-02-05",
+   "fodselsdato": "1990-03-26",
+   "alder": 36,
+   "adresse": "Sjøgata 48",
+   "postnr": "8007",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-02-05"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-02-05",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 89,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-25"
+   },
+   "minor": false
+  },
+  {
+   "id": "magnus-nilsen-15",
+   "fornavn": "Magnus",
+   "etternavn": "Nilsen",
+   "navn": "Magnus Nilsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "magnus.nilsen@example.no",
+   "mobil": "+4744479144",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-08-28",
+   "fodselsdato": "1988-10-16",
+   "alder": 37,
+   "adresse": "Storgata 78",
+   "postnr": "8015",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-08-28"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-08-28",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 94,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "even-pedersen-16",
+   "fornavn": "Even",
+   "etternavn": "Pedersen",
+   "navn": "Even Pedersen",
+   "kategori": "Annet",
+   "medlemstype": "Ikke aktiv",
+   "prisMnd": 0,
+   "epost": "even.pedersen@example.no",
+   "mobil": "+4748961380",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-11-09",
+   "fodselsdato": "1995-07-04",
+   "alder": 30,
+   "adresse": "Sjøgata 21",
+   "postnr": "8624",
+   "poststed": "Mo i rana",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-11-09"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-11-09",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 111,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-12"
+   },
+   "minor": false
+  },
+  {
+   "id": "elias-hagen-17",
+   "fornavn": "Elias",
+   "etternavn": "Hagen",
+   "navn": "Elias Hagen",
+   "kategori": "Annet",
+   "medlemstype": "Ikke aktiv",
+   "prisMnd": 0,
+   "epost": "elias.hagen@example.no",
+   "mobil": "+4744528972",
+   "kjonn": "Mann",
+   "innmeldingsdato": null,
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Dronningens gate 29",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-06-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-06-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 30,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-05"
+   },
+   "minor": false
+  },
+  {
+   "id": "jakob-berg-18",
+   "fornavn": "Jakob",
+   "etternavn": "Berg",
+   "navn": "Jakob Berg",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "jakob.berg@example.no",
+   "mobil": "+4740938483",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2022-08-23",
+   "fodselsdato": "1991-09-03",
+   "alder": 34,
+   "adresse": "Sjøgata 5",
+   "postnr": "0171",
+   "poststed": "Oslo",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2022-08-23"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2022-08-23",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 356,
+    "invitert": 455,
+    "pct": 0.7824175824175824,
+    "sisteOppmote": "2026-05-05"
+   },
+   "minor": false
+  },
+  {
+   "id": "sondre-berg-19",
+   "fornavn": "Sondre",
+   "etternavn": "Berg",
+   "navn": "Sondre Berg",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "sondre.berg@example.no",
+   "mobil": "+4746730428",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2022-08-23",
+   "fodselsdato": "1987-01-18",
+   "alder": 39,
+   "adresse": "Parkveien 9",
+   "postnr": "26",
+   "poststed": "8074",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2022-08-23"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2022-08-23",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 266,
+    "invitert": 461,
+    "pct": 0.5770065075921909,
+    "sisteOppmote": "2026-05-30"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-20",
+   "fornavn": "Filip",
+   "etternavn": "",
+   "navn": "Filip",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2022-09-25",
+   "fodselsdato": null,
+   "alder": 18,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2022-09-25"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2022-09-25",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 106,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-27"
+   },
+   "minor": true
+  },
+  {
+   "id": "halvard-holm-21",
+   "fornavn": "Halvard",
+   "etternavn": "Holm",
+   "navn": "Halvard Holm",
+   "kategori": "Annet",
+   "medlemstype": "Ikke aktiv",
+   "prisMnd": 0,
+   "epost": "halvard.holm@example.no",
+   "mobil": "+4745279418",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2024-01-11",
+   "fodselsdato": "1975-02-15",
+   "alder": 51,
+   "adresse": "Sjøgata 64",
+   "postnr": "8050",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2024-01-11"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2024-01-11",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 218,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-21"
+   },
+   "minor": false
+  },
+  {
+   "id": "mathias-holm-22",
+   "fornavn": "Mathias",
+   "etternavn": "Holm",
+   "navn": "Mathias Holm",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "mathias.holm@example.no",
+   "mobil": "+4747698256",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-24",
+   "fodselsdato": "2002-01-14",
+   "alder": 24,
+   "adresse": "Sjøgata 34",
+   "postnr": "8021",
+   "poststed": "bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-24"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-24",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 44,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-06"
+   },
+   "minor": false
+  },
+  {
+   "id": "noah-kristiansen-23",
+   "fornavn": "Noah",
+   "etternavn": "Kristiansen",
+   "navn": "Noah Kristiansen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "noah.kristiansen@example.no",
+   "mobil": "+4749418194",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-01-31",
+   "fodselsdato": "1996-08-23",
+   "alder": 29,
+   "adresse": "Dronningens gate 34",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-01-31"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-01-31",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 155,
+    "invitert": 449,
+    "pct": 0.34521158129175944,
+    "sisteOppmote": "2026-05-02"
+   },
+   "minor": false
+  },
+  {
+   "id": "kristian-halvorsen-24",
+   "fornavn": "Kristian",
+   "etternavn": "Halvorsen",
+   "navn": "Kristian Halvorsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "kristian.halvorsen@example.no",
+   "mobil": "+4747187926",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-08-28",
+   "fodselsdato": "1981-08-27",
+   "alder": 44,
+   "adresse": "Dronningens gate 52",
+   "postnr": "8012",
+   "poststed": "bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-08-28"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-08-28",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 111,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-06-01"
+   },
+   "minor": false
+  },
+  {
+   "id": "magnus-kristiansen-25",
+   "fornavn": "Magnus",
+   "etternavn": "Kristiansen",
+   "navn": "Magnus Kristiansen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "magnus.kristiansen@example.no",
+   "mobil": "+4742320821",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-08-28",
+   "fodselsdato": "1999-05-27",
+   "alder": 27,
+   "adresse": "Dronningens gate 64",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-08-28"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-08-28",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 269,
+    "invitert": 451,
+    "pct": 0.5964523281596452,
+    "sisteOppmote": "2026-05-08"
+   },
+   "minor": false
+  },
+  {
+   "id": "emil-kristoffersen-26",
+   "fornavn": "Emil",
+   "etternavn": "Kristoffersen",
+   "navn": "Emil Kristoffersen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "emil.kristoffersen@example.no",
+   "mobil": "+4740790481",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2022-08-16",
+   "fodselsdato": "2005-11-16",
+   "alder": 20,
+   "adresse": "Storgata 20",
+   "postnr": "8004",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2022-08-16"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2022-08-16",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 386,
+    "invitert": 442,
+    "pct": 0.8733031674208145,
+    "sisteOppmote": "2026-05-23"
+   },
+   "minor": false
+  },
+  {
+   "id": "sondre-moen-27",
+   "fornavn": "Sondre",
+   "etternavn": "Moen",
+   "navn": "Sondre Moen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "sondre.moen@example.no",
+   "mobil": "+4747082668",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-09-27",
+   "fodselsdato": "1975-08-25",
+   "alder": 50,
+   "adresse": "Dronningens gate 9",
+   "postnr": "8016",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-09-27"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-09-27",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 199,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-09"
+   },
+   "minor": false
+  },
+  {
+   "id": "mathias-hagen-28",
+   "fornavn": "Mathias",
+   "etternavn": "Hagen",
+   "navn": "Mathias Hagen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "mathias.hagen@example.no",
+   "mobil": "+4749997348",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-10-26",
+   "fodselsdato": "2004-07-09",
+   "alder": 21,
+   "adresse": "Bankgata 68",
+   "postnr": "8200",
+   "poststed": "FAUSKE",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-10-26"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-10-26",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 107,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-03"
+   },
+   "minor": false
+  },
+  {
+   "id": "henrik-jørgensen-29",
+   "fornavn": "Henrik",
+   "etternavn": "Jørgensen",
+   "navn": "Henrik Jørgensen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "henrik.jørgensen@example.no",
+   "mobil": "+4740192619",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-03-04",
+   "fodselsdato": "2004-06-08",
+   "alder": 21,
+   "adresse": "Storgata 69",
+   "postnr": "8029",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-03-04"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-03-04",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 12,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-06"
+   },
+   "minor": false
+  },
+  {
+   "id": "vetle-jensen-30",
+   "fornavn": "Vetle",
+   "etternavn": "Jensen",
+   "navn": "Vetle Jensen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "vetle.jensen@example.no",
+   "mobil": "+4745707197",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-17",
+   "fodselsdato": "2003-11-19",
+   "alder": 22,
+   "adresse": "Storgata 38",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 44,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "kasper-pedersen-31",
+   "fornavn": "Kasper",
+   "etternavn": "Pedersen",
+   "navn": "Kasper Pedersen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "kasper.pedersen@example.no",
+   "mobil": "+4747612220",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2023-03-02",
+   "fodselsdato": "1983-12-20",
+   "alder": 42,
+   "adresse": "Storgata 34",
+   "postnr": "8073",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2023-03-02"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2023-03-02",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 104,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-28"
+   },
+   "minor": false
+  },
+  {
+   "id": "iver-kristoffersen-32",
+   "fornavn": "Iver",
+   "etternavn": "Kristoffersen",
+   "navn": "Iver Kristoffersen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "iver.kristoffersen@example.no",
+   "mobil": "+4742997281",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-05",
+   "fodselsdato": "1994-12-25",
+   "alder": 31,
+   "adresse": "Dronningens gate 14",
+   "postnr": "8026",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-05"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-05",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 58,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-15"
+   },
+   "minor": false
+  },
+  {
+   "id": "mikkel-solberg-33",
+   "fornavn": "Mikkel",
+   "etternavn": "Solberg",
+   "navn": "Mikkel Solberg",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "mikkel.solberg@example.no",
+   "mobil": "+4745007072",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2024-09-11",
+   "fodselsdato": "1998-05-25",
+   "alder": 28,
+   "adresse": "Dronningens gate 78",
+   "postnr": "8010",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2024-09-11"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2024-09-11",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 136,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-21"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-34",
+   "fornavn": "Filip",
+   "etternavn": "",
+   "navn": "Filip",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Ukjent",
+   "innmeldingsdato": "2025-08-10",
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 33,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-25"
+   },
+   "minor": true
+  },
+  {
+   "id": "magnus-35",
+   "fornavn": "Magnus",
+   "etternavn": "",
+   "navn": "Magnus",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Ukjent",
+   "innmeldingsdato": "2025-08-10",
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 21,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-18"
+   },
+   "minor": true
+  },
+  {
+   "id": "lukas-36",
+   "fornavn": "Lukas",
+   "etternavn": "",
+   "navn": "Lukas",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-10",
+   "fodselsdato": null,
+   "alder": 14,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 62,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-18"
+   },
+   "minor": true
+  },
+  {
+   "id": "vetle-37",
+   "fornavn": "Vetle",
+   "etternavn": "",
+   "navn": "Vetle",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-10",
+   "fodselsdato": null,
+   "alder": 12,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 23,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-04"
+   },
+   "minor": true
+  },
+  {
+   "id": "tuva-38",
+   "fornavn": "Tuva",
+   "etternavn": "",
+   "navn": "Tuva",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2025-08-11",
+   "fodselsdato": null,
+   "alder": 8,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-11"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-11",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 53,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-06"
+   },
+   "minor": true
+  },
+  {
+   "id": "jonas-39",
+   "fornavn": "Jonas",
+   "etternavn": "",
+   "navn": "Jonas",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-10",
+   "fodselsdato": null,
+   "alder": 8,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 34,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-23"
+   },
+   "minor": true
+  },
+  {
+   "id": "theodor-jacobsen-40",
+   "fornavn": "Theodor",
+   "etternavn": "Jacobsen",
+   "navn": "Theodor Jacobsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "theodor.jacobsen@example.no",
+   "mobil": "+4740326765",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-03-19",
+   "fodselsdato": "2004-01-12",
+   "alder": 22,
+   "adresse": "Storgata 47",
+   "postnr": "8030",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-03-19"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-03-19",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 45,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "leon-41",
+   "fornavn": "Leon",
+   "etternavn": "",
+   "navn": "Leon",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-10-09",
+   "fodselsdato": null,
+   "alder": 1,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-09"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-09",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 57,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": true
+  },
+  {
+   "id": "sondre-karlsen-42",
+   "fornavn": "Sondre",
+   "etternavn": "Karlsen",
+   "navn": "Sondre Karlsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "sondre.karlsen@example.no",
+   "mobil": "+4744017343",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-10-10",
+   "fodselsdato": "1999-06-28",
+   "alder": 26,
+   "adresse": "Storgata 31",
+   "postnr": "8021",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 31,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-14"
+   },
+   "minor": false
+  },
+  {
+   "id": "leon-halvorsen-43",
+   "fornavn": "Leon",
+   "etternavn": "Halvorsen",
+   "navn": "Leon Halvorsen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "leon.halvorsen@example.no",
+   "mobil": "+4741321324",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-02-19",
+   "fodselsdato": "2003-08-01",
+   "alder": 22,
+   "adresse": "Storgata 63",
+   "postnr": "8026",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-02-19"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-02-19",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 18,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "herman-olsen-44",
+   "fornavn": "Herman",
+   "etternavn": "Olsen",
+   "navn": "Herman Olsen",
+   "kategori": "Annet",
+   "medlemstype": "Ikke aktiv",
+   "prisMnd": 0,
+   "epost": "herman.olsen@example.no",
+   "mobil": "+4748937326",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-01-30",
+   "fodselsdato": "2005-01-28",
+   "alder": 21,
+   "adresse": "Sjøgata 17",
+   "postnr": "8146",
+   "poststed": "Reipå",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-01-30"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-01-30",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 86,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-11"
+   },
+   "minor": false
+  },
+  {
+   "id": "jakob-jacobsen-45",
+   "fornavn": "Jakob",
+   "etternavn": "Jacobsen",
+   "navn": "Jakob Jacobsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "jakob.jacobsen@example.no",
+   "mobil": "+4749224173",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-17",
+   "fodselsdato": "1994-02-06",
+   "alder": 32,
+   "adresse": "Sjøgata 34",
+   "postnr": "8011",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 105,
+    "invitert": 327,
+    "pct": 0.3211009174311927,
+    "sisteOppmote": "2026-05-22"
+   },
+   "minor": false
+  },
+  {
+   "id": "iver-lie-46",
+   "fornavn": "Iver",
+   "etternavn": "Lie",
+   "navn": "Iver Lie",
+   "kategori": "Annet",
+   "medlemstype": "Ikke aktiv",
+   "prisMnd": 0,
+   "epost": "iver.lie@example.no",
+   "mobil": "+4747099076",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-05-04",
+   "fodselsdato": "2001-01-28",
+   "alder": 25,
+   "adresse": "Sjøgata 70",
+   "postnr": "8012",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-05-04"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-05-04",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 80,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-02"
+   },
+   "minor": false
+  },
+  {
+   "id": "vetle-bakken-47",
+   "fornavn": "Vetle",
+   "etternavn": "Bakken",
+   "navn": "Vetle Bakken",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "vetle.bakken@example.no",
+   "mobil": "+4743374754",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-17",
+   "fodselsdato": "1995-09-25",
+   "alder": 30,
+   "adresse": "Parkveien 52",
+   "postnr": "8011",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 63,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "jakob-solberg-48",
+   "fornavn": "Jakob",
+   "etternavn": "Solberg",
+   "navn": "Jakob Solberg",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "jakob.solberg@example.no",
+   "mobil": "+4746264956",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-17",
+   "fodselsdato": "1990-10-01",
+   "alder": 35,
+   "adresse": "Bankgata 67",
+   "postnr": "8009",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 59,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-08"
+   },
+   "minor": false
+  },
+  {
+   "id": "elias-larsen-49",
+   "fornavn": "Elias",
+   "etternavn": "Larsen",
+   "navn": "Elias Larsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "elias.larsen@example.no",
+   "mobil": "+4744159166",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-17",
+   "fodselsdato": "2004-03-15",
+   "alder": 22,
+   "adresse": "Sjøgata 9",
+   "postnr": "1254",
+   "poststed": "Oslo",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 38,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-04"
+   },
+   "minor": false
+  },
+  {
+   "id": "theodor-hansen-50",
+   "fornavn": "Theodor",
+   "etternavn": "Hansen",
+   "navn": "Theodor Hansen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "theodor.hansen@example.no",
+   "mobil": "+4749870182",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-11",
+   "fodselsdato": "1978-07-10",
+   "alder": 47,
+   "adresse": "Dronningens gate 30",
+   "postnr": "",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-11"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-11",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 433,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": false
+  },
+  {
+   "id": "halvard-kristiansen-51",
+   "fornavn": "Halvard",
+   "etternavn": "Kristiansen",
+   "navn": "Halvard Kristiansen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "halvard.kristiansen@example.no",
+   "mobil": "+4740120642",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-10-16",
+   "fodselsdato": "1991-01-18",
+   "alder": 35,
+   "adresse": "Storgata 8",
+   "postnr": "8003",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-16"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-16",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 46,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-28"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-52",
+   "fornavn": "Aksel",
+   "etternavn": "",
+   "navn": "Aksel",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-20",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-20"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-20",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 38,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-07"
+   },
+   "minor": true
+  },
+  {
+   "id": "leon-53",
+   "fornavn": "Leon",
+   "etternavn": "",
+   "navn": "Leon",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-24",
+   "fodselsdato": null,
+   "alder": 11,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-24"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-24",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 51,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-14"
+   },
+   "minor": true
+  },
+  {
+   "id": "mikkel-54",
+   "fornavn": "Mikkel",
+   "etternavn": "",
+   "navn": "Mikkel",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-24",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-24"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-24",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 48,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-08"
+   },
+   "minor": true
+  },
+  {
+   "id": "emil-dahl-55",
+   "fornavn": "Emil",
+   "etternavn": "Dahl",
+   "navn": "Emil Dahl",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "emil.dahl@example.no",
+   "mobil": "+4743993055",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-25",
+   "fodselsdato": "1980-01-17",
+   "alder": 46,
+   "adresse": "Parkveien 63",
+   "postnr": "8022",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-25"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-25",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 63,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-04"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-56",
+   "fornavn": "Filip",
+   "etternavn": "",
+   "navn": "Filip",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-30",
+   "fodselsdato": null,
+   "alder": 16,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-30"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-30",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 67,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-09"
+   },
+   "minor": true
+  },
+  {
+   "id": "maja-bakken-57",
+   "fornavn": "Maja",
+   "etternavn": "Bakken",
+   "navn": "Maja Bakken",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "maja.bakken@example.no",
+   "mobil": "+4749580513",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2025-08-27",
+   "fodselsdato": "1981-07-06",
+   "alder": 44,
+   "adresse": "Dronningens gate 61",
+   "postnr": "8022",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-27"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-27",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 36,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-27"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-strand-58",
+   "fornavn": "Aksel",
+   "etternavn": "Strand",
+   "navn": "Aksel Strand",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "aksel.strand@example.no",
+   "mobil": "+4747935169",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-27",
+   "fodselsdato": "1994-10-05",
+   "alder": 31,
+   "adresse": "Bankgata 25",
+   "postnr": "8019",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-27"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-27",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 66,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-23"
+   },
+   "minor": false
+  },
+  {
+   "id": "oliver-larsen-59",
+   "fornavn": "Oliver",
+   "etternavn": "Larsen",
+   "navn": "Oliver Larsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "oliver.larsen@example.no",
+   "mobil": "+4747231838",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-27",
+   "fodselsdato": "1991-07-27",
+   "alder": 34,
+   "adresse": "Parkveien 55",
+   "postnr": "8073",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-27"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-27",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 49,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-02"
+   },
+   "minor": false
+  },
+  {
+   "id": "kasper-andreassen-60",
+   "fornavn": "Kasper",
+   "etternavn": "Andreassen",
+   "navn": "Kasper Andreassen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "kasper.andreassen@example.no",
+   "mobil": "+4740908841",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-08-28",
+   "fodselsdato": "1997-02-13",
+   "alder": 29,
+   "adresse": "Storgata 8",
+   "postnr": "8003",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-28"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-28",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 27,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-13"
+   },
+   "minor": false
+  },
+  {
+   "id": "mathias-bakken-61",
+   "fornavn": "Mathias",
+   "etternavn": "Bakken",
+   "navn": "Mathias Bakken",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "mathias.bakken@example.no",
+   "mobil": "+4745692553",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-12-08",
+   "fodselsdato": "1989-08-28",
+   "alder": 36,
+   "adresse": "Storgata 32",
+   "postnr": "8050",
+   "poststed": "BODØ",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-12-08"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-12-08",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 25,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-02"
+   },
+   "minor": false
+  },
+  {
+   "id": "frida-62",
+   "fornavn": "Frida",
+   "etternavn": "",
+   "navn": "Frida",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2025-08-26",
+   "fodselsdato": null,
+   "alder": 13,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-26"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-26",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 52,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-17"
+   },
+   "minor": true
+  },
+  {
+   "id": "sigurd-andreassen-63",
+   "fornavn": "Sigurd",
+   "etternavn": "Andreassen",
+   "navn": "Sigurd Andreassen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "sigurd.andreassen@example.no",
+   "mobil": "+4742351868",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-01",
+   "fodselsdato": "2004-08-09",
+   "alder": 21,
+   "adresse": "Bankgata 24",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 24,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-23"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-64",
+   "fornavn": "Aksel",
+   "etternavn": "",
+   "navn": "Aksel",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-01",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 36,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-05"
+   },
+   "minor": true
+  },
+  {
+   "id": "aron-olsen-65",
+   "fornavn": "Aron",
+   "etternavn": "Olsen",
+   "navn": "Aron Olsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "aron.olsen@example.no",
+   "mobil": "+4747434500",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-08-28",
+   "fodselsdato": "2002-08-12",
+   "alder": 23,
+   "adresse": "Dronningens gate 13",
+   "postnr": "8027",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-08-28"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-08-28",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 415,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-13"
+   },
+   "minor": false
+  },
+  {
+   "id": "markus-66",
+   "fornavn": "Markus",
+   "etternavn": "",
+   "navn": "Markus",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-08",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-08"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-08",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 22,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-24"
+   },
+   "minor": true
+  },
+  {
+   "id": "sigurd-67",
+   "fornavn": "Sigurd",
+   "etternavn": "",
+   "navn": "Sigurd",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-08",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-08"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-08",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 61,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-25"
+   },
+   "minor": true
+  },
+  {
+   "id": "nora-68",
+   "fornavn": "Nora",
+   "etternavn": "",
+   "navn": "Nora",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2025-08-26",
+   "fodselsdato": null,
+   "alder": 11,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-08-26"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-08-26",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 71,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-26"
+   },
+   "minor": true
+  },
+  {
+   "id": "aron-kristoffersen-69",
+   "fornavn": "Aron",
+   "etternavn": "Kristoffersen",
+   "navn": "Aron Kristoffersen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "aron.kristoffersen@example.no",
+   "mobil": "+4743965789",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2021-11-23",
+   "fodselsdato": "1993-02-23",
+   "alder": 33,
+   "adresse": "Sjøgata 53",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2021-11-23"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2021-11-23",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 226,
+    "invitert": 436,
+    "pct": 0.518348623853211,
+    "sisteOppmote": "2026-05-26"
+   },
+   "minor": false
+  },
+  {
+   "id": "tobias-jacobsen-70",
+   "fornavn": "Tobias",
+   "etternavn": "Jacobsen",
+   "navn": "Tobias Jacobsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "tobias.jacobsen@example.no",
+   "mobil": "+4743586084",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2020-12-18",
+   "fodselsdato": "1984-09-08",
+   "alder": 41,
+   "adresse": "Bankgata 8",
+   "postnr": "8011",
+   "poststed": "Bodoe",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2020-12-18"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2020-12-18",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 213,
+    "invitert": 451,
+    "pct": 0.4722838137472284,
+    "sisteOppmote": "2026-05-13"
+   },
+   "minor": false
+  },
+  {
+   "id": "lukas-hagen-71",
+   "fornavn": "Lukas",
+   "etternavn": "Hagen",
+   "navn": "Lukas Hagen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "lukas.hagen@example.no",
+   "mobil": "+4740036161",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-07",
+   "fodselsdato": "1997-04-29",
+   "alder": 29,
+   "adresse": "Bankgata 34",
+   "postnr": "8026",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-07"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-07",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 64,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-05"
+   },
+   "minor": false
+  },
+  {
+   "id": "aron-strand-72",
+   "fornavn": "Aron",
+   "etternavn": "Strand",
+   "navn": "Aron Strand",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "aron.strand@example.no",
+   "mobil": "+4747633773",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-09-04",
+   "fodselsdato": "2004-11-24",
+   "alder": 21,
+   "adresse": "Parkveien 55",
+   "postnr": "8028",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-09-04"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-09-04",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 20,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-07"
+   },
+   "minor": false
+  },
+  {
+   "id": "andreas-bakken-73",
+   "fornavn": "Andreas",
+   "etternavn": "Bakken",
+   "navn": "Andreas Bakken",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "andreas.bakken@example.no",
+   "mobil": "+4749324245",
+   "kjonn": "Ukjent",
+   "innmeldingsdato": null,
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Bankgata 20",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-06-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-06-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 20,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-12"
+   },
+   "minor": false
+  },
+  {
+   "id": "filip-karlsen-74",
+   "fornavn": "Filip",
+   "etternavn": "Karlsen",
+   "navn": "Filip Karlsen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "filip.karlsen@example.no",
+   "mobil": "+4743652414",
+   "kjonn": "42",
+   "innmeldingsdato": null,
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Storgata 75",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-06-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-06-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 39,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "kristian-75",
+   "fornavn": "Kristian",
+   "etternavn": "",
+   "navn": "Kristian",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-10-22",
+   "fodselsdato": null,
+   "alder": 11,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-22"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-22",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 15,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": true
+  },
+  {
+   "id": "markus-bakken-76",
+   "fornavn": "Markus",
+   "etternavn": "Bakken",
+   "navn": "Markus Bakken",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "markus.bakken@example.no",
+   "mobil": "+4745261415",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-10-23",
+   "fodselsdato": "2004-10-21",
+   "alder": 21,
+   "adresse": "Storgata 7",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-23"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-23",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 23,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-19"
+   },
+   "minor": false
+  },
+  {
+   "id": "halvard-jacobsen-77",
+   "fornavn": "Halvard",
+   "etternavn": "Jacobsen",
+   "navn": "Halvard Jacobsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 450,- (6 mnd. binding)",
+   "prisMnd": 450,
+   "epost": "halvard.jacobsen@example.no",
+   "mobil": "+4748436429",
+   "kjonn": "Ukjent",
+   "innmeldingsdato": "2025-10-16",
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Dronningens gate 21",
+   "postnr": "8008",
+   "poststed": "BODØ",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-10-16"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-10-16",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 58,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-08"
+   },
+   "minor": false
+  },
+  {
+   "id": "markus-dahl-78",
+   "fornavn": "Markus",
+   "etternavn": "Dahl",
+   "navn": "Markus Dahl",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "markus.dahl@example.no",
+   "mobil": "+4741344047",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-11-16",
+   "fodselsdato": "1995-04-15",
+   "alder": 31,
+   "adresse": "Sjøgata 9",
+   "postnr": "8006",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-11-16"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-11-16",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 35,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-06"
+   },
+   "minor": false
+  },
+  {
+   "id": "birk-79",
+   "fornavn": "Birk",
+   "etternavn": "",
+   "navn": "Birk",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-11-17",
+   "fodselsdato": null,
+   "alder": 9,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-11-17"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-11-17",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 36,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": true
+  },
+  {
+   "id": "jakob-lie-80",
+   "fornavn": "Jakob",
+   "etternavn": "Lie",
+   "navn": "Jakob Lie",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "jakob.lie@example.no",
+   "mobil": "+4743946066",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-12-08",
+   "fodselsdato": "1992-05-26",
+   "alder": 34,
+   "adresse": "Bankgata 16",
+   "postnr": "8076",
+   "poststed": "bodo",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-12-08"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-12-08",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 34,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-06-01"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-halvorsen-81",
+   "fornavn": "Aksel",
+   "etternavn": "Halvorsen",
+   "navn": "Aksel Halvorsen",
+   "kategori": "Voksen",
+   "medlemstype": "Voksen 550,- (Uten binding)",
+   "prisMnd": 550,
+   "epost": "aksel.halvorsen@example.no",
+   "mobil": "+4749974376",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-12-01",
+   "fodselsdato": "1994-01-02",
+   "alder": 32,
+   "adresse": "Storgata 80",
+   "postnr": "8012",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-12-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-12-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 19,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": false
+  },
+  {
+   "id": "emil-johnsen-82",
+   "fornavn": "Emil",
+   "etternavn": "Johnsen",
+   "navn": "Emil Johnsen",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "emil.johnsen@example.no",
+   "mobil": "+4749792396",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2025-12-20",
+   "fodselsdato": "2009-06-18",
+   "alder": 16,
+   "adresse": "Dronningens gate 67",
+   "postnr": "8004",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2025-12-20"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2025-12-20",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 34,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-11"
+   },
+   "minor": false
+  },
+  {
+   "id": "theodor-nygård-83",
+   "fornavn": "Theodor",
+   "etternavn": "Nygård",
+   "navn": "Theodor Nygård",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "theodor.nygård@example.no",
+   "mobil": "+4744374922",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-01-12",
+   "fodselsdato": "2004-12-06",
+   "alder": 21,
+   "adresse": "Sjøgata 41",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-01-12"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-01-12",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 25,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-26"
+   },
+   "minor": false
+  },
+  {
+   "id": "aksel-84",
+   "fornavn": "Aksel",
+   "etternavn": "",
+   "navn": "Aksel",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-01-15",
+   "fodselsdato": null,
+   "alder": 10,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-01-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-01-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 10,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-19"
+   },
+   "minor": true
+  },
+  {
+   "id": "hedda-85",
+   "fornavn": "Hedda",
+   "etternavn": "",
+   "navn": "Hedda",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-13",
+   "fodselsdato": null,
+   "alder": 9,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-13"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-13",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 7,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-31"
+   },
+   "minor": true
+  },
+  {
+   "id": "sander-86",
+   "fornavn": "Sander",
+   "etternavn": "",
+   "navn": "Sander",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-02-02",
+   "fodselsdato": null,
+   "alder": 17,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-02-02"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-02-02",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 27,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": true
+  },
+  {
+   "id": "linnea-87",
+   "fornavn": "Linnea",
+   "etternavn": "",
+   "navn": "Linnea",
+   "kategori": "Junior",
+   "medlemstype": "Junior - April - Juni (550)",
+   "prisMnd": 550,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-10",
+   "fodselsdato": null,
+   "alder": 11,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-10"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-10",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 7,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-03"
+   },
+   "minor": true
+  },
+  {
+   "id": "emil-hansen-88",
+   "fornavn": "Emil",
+   "etternavn": "Hansen",
+   "navn": "Emil Hansen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "emil.hansen@example.no",
+   "mobil": "+4747688755",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-19",
+   "fodselsdato": "1993-08-24",
+   "alder": 32,
+   "adresse": "Dronningens gate 73",
+   "postnr": "8071",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-19"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-19",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 8,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-07"
+   },
+   "minor": false
+  },
+  {
+   "id": "oliver-olsen-89",
+   "fornavn": "Oliver",
+   "etternavn": "Olsen",
+   "navn": "Oliver Olsen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "oliver.olsen@example.no",
+   "mobil": "+4749020008",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-19",
+   "fodselsdato": "1991-06-08",
+   "alder": 34,
+   "adresse": "Sjøgata 65",
+   "postnr": "8009",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-19"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-19",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 4,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-17"
+   },
+   "minor": false
+  },
+  {
+   "id": "olivia-andersen-90",
+   "fornavn": "Olivia",
+   "etternavn": "Andersen",
+   "navn": "Olivia Andersen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "olivia.andersen@example.no",
+   "mobil": "+4745855396",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "1993-06-05",
+   "alder": 32,
+   "adresse": "Storgata 32",
+   "postnr": "8003",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 10,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-24"
+   },
+   "minor": false
+  },
+  {
+   "id": "magnus-karlsen-91",
+   "fornavn": "Magnus",
+   "etternavn": "Karlsen",
+   "navn": "Magnus Karlsen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "magnus.karlsen@example.no",
+   "mobil": "+4742646552",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "2002-01-03",
+   "alder": 24,
+   "adresse": "Bankgata 70",
+   "postnr": "8020",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 12,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-07"
+   },
+   "minor": false
+  },
+  {
+   "id": "julie-karlsen-92",
+   "fornavn": "Julie",
+   "etternavn": "Karlsen",
+   "navn": "Julie Karlsen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "julie.karlsen@example.no",
+   "mobil": "+4748874152",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "1988-07-22",
+   "alder": 37,
+   "adresse": "Storgata 71",
+   "postnr": "8071",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 10,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-03"
+   },
+   "minor": false
+  },
+  {
+   "id": "thea-nygård-93",
+   "fornavn": "Thea",
+   "etternavn": "Nygård",
+   "navn": "Thea Nygård",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "thea.nygård@example.no",
+   "mobil": "+4741737893",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "1986-10-20",
+   "alder": 39,
+   "adresse": "Sjøgata 34",
+   "postnr": "8029",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 6,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-29"
+   },
+   "minor": false
+  },
+  {
+   "id": "ella-holm-94",
+   "fornavn": "Ella",
+   "etternavn": "Holm",
+   "navn": "Ella Holm",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "ella.holm@example.no",
+   "mobil": "+4741795765",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "1986-04-25",
+   "alder": 40,
+   "adresse": "Dronningens gate 20",
+   "postnr": "8022",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 11,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-11"
+   },
+   "minor": false
+  },
+  {
+   "id": "olivia-karlsen-95",
+   "fornavn": "Olivia",
+   "etternavn": "Karlsen",
+   "navn": "Olivia Karlsen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "olivia.karlsen@example.no",
+   "mobil": "+4743533779",
+   "kjonn": "Kvinne",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": "1995-07-21",
+   "alder": 30,
+   "adresse": "Parkveien 27",
+   "postnr": "8010",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 8,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": false
+  },
+  {
+   "id": "mikkel-96",
+   "fornavn": "Mikkel",
+   "etternavn": "",
+   "navn": "Mikkel",
+   "kategori": "Junior",
+   "medlemstype": "Junior (1500 per halvår)",
+   "prisMnd": 250,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-15",
+   "fodselsdato": null,
+   "alder": 13,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-15"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-15",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 9,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-10"
+   },
+   "minor": true
+  },
+  {
+   "id": "iver-jacobsen-97",
+   "fornavn": "Iver",
+   "etternavn": "Jacobsen",
+   "navn": "Iver Jacobsen",
+   "kategori": "Introkurs",
+   "medlemstype": "Introkurs April",
+   "prisMnd": 0,
+   "epost": "iver.jacobsen@example.no",
+   "mobil": "+4744213115",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-20",
+   "fodselsdato": "1993-11-05",
+   "alder": 32,
+   "adresse": "Storgata 12",
+   "postnr": "8028",
+   "poststed": "Bodø",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-20"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-20",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 4,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-20"
+   },
+   "minor": false
+  },
+  {
+   "id": "even-johnsen-98",
+   "fornavn": "Even",
+   "etternavn": "Johnsen",
+   "navn": "Even Johnsen",
+   "kategori": "Student",
+   "medlemstype": "Student 450,- (Uten binding)",
+   "prisMnd": 450,
+   "epost": "even.johnsen@example.no",
+   "mobil": "+4744641923",
+   "kjonn": "42",
+   "innmeldingsdato": null,
+   "fodselsdato": null,
+   "alder": null,
+   "adresse": "Storgata 1",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-06-01"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-06-01",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 24,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-05-15"
+   },
+   "minor": false
+  },
+  {
+   "id": "theodor-99",
+   "fornavn": "Theodor",
+   "etternavn": "",
+   "navn": "Theodor",
+   "kategori": "Student",
+   "medlemstype": "Student 350,- (6 mnd binding)",
+   "prisMnd": 350,
+   "epost": "",
+   "mobil": "",
+   "kjonn": "Mann",
+   "innmeldingsdato": "2026-04-26",
+   "fodselsdato": null,
+   "alder": 15,
+   "adresse": "",
+   "postnr": "",
+   "poststed": "",
+   "foresatte": [],
+   "grading": {
+    "current": {
+     "belt": "Hvit",
+     "stripes": 0,
+     "since": "2026-04-26"
+    },
+    "history": [
+     {
+      "id": "g_innm",
+      "date": "2026-04-26",
+      "belt": "Hvit",
+      "stripes": 0,
+      "by": null,
+      "note": "Innmeldt",
+      "kind": "innmelding",
+      "_seq": 1
+     }
+    ]
+   },
+   "oppmote": {
+    "checkins": 8,
+    "invitert": null,
+    "pct": null,
+    "sisteOppmote": "2026-06-01"
+   },
+   "minor": true
+  }
+ ]
+}
