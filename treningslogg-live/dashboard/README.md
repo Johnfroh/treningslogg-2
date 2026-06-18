@@ -33,7 +33,12 @@ Gjenstår (kommende faser):
 
 - `fetchDash()` → register + økonomi fra `/api` (Sheets via Apps Script).
 - `grade()` / `undoLast()` / `importRoster()` / `importOkonomi()` → skriving.
-- `fetchKpis()` → fortsatt statisk `data/kpis.json` (aggregater).
+- `fetchKpis()` → statisk `data/kpis.json` for oppmøte-/historikk-aggregater.
+  Medlemsbaserte tall (antall, kategori, kjønn, belte, alder, geografi,
+  pris/MRR) regnes live fra registeret i `mergeLiveKpis()` (daylight-app.jsx),
+  så de stemmer med faktisk medlemstall.
+- Import-metadata (sist medlems-/økonomiimport + antall) vises i sidefeltet,
+  hentet fra `dash_meta`.
 
 Bytter man kilde senere er det her det gjøres — resten av appen er uendret
 så lenge signaturene holdes like.

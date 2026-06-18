@@ -37,6 +37,7 @@ const SHEET_NAMES = {
   dashMembers: 'dash_members',
   dashGrading: 'dash_grading',
   dashOkonomi: 'dash_okonomi',
+  dashMeta: 'dash_meta',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -64,6 +65,8 @@ const DASH_MEMBER_COLS = ['id','fornavn','etternavn','navn','kategori','medlemst
 const DASH_GRADING_COLS = ['memberId','eventId','date','kind','belt','stripes','by','note','seq','createdAt'];
 // dash_okonomi: faktiske månedstall fra Spond. byKategori lagres som JSON-streng.
 const DASH_OKONOMI_COLS = ['month','netto','brutto','avgifter','antall','byKategori','updatedAt'];
+// dash_meta: nøkkel/verdi for import-metadata (sist importert, antall …).
+const DASH_META_COLS = ['key','value'];
 
 function bmProgram(p){ var s = String(p || '').trim().toLowerCase(); return s || 'ungdom'; }
 
@@ -325,7 +328,27 @@ function importAttendance(rows) {
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
 
 function dashList() {
-  return { members: dashReadMembers(), okonomi: { months: dashReadOkonomi() } };
+  return { members: dashReadMembers(), okonomi: { months: dashReadOkonomi() }, meta: dashGetMeta() };
+}
+
+// Nøkkel/verdi-metadata (import-tidspunkt o.l.).
+function dashGetMeta() {
+  const meta = {};
+  dashRows(SHEET_NAMES.dashMeta, DASH_META_COLS).forEach(r => {
+    if (r.key) meta[String(r.key)] = r.value;
+  });
+  return meta;
+}
+function dashSetMeta(pairs) {
+  const sh = sheet(SHEET_NAMES.dashMeta);
+  const current = dashGetMeta();
+  Object.keys(pairs).forEach(k => { current[k] = pairs[k]; });
+  dashClear(SHEET_NAMES.dashMeta, DASH_META_COLS);
+  const keys = Object.keys(current);
+  if (keys.length) {
+    sh.getRange(2, 1, keys.length, DASH_META_COLS.length)
+      .setValues(keys.map(k => [k, current[k] == null ? '' : String(current[k])]));
+  }
 }
 
 // Les rader fra et ark som objekter (header-styrt), uten parsing/filtrering.
@@ -478,6 +501,7 @@ function dashImportRoster(members) {
   });
   if (mRows.length) sheet(SHEET_NAMES.dashMembers).getRange(2, 1, mRows.length, DASH_MEMBER_COLS.length).setValues(mRows);
   if (gRows.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gRows.length, DASH_GRADING_COLS.length).setValues(gRows);
+  dashSetMeta({ rosterImportedAt: now, rosterCount: members.length });
   return { total: members.length, gradingEvents: gRows.length };
 }
 
@@ -551,13 +575,14 @@ function dashImportOkonomi(months) {
     sh.getRange(2, 1, rows.length, 1).setNumberFormat('@');
     sh.getRange(2, 1, rows.length, DASH_OKONOMI_COLS.length).setValues(rows);
   }
+  dashSetMeta({ okonomiImportedAt: now, okonomiMonths: keys.length, okonomiLatest: keys.length ? keys[keys.length - 1] : '' });
   return { months: keys.length, added: Object.keys(months).length };
 }
 
 // Kjør én gang fra editoren for å opprette dashboard-arkene.
 function _setupDashSheets() {
-  [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi].forEach(n => sheet(n));
-  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi.');
+  [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi, SHEET_NAMES.dashMeta].forEach(n => sheet(n));
+  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi, dash_meta.');
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -578,6 +603,7 @@ function sheet(name) {
               : name === SHEET_NAMES.dashMembers ? DASH_MEMBER_COLS
               : name === SHEET_NAMES.dashGrading ? DASH_GRADING_COLS
               : name === SHEET_NAMES.dashOkonomi ? DASH_OKONOMI_COLS
+              : name === SHEET_NAMES.dashMeta    ? DASH_META_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
