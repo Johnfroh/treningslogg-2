@@ -114,6 +114,8 @@ function handle(e, method) {
       case 'dashGrade':         return json({ ok: true, data: dashGrade(body.events) });
       case 'dashUndoLast':      return json({ ok: true, data: dashUndoLast(body.memberId) });
       case 'dashImportRoster':  return json({ ok: true, data: dashImportRoster(body.members) });
+      // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
+      case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
 
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
@@ -328,7 +330,7 @@ function importAttendance(rows) {
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
 
 function dashList() {
-  return { members: dashReadMembers(), okonomi: { months: dashReadOkonomi() }, meta: dashGetMeta() };
+  return { members: dashReadMembers(), meta: dashGetMeta() };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).

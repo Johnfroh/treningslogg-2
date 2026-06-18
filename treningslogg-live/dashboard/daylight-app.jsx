@@ -77,7 +77,7 @@ function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState('oversikt');
   const staticKpis = useKpis();
-  const { members, meta } = useMembers();
+  const { members, meta, access } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
   const lastUpdated = (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated);
@@ -93,7 +93,11 @@ function App() {
   }, [tw]);
 
   if (!kpis) return <div style={{padding:40, color:'#9290A6'}}>Laster…</div>;
-  const tabLabel = TABS.find(x=>x.id===tab).label;
+  const isStyre = !!(access && access.isStyre);
+  const visibleTabs = TABS.filter(x => x.id !== 'okonomi' || isStyre);
+  // Ikke-styre skal aldri ende på økonomi-fanen.
+  const effTab = (tab === 'okonomi' && !isStyre) ? 'oversikt' : tab;
+  const tabLabel = (TABS.find(x=>x.id===effTab) || TABS[0]).label;
   return (
     <div className="app">
       <aside className="sidebar">
@@ -105,8 +109,8 @@ function App() {
           </div>
         </div>
         <div className="nav">
-          {TABS.map(x => (
-            <button key={x.id} className={tab===x.id?'active':''} onClick={()=>setTab(x.id)}>
+          {visibleTabs.map(x => (
+            <button key={x.id} className={effTab===x.id?'active':''} onClick={()=>setTab(x.id)}>
               <span className="dot"/>{x.label}
             </button>
           ))}
@@ -116,7 +120,7 @@ function App() {
           {meta && meta.rosterImportedAt
             ? <div style={{marginTop:8, fontSize:11, lineHeight:1.5}}>
                 <div>Medlemsimport: {fmtDateTime(meta.rosterImportedAt)}{meta.rosterCount?` · ${meta.rosterCount} medl.`:''}</div>
-                {meta.okonomiImportedAt && <div>Økonomiimport: {fmtDateTime(meta.okonomiImportedAt)}{meta.okonomiMonths?` · ${meta.okonomiMonths} mnd`:''}</div>}
+                {isStyre && meta.okonomiImportedAt && <div>Økonomiimport: {fmtDateTime(meta.okonomiImportedAt)}{meta.okonomiMonths?` · ${meta.okonomiMonths} mnd`:''}</div>}
               </div>
             : <div className="muted" style={{marginTop:8, fontSize:11}}>Ingen import kjørt ennå</div>}
         </div>
@@ -133,13 +137,13 @@ function App() {
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
           </div>
         </div>
-        {tab==='oversikt' && <Oversikt kpis={kpis} charts={charts}/>}
-        {tab==='register' && <Register/>}
-        {tab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {tab==='oppmote' && <Oppmote kpis={kpis} charts={charts}/>}
-        {tab==='okonomi' && <Okonomi kpis={kpis} charts={charts}/>}
-        {tab==='churn' && <Churn kpis={kpis} charts={charts}/>}
-        {tab!=='register' && <DataFooter kpis={kpis} />}
+        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre}/>}
+        {effTab==='register' && <Register/>}
+        {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts}/>}
+        {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
+        {effTab==='churn' && <Churn kpis={kpis} charts={charts}/>}
+        {effTab!=='register' && <DataFooter kpis={kpis} />}
       </main>
       <TweaksPanel>
         <TweakSection label="Typografi" />
@@ -225,13 +229,15 @@ function Tile({ title, corner, children, style }) {
   );
 }
 
-function Oversikt({ kpis, charts }) {
+function Oversikt({ kpis, charts, isStyre }) {
   const t = kpis.totals;
   return (
     <div>
       <div className="grid-4">
         <KPI label="Aktive medlemmer" value={t.activeMembers} delta={`+${kpis.signupsPerYear['2026']||0} i 2026`} deltaClass="up" accent="amber"/>
-        <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta={`ARR ≈ ${fmtN(t.arr)} kr`} deltaClass="amber" accent="green"/>
+        {isStyre
+          ? <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta={`ARR ≈ ${fmtN(t.arr)} kr`} deltaClass="amber" accent="green"/>
+          : <KPI label="Nye i 2026" value={kpis.signupsPerYear['2026']||0} delta="nye medlemskap" accent="green"/>}
         <KPI label="Snitt medlemstid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" delta="aktive medlemmer" accent="blue"/>
         <KPI label="Total check-ins" value={fmtN(t.totalCheckins)} delta={`${t.sessionsTracked} events · jan 2023 → apr 2026`} accent="coral"/>
       </div>

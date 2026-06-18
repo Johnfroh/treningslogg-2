@@ -50,6 +50,32 @@ window.DASH_API = (function () {
     return json.data;
   }
 
+  // Økonomi går via den skjermede ruta /dashboard/okonomi (styre-only).
+  // Relativ sti — siden vi alltid står på /dashboard/ blir det riktig.
+  const OK_ENDPOINT = 'okonomi';
+  async function okGet(action) {
+    const res = await fetch(OK_ENDPOINT + '?action=' + encodeURIComponent(action)
+      + '&token=' + encodeURIComponent(TOKEN) + '&_ts=' + Date.now(), { cache: 'no-store' });
+    if (res.status === 403) throw new Error('forbidden');
+    if (!res.ok) throw new Error('GET ' + action + ' feilet: ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'ukjent feil');
+    return json.data;
+  }
+  async function okPost(body) {
+    const res = await fetch(OK_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...body, token: TOKEN }),
+      cache: 'no-store',
+    });
+    if (res.status === 403) throw new Error('forbidden');
+    if (!res.ok) throw new Error('POST ' + body.action + ' feilet: ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'ukjent feil');
+    return json.data;
+  }
+
   // ─── Personvern: maskering av mindreårige ──────────────────────────
   // Barn vises kun med fornavn, uten bakgrunnsdata (kontakt, adresse,
   // fødselsdato, foresatte). Belte/gradering og oppmøte beholdes.
@@ -82,13 +108,25 @@ window.DASH_API = (function () {
     // ── Lesing ──
     // Aggregerte KPI-er (fortsatt statisk i denne fasen).
     fetchKpis() { return getJSON('data/kpis.json'); },
-    // Register + økonomi fra Sheets. Medlemmer alltid maskert.
+    // Register + meta fra Sheets. Medlemmer alltid maskert. (Økonomi hentes
+    // separat via fetchOkonomi, bak styre-skjerming.)
     fetchDash() {
       return get('dashList').then(d => ({
         members: maskMembers(d.members),
-        okonomi: (d.okonomi && d.okonomi.months) || {},
         meta: d.meta || {},
       }));
+    },
+    // Innlogget identitet + om e-posten er på styre-lista. Robust: feiler den
+    // (f.eks. Access ikke aktiv ennå), antar vi ikke-styre → økonomi skjult.
+    fetchWhoami() {
+      return fetch(OK_ENDPOINT + '?action=whoami&_ts=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : { email: null, isStyre: false })
+        .then(d => ({ email: d.email || null, isStyre: !!d.isStyre, configured: !!d.configured }))
+        .catch(() => ({ email: null, isStyre: false, configured: false }));
+    },
+    // Faktiske månedstall — kun styre slipper gjennom (ellers kastes 'forbidden').
+    fetchOkonomi() {
+      return okGet('dashOkonomiList').then(d => (d.okonomi && d.okonomi.months) || {});
     },
 
     // ── Skriving ──
@@ -97,8 +135,8 @@ window.DASH_API = (function () {
     undoLast(memberId) { return post({ action: 'dashUndoLast', memberId }); },
     // members: ferdig sammenslått register (full, umaskert — lagres bak Access).
     importRoster(members) { return post({ action: 'dashImportRoster', members }); },
-    // months: { 'YYYY-MM': { netto, brutto, avgifter, antall, byKategori } }
-    importOkonomi(months) { return post({ action: 'dashImportOkonomi', months }); },
+    // months: { 'YYYY-MM': { netto, brutto, avgifter, antall, byKategori } } — styre-only.
+    importOkonomi(months) { return okPost({ action: 'dashImportOkonomi', months }); },
 
     // Eksponert for import/roster-flyten.
     maskMembers,

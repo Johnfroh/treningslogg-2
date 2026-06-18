@@ -17,12 +17,22 @@ Backend-ark (opprettes av `_setupDashSheets` i Code.gs):
 - `dash_grading` — én rad per graderingshendelse (full historikk).
 - `dash_okonomi` — faktiske månedstall fra Spond.
 
-Gjenstår (kommende faser):
+**Fase 3 (økonomi-tilgang):** Økonomi går via en egen, skjermet rute
+`functions/dashboard/okonomi.js` som sjekker innlogget Cloudflare Access-e-post
+mot miljøvariabelen `STYRE_EMAILS`. Bare styre slipper gjennom til Apps Script
+(`dashOkonomiList` / `dashImportOkonomi`) — andre får 403, og Økonomi-fanen +
+MRR-estimatet skjules i frontend. Ruta er bevisst skilt fra `/api` så økonomi
+senere kan løftes til en egen Cloudflare Access-app (slik `/fotball` er i dag).
 
-- **Fase 3** — økonomi-fanen skjult pr. e-post, bygget separerbar så den
-  senere kan flyttes til egen tilgangs-app (slik `/fotball` er skilt ut).
+> **Konfig:** sett `STYRE_EMAILS` (komma/mellomrom-separert) i Cloudflare Pages
+> → Settings → Environment variables, inkl. din egen e-post. Er den tom, er
+> økonomi skjult for alle.
+
+Gjenstår:
+
 - **Fase 4** — samkjøre `dash_members` med trener-appens medlems-/oppmøtedata,
-  eksport til årsrapport.
+  eksport til årsrapport. (Da kan økonomi evt. gates server-side i Apps Script
+  også, ved å videresende Access-e-posten.)
 
 > Merk: registeret er tomt til første månedlige import er kjørt fra
 > «Importer»-knappen i Medlemmer-fanen.

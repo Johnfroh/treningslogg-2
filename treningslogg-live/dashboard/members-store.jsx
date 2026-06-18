@@ -48,16 +48,22 @@ function MembersProvider({ children }) {
   const [members, setMembers] = React.useState(null);
   const [okonomi, setOkonomi] = React.useState(null);
   const [meta, setMeta] = React.useState({});
+  const [access, setAccess] = React.useState({ email: null, isStyre: false, configured: false });
   const [loading, setLoading] = React.useState(false);
 
   const reload = React.useCallback(() => {
     setLoading(true);
-    return DASH_API.fetchDash()
-      .then(({ members, okonomi, meta }) => {
-        setMembers(members);
-        setOkonomi({ months: okonomi, keys: Object.keys(okonomi).sort() });
-        setMeta(meta || {});
-      })
+    return DASH_API.fetchWhoami().then(who => {
+      setAccess(who);
+      return Promise.all([
+        DASH_API.fetchDash(),
+        who.isStyre ? DASH_API.fetchOkonomi().catch(() => ({})) : Promise.resolve({}),
+      ]).then(([dash, months]) => {
+        setMembers(dash.members);
+        setMeta(dash.meta || {});
+        setOkonomi({ months, keys: Object.keys(months).sort() });
+      });
+    })
       .catch(e => {
         console.warn('[dashboard] kunne ikke laste data:', e.message);
         setMembers([]);
@@ -150,7 +156,7 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, loading } }, children);
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, access, loading } }, children);
 }
 
 function useMembers() { return useContext(MembersCtx); }
