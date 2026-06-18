@@ -22,10 +22,10 @@ function Register(){
   const [exportOpen, setExportOpen] = useS(false);
   const [imp, setImp] = useS(false);
 
-  if(!members) return <div style={{padding:30,color:'var(--muted)'}}>Laster medlemmer…</div>;
-
+  // Alle hooks må kjøre uansett — tidlig return MÅ derfor stå etter useMemo
+  // under (ellers endres antall hooks når members lastes → React error #310).
   const filtered = useM(()=>{
-    let r = members.filter(m=>{
+    let r = (members||[]).filter(m=>{
       if(kat!=='Alle' && m.kategori!==kat) return false;
       if(beltFilter==='Farget' && m.grading.current.belt==='Hvit') return false;
       if(beltFilter==='Voksenbelter' && !beltMeta(m.grading.current.belt).adult) return false;
@@ -48,12 +48,15 @@ function Register(){
 
   // derived header counts
   const stats = useM(()=>{
-    const colored = members.filter(m=>m.grading.current.belt!=='Hvit').length;
+    const list = members || [];
+    const colored = list.filter(m=>m.grading.current.belt!=='Hvit').length;
     const cutoff = new Date(Date.now()-90*86400000).toISOString().slice(0,10);
-    let recent=0; for(const m of members) for(const e of m.grading.history) if(e.kind!=='innmelding'&&e.date>=cutoff) recent++;
-    const black = members.filter(m=>m.grading.current.belt==='Sort').length;
-    return { total:members.length, colored, recent, black };
+    let recent=0; for(const m of list) for(const e of m.grading.history) if(e.kind!=='innmelding'&&e.date>=cutoff) recent++;
+    const black = list.filter(m=>m.grading.current.belt==='Sort').length;
+    return { total:list.length, colored, recent, black };
   },[members]);
+
+  if(!members) return <div style={{padding:30,color:'var(--muted)'}}>Laster medlemmer…</div>;
 
   const allSelected = filtered.length>0 && filtered.every(m=>sel.has(m.id));
   function toggleAll(){ const n=new Set(sel); if(allSelected) filtered.forEach(m=>n.delete(m.id)); else filtered.forEach(m=>n.add(m.id)); setSel(n); }
