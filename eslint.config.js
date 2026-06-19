@@ -148,6 +148,7 @@ module.exports = [
       globals: {
         fetch: 'readonly', Response: 'readonly', Request: 'readonly',
         URL: 'readonly', console: 'readonly', atob: 'readonly',
+        crypto: 'readonly', TextEncoder: 'readonly',
       },
     },
     rules: sharedRules,

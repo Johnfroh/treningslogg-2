@@ -28,11 +28,20 @@ senere kan løftes til en egen Cloudflare Access-app (slik `/fotball` er i dag).
 > → Settings → Environment variables, inkl. din egen e-post. Er den tom, er
 > økonomi skjult for alle.
 
+**Fase 4 (delvis):**
+- **Årsrapport-eksport** — «⤓ Årsrapport»-knapp i topplinja laster ned et
+  tekstsammendrag (medlemmer, belter, graderinger i år, oppmøte; økonomi kun
+  for styre).
+- **JWT-herding (opt-in)** — `functions/dashboard/okonomi.js` kan verifisere
+  Access-JWT-signaturen kryptografisk. Slås på med env-variablene
+  `ACCESS_TEAM_DOMAIN` (+ valgfri `ACCESS_AUD`); uten dem brukes dagens
+  e-post-header/claim.
+
 Gjenstår:
 
-- **Fase 4** — samkjøre `dash_members` med trener-appens medlems-/oppmøtedata,
-  eksport til årsrapport. (Da kan økonomi evt. gates server-side i Apps Script
-  også, ved å videresende Access-e-posten.)
+- **Oppmøte-samkjøring** — slå sammen dashboardets historiske Spond-aggregat
+  med trener-appens live loggede oppmøte (krever en beslutning om erstatte vs.
+  blande, siden datasettene har ulik form og historikk).
 
 > Merk: registeret er tomt til første månedlige import er kjørt fra
 > «Importer»-knappen i Medlemmer-fanen.

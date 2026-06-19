@@ -13,6 +13,12 @@
 // Konfig i Cloudflare Pages → Settings → Environment variables:
 //   STYRE_EMAILS = "kasserer@klubb.no, leder@klubb.no"
 // Er den tom, er økonomi skjult for alle (trygg standard).
+//
+// Valgfri herding — kryptografisk verifisering av Access-JWT:
+//   ACCESS_TEAM_DOMAIN = "https://<team>.cloudflareaccess.com"
+//   ACCESS_AUD = "<application audience tag>"  (valgfritt, ekstra sjekk)
+// Settes disse, stoles kun JWT-er med gyldig signatur. Uten dem brukes
+// e-post-header / udekodet claim (som i dag).
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1b40xgzhTyPuDjF0uuGPqr9pyYfEyS0OmLtei1Pjqihpadnz2XtwGixgZISpXNiUY/exec';
 
@@ -40,10 +46,50 @@ function readCookie(request, name) {
   const m = raw.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
   return m ? m[1] : '';
 }
-function getEmail(request) {
+
+function b64urlToBytes(s) {
+  s = String(s).replace(/-/g, '+').replace(/_/g, '/');
+  s += '==='.slice((s.length + 3) % 4);
+  const bin = atob(s);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+// Kryptografisk verifisering av Access-JWT (opt-in). Henter Cloudflare Access
+// sine offentlige nøkler og sjekker RS256-signatur + exp (+ aud hvis satt).
+// Slås på ved å sette ACCESS_TEAM_DOMAIN (f.eks. https://<team>.cloudflareaccess.com)
+// — da stoles kun verifiserte tokens. Returnerer e-post, eller '' ved feil.
+async function verifyJwtEmail(token, env) {
+  try {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return '';
+    const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((parts[0].length + 3) % 4)));
+    const certsUrl = String(env.ACCESS_TEAM_DOMAIN).replace(/\/+$/, '') + '/cdn-cgi/access/certs';
+    const certs = await (await fetch(certsUrl, { cf: { cacheTtl: 3600 } })).json();
+    const jwk = (certs.keys || []).find(k => k.kid === header.kid);
+    if (!jwk) return '';
+    const key = await crypto.subtle.importKey('jwk', jwk,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const data = new TextEncoder().encode(parts[0] + '.' + parts[1]);
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(parts[2]), data);
+    if (!ok) return '';
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((parts[1].length + 3) % 4)));
+    if (payload.exp && Date.now() / 1000 > payload.exp) return '';
+    if (env.ACCESS_AUD && !((payload.aud || []).indexOf(env.ACCESS_AUD) !== -1)) return '';
+    return String(payload.email || '');
+  } catch (e) { return ''; }
+}
+
+async function getEmail(request, env) {
+  const jwt = request.headers.get('Cf-Access-Jwt-Assertion') || readCookie(request, 'CF_Authorization');
+  // Verifisering påslått: stol KUN på verifisert JWT.
+  if (env && env.ACCESS_TEAM_DOMAIN) {
+    return jwt ? await verifyJwtEmail(jwt, env) : '';
+  }
+  // Ellers: header (edge-injisert av Access) eller udekodet JWT-claim.
   const header = request.headers.get('Cf-Access-Authenticated-User-Email');
   if (header) return header;
-  const jwt = request.headers.get('Cf-Access-Jwt-Assertion') || readCookie(request, 'CF_Authorization');
   return jwt ? decodeJwtEmail(jwt) : '';
 }
 
@@ -58,26 +104,14 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  const email = getEmail(request);
+  const email = await getEmail(request, env);
   const list = styreList(env);
   const isStyre = !!email && list.indexOf(email.toLowerCase()) !== -1;
 
   // Identitet/tilgang — ingen økonomidata, alltid ok (frontend bruker dette
-  // til å vise/skjule Økonomi-fanen). Inkluderer diagnostikk som viser hvilke
-  // Access-spor som faktisk når funksjonen (kun header-navn, ingen verdier).
+  // til å vise/skjule Økonomi-fanen).
   if (url.searchParams.get('action') === 'whoami') {
-    const cookie = request.headers.get('Cookie') || '';
-    const cfHeaders = [];
-    request.headers.forEach((v, k) => { if (k.toLowerCase().indexOf('cf-') === 0) cfHeaders.push(k); });
-    return json({
-      ok: true, email: email, isStyre: isStyre, configured: list.length > 0,
-      debug: {
-        emailHeader: !!request.headers.get('Cf-Access-Authenticated-User-Email'),
-        jwtHeader: !!request.headers.get('Cf-Access-Jwt-Assertion'),
-        cfAuthCookie: cookie.indexOf('CF_Authorization=') !== -1,
-        cfHeaders: cfHeaders,
-      },
-    });
+    return json({ ok: true, email: email, isStyre: isStyre, configured: list.length > 0 });
   }
 
   // Alt annet (lese/skrive økonomi) krever styre-tilgang.

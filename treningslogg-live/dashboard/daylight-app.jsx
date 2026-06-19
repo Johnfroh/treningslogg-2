@@ -42,6 +42,49 @@ function fmtDateTime(v){
     + ', ' + d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
 }
 
+// Nedlastbar årsrapport (tekst). Bygger på live medlems-aggregater + statisk
+// oppmøtegrunnlag; økonomidelen tas kun med for styre.
+function buildAarsrapport(kpis, members, okonomi, isStyre){
+  const t = kpis.totals || {};
+  const year = new Date().getFullYear();
+  const L = [];
+  L.push('ÅRSRAPPORT — Bodø Jiu Jitsu');
+  L.push('Generert ' + new Date().toLocaleDateString('nb-NO') + ' · rapportår ' + year);
+  L.push('');
+  L.push('== MEDLEMMER ==');
+  L.push('Aktive medlemmer: ' + (t.activeMembers || 0));
+  Object.entries(kpis.byKategori || {}).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=> L.push('  ' + k + ': ' + v));
+  const kj = kpis.byKjonn || {};
+  L.push('Kjønn: Mann ' + (kj.Mann || 0) + ' · Kvinne ' + (kj.Kvinne || 0));
+  L.push('');
+  L.push('== BELTER ==');
+  Object.entries(kpis.byBelt || {}).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=> L.push('  ' + k + ': ' + v));
+  let grad = 0;
+  (members || []).forEach(m => (m.grading.history || []).forEach(e => {
+    if(e.kind !== 'innmelding' && String(e.date).slice(0,4) === String(year)) grad++;
+  }));
+  L.push('Graderinger i ' + year + ': ' + grad);
+  L.push('');
+  L.push('== OPPMØTE (historisk Spond-grunnlag) ==');
+  L.push('Totale check-ins: ' + fmtN(t.totalCheckins || 0));
+  L.push('Økter registrert: ' + fmtN(t.sessionsTracked || 0));
+  if(kpis.leaderboard && kpis.leaderboard.length){
+    L.push('Mest dedikerte:');
+    kpis.leaderboard.slice(0,5).forEach((m,i)=> L.push('  ' + (i+1) + '. ' + m.navn + ' — ' + m.deltatt + ' oppmøter'));
+  }
+  L.push('');
+  if(isStyre && okonomi && okonomi.keys && okonomi.keys.length){
+    const ym = okonomi.keys.filter(k => String(k).slice(0,4) === String(year));
+    const netto = ym.reduce((s,k)=> s + (okonomi.months[k].netto || 0), 0);
+    L.push('== ØKONOMI ' + year + ' (kun styre) ==');
+    L.push('Netto innbetalt (' + ym.length + ' mnd registrert): ' + fmtN(netto) + ' kr');
+    L.push('Estimert MRR: ' + fmtN(t.mrr || 0) + ' kr · ARR: ' + fmtN(t.arr || 0) + ' kr');
+    L.push('');
+  }
+  L.push('— Generert av løft.app/dashboard —');
+  return L.join('\n');
+}
+
 // Slå sammen statiske KPI-er (oppmøte/historikk fra kpis.json) med live
 // medlems-aggregater regnet fra registeret. Øyeblikksbilde-feltene
 // (antall, kategori, kjønn, belte, alder, pris/MRR) overstyres med live-data
@@ -77,7 +120,7 @@ function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState('oversikt');
   const staticKpis = useKpis();
-  const { members, meta, access } = useMembers();
+  const { members, meta, access, okonomi } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
   const lastUpdated = (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated);
@@ -135,6 +178,11 @@ function App() {
             <span className="pill" title="Konsolidert oppmøtefil"><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
             <span className="pill"><span className="sw" style={{background:'var(--accent)'}}/>jan 2023 → apr 2026</span>
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
+            <button className="btn outline sm" title="Last ned årsrapport (tekst)"
+              onClick={()=>downloadText('arsrapport_'+new Date().getFullYear()+'.txt',
+                buildAarsrapport(kpis, members, okonomi, isStyre), 'text/plain;charset=utf-8')}>
+              ⤓ Årsrapport
+            </button>
           </div>
         </div>
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre}/>}
