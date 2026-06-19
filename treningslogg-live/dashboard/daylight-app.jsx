@@ -472,6 +472,7 @@ function Avstemming() {
   const [busy, setBusy] = React.useState(false);
   const [msg, setMsg] = React.useState('');
   const [picks, setPicks] = React.useState({});
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const sortedMembers = React.useMemo(
     () => (members || []).slice().sort((a, b) => String(a.navn).localeCompare(String(b.navn), 'no')),
@@ -512,7 +513,8 @@ function Avstemming() {
           {liveUnmatched>0 && <> <strong style={{color:'var(--coral)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
         </div>
         <div style={{display:'flex', gap:8, marginBottom:12, flexWrap:'wrap'}}>
-          <button className="btn primary" disabled={busy} onClick={reconcile}>Kjør avstemming</button>
+          <button className="btn primary" disabled={busy} onClick={()=>setImportOpen(true)}>⤓ Importer ukesoppmøte</button>
+          <button className="btn outline" disabled={busy} onClick={reconcile}>Kjør avstemming</button>
           <button className="btn ghost" disabled={busy} onClick={load}>Vis umatchede</button>
         </div>
         {msg && <div className="dim" style={{fontSize:12, marginBottom:10}}>{msg}</div>}
@@ -538,6 +540,7 @@ function Avstemming() {
           </table>
         )}
       </Tile>
+      {importOpen && <AttendanceImportModal onClose={()=>setImportOpen(false)}/>}
     </>
   );
 }

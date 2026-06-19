@@ -125,6 +125,9 @@ module.exports = [
         gradingLogToCSV: 'readonly', downloadText: 'readonly', diffRoster: 'readonly',
         // xlsx-import.jsx / import-ui.jsx
         parseMemberFile: 'readonly', ImportModal: 'readonly',
+        parseXlsxRaw: 'readonly', serialToISOimp: 'readonly',
+        // attendance-import.jsx
+        parseAttendanceFile: 'readonly', AttendanceImportModal: 'readonly',
         // okonomi-import.jsx
         parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
         monthLabel: 'readonly', MND_NO: 'readonly',

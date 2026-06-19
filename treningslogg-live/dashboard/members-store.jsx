@@ -155,6 +155,7 @@ function MembersProvider({ children }) {
     reconcileAttendance() { return DASH_API.reconcileAttendance().then(r => reload().then(() => r)); },
     unmatchedAttendance() { return DASH_API.unmatchedAttendance(); },
     assignMember(name, memberId) { return DASH_API.assignMember(name, memberId).then(r => reload().then(() => r)); },
+    importWeekAttendance(events) { return DASH_API.importWeekAttendance(events).then(r => reload().then(() => r)); },
   };
 
   const okonomiActions = {
