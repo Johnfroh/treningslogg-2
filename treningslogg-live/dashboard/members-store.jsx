@@ -150,6 +150,11 @@ function MembersProvider({ children }) {
     },
     rosterActive() { return true; },
     clearRoster() { return reload(); },
+
+    // ---- oppmøte-avstemming (identitetsbro) ----
+    reconcileAttendance() { return DASH_API.reconcileAttendance().then(r => reload().then(() => r)); },
+    unmatchedAttendance() { return DASH_API.unmatchedAttendance(); },
+    assignMember(name, memberId) { return DASH_API.assignMember(name, memberId).then(r => reload().then(() => r)); },
   };
 
   const okonomiActions = {

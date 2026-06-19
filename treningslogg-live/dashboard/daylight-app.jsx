@@ -211,7 +211,7 @@ function App() {
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre}/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts}/>}
         {effTab!=='register' && <DataFooter kpis={kpis} />}
@@ -464,7 +464,85 @@ function Medlemmer({ kpis, charts }) {
   );
 }
 
-function Oppmote({ kpis, charts, live }) {
+// Oppmøte-avstemming: knytt umatchede oppmøte-navn til medlemmer i registeret.
+// Identitetsbroen (memberId) gjør at leaderboard/oppmøteprosent stemmer per medlem.
+function Avstemming() {
+  const { members, actions, live } = useMembers();
+  const [unmatched, setUnmatched] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState('');
+  const [picks, setPicks] = React.useState({});
+
+  const sortedMembers = React.useMemo(
+    () => (members || []).slice().sort((a, b) => String(a.navn).localeCompare(String(b.navn), 'no')),
+    [members]);
+
+  function load() {
+    setBusy(true); setMsg('');
+    actions.unmatchedAttendance()
+      .then(list => setUnmatched(list || []))
+      .catch(e => setMsg('Kunne ikke hente: ' + e.message))
+      .then(() => setBusy(false));
+  }
+  function reconcile() {
+    setBusy(true); setMsg('');
+    actions.reconcileAttendance()
+      .then(r => { setMsg(`Avstemt: ${r.matched} koblet · ${r.unmatched} gjenstår av ${r.total}.`); return actions.unmatchedAttendance(); })
+      .then(list => setUnmatched(list || []))
+      .catch(e => setMsg('Feil: ' + e.message))
+      .then(() => setBusy(false));
+  }
+  function assign(name) {
+    const memberId = picks[name];
+    if (!memberId) return;
+    setBusy(true);
+    actions.assignMember(name, memberId)
+      .then(() => { setUnmatched(u => (u || []).filter(x => x.name !== name)); setMsg(`«${name}» koblet.`); })
+      .catch(e => setMsg('Feil: ' + e.message))
+      .then(() => setBusy(false));
+  }
+
+  const liveUnmatched = live && live.unmatched ? live.unmatched : 0;
+  return (
+    <>
+      <div className="section-h">Oppmøte-avstemming<span className="meta">styre · knytt oppmøte til medlemsregisteret</span></div>
+      <Tile title="identitetsbro" corner="avstemming">
+        <div className="dim" style={{fontSize:12, lineHeight:1.6, marginBottom:12}}>
+          Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer automatisk kobles her én gang — koblingen huskes som alias for framtidige opplastninger.
+          {liveUnmatched>0 && <> <strong style={{color:'var(--coral)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
+        </div>
+        <div style={{display:'flex', gap:8, marginBottom:12, flexWrap:'wrap'}}>
+          <button className="btn primary" disabled={busy} onClick={reconcile}>Kjør avstemming</button>
+          <button className="btn ghost" disabled={busy} onClick={load}>Vis umatchede</button>
+        </div>
+        {msg && <div className="dim" style={{fontSize:12, marginBottom:10}}>{msg}</div>}
+        {unmatched && unmatched.length === 0 && <div className="dim" style={{fontSize:12}}>Ingen umatchede navn 🎉</div>}
+        {unmatched && unmatched.length > 0 && (
+          <table className="t">
+            <thead><tr><th>Oppmøte-navn</th><th className="num">Antall</th><th>Koble til medlem</th><th/></tr></thead>
+            <tbody>
+              {unmatched.map(u => (
+                <tr key={u.name}>
+                  <td><strong>{u.name}</strong></td>
+                  <td className="num dim">{u.count}</td>
+                  <td>
+                    <select value={picks[u.name] || ''} onChange={e => setPicks(p => ({ ...p, [u.name]: e.target.value }))} style={{maxWidth:220}}>
+                      <option value="">— velg medlem —</option>
+                      {sortedMembers.map(m => <option key={m.id} value={m.id}>{m.navn}</option>)}
+                    </select>
+                  </td>
+                  <td><button className="btn ghost" disabled={busy || !picks[u.name]} onClick={() => assign(u.name)}>Koble</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Tile>
+    </>
+  );
+}
+
+function Oppmote({ kpis, charts, live, isStyre }) {
   const t = kpis.totals;
   const ls = liveSince(kpis, live);
   function palette(intensity) {
@@ -542,6 +620,8 @@ function Oppmote({ kpis, charts, live }) {
       <Tile title="weekly attendance" corner="long-range">
         <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140} color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
       </Tile>
+
+      {isStyre && <Avstemming/>}
     </div>
   );
 }
