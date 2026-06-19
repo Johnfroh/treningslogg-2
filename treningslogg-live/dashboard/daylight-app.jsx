@@ -25,9 +25,11 @@ function hexA(hex, a) {
 
 const TABS = [
   { id: 'oversikt', label: 'Oversikt' },
+  { id: 'kalender', label: 'Kalender' },
   { id: 'register', label: 'Medlemmer' },
   { id: 'statistikk', label: 'Medlemsstatistikk' },
   { id: 'oppmote', label: 'Oppmøte' },
+  { id: 'innhold', label: 'Innhold' },
   { id: 'okonomi', label: 'Økonomi' },
   { id: 'churn', label: 'Kohort & Churn' },
 ];
@@ -209,9 +211,11 @@ function App() {
           </div>
         </div>
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
+        {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
         {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre}/>}
+        {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts}/>}
         {effTab!=='register' && <DataFooter kpis={kpis} />}
@@ -502,6 +506,13 @@ function Avstemming() {
       .catch(e => setMsg('Feil: ' + e.message))
       .then(() => setBusy(false));
   }
+  function ignore(name) {
+    setBusy(true);
+    actions.ignoreName(name, true)
+      .then(() => { setUnmatched(u => (u || []).filter(x => x.name !== name)); setMsg(`«${name}» merket som tidligere medlem.`); })
+      .catch(e => setMsg('Feil: ' + e.message))
+      .then(() => setBusy(false));
+  }
 
   const liveUnmatched = live && live.unmatched ? live.unmatched : 0;
   return (
@@ -509,7 +520,7 @@ function Avstemming() {
       <div className="section-h">Oppmøte-avstemming<span className="meta">styre · knytt oppmøte til medlemsregisteret</span></div>
       <Tile title="identitetsbro" corner="avstemming">
         <div className="dim" style={{fontSize:12, lineHeight:1.6, marginBottom:12}}>
-          Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer automatisk kobles her én gang — koblingen huskes som alias for framtidige opplastninger.
+          Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer kobles her én gang (huskes som alias) — eller merkes «Sluttet» hvis det er et tidligere medlem, så forsvinner det fra lista.
           {liveUnmatched>0 && <> <strong style={{color:'var(--coral)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
         </div>
         <div style={{display:'flex', gap:8, marginBottom:12, flexWrap:'wrap'}}>
@@ -533,7 +544,10 @@ function Avstemming() {
                       {sortedMembers.map(m => <option key={m.id} value={m.id}>{m.navn}</option>)}
                     </select>
                   </td>
-                  <td><button className="btn ghost" disabled={busy || !picks[u.name]} onClick={() => assign(u.name)}>Koble</button></td>
+                  <td style={{display:'flex',gap:6}}>
+                    <button className="btn ghost" disabled={busy || !picks[u.name]} onClick={() => assign(u.name)}>Koble</button>
+                    <button className="btn ghost" disabled={busy} title="Skjul — tidligere medlem som har sluttet" onClick={() => ignore(u.name)}>Sluttet</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -542,6 +556,86 @@ function Avstemming() {
       </Tile>
       {importOpen && <AttendanceImportModal onClose={()=>setImportOpen(false)}/>}
     </>
+  );
+}
+
+// Tema-balanse: hva trenes det på? Fordeling av loggede økter på grupper og
+// kjernetemaer (posisjon + handling), med søkelys på hva som er underdekket
+// siste 90 dager. Kjernetaksonomien speiler trener-appens tags.
+const CORE_POS = ['guard','mount','sidekontroll','back','c2c','c2b'];
+const CORE_ACT = ['passing','escapes','submissions','takedowns','sweeps','pins'];
+const GROUP_LABEL = { junior:'Junior', gi:'Gi', nogi:'No-Gi', 'åpen matte':'Åpen matte', ukjent:'Ukjent' };
+
+function ThemeBars({ keys, allMap, recentMap, color }){
+  const max = Math.max(1, ...keys.map(k => allMap[k] || 0));
+  return (
+    <div>
+      {keys.map(k => {
+        const v = allMap[k] || 0, r = recentMap[k] || 0;
+        return (
+          <div key={k} className="bar-row" style={{display:'grid',gridTemplateColumns:'120px 1fr auto',gap:10,alignItems:'center',padding:'5px 0'}}>
+            <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.12em'}}>{k}</span>
+            <div className="meter" style={{background:'var(--bar-bg)',height:14,borderRadius:7,overflow:'hidden'}}>
+              <div style={{width:(v/max)*100+'%',background:color,height:'100%'}}/>
+            </div>
+            <span className="tabular" style={{fontSize:12,minWidth:64,textAlign:'right'}}>{v} <span className="dim">· {r} siste 90d</span></span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Innhold(){
+  const { actions } = useMembers();
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState('');
+  React.useEffect(() => { actions.fetchThemes().then(setData).catch(e => setErr(e.message || 'feil')); }, []);
+
+  if (err) return <div className="dim" style={{padding:20}}>Kunne ikke laste tema-balanse: {err}</div>;
+  if (!data) return <div className="dim" style={{padding:20}}>Laster tema-balanse…</div>;
+
+  const allMap = {}; data.tags.forEach(t => { allMap[t.tag] = t.sessions; });
+  const recentMap = {}; data.tagsRecent.forEach(t => { recentMap[t.tag] = t.sessions; });
+  const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(recentMap[k] > 0));
+  const groupData = data.groups.map(g => ({ label: `${GROUP_LABEL[g.group] || g.group} (${g.recent} siste 90d)`, value: g.sessions }));
+
+  return (
+    <div>
+      <div className="grid-4">
+        <KPI label="Økter totalt" value={fmtN(data.totalSessions)} delta="loggede + importerte" accent="blue"/>
+        <KPI label="Med innhold" value={fmtN(data.logged)} delta="tittel eller temaer" accent="green"/>
+        <KPI label="Siste 90 dager" value={fmtN(data.recentLogged)} delta={`med innhold · etter ${data.since}`} accent="amber"/>
+        <KPI label="Underdekket nå" value={fmtN(underdekket.length)} delta="kjernetemaer siste 90d" accent="coral"/>
+      </div>
+
+      {underdekket.length > 0 && (
+        <>
+        <div className="section-h">Underdekket siste 90 dager<span className="meta">kjernetemaer uten økter</span></div>
+        <Tile title="bør prioriteres" corner="balanse">
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {underdekket.map(k => <span key={k} className="tag coral" style={{textTransform:'uppercase',letterSpacing:'.1em'}}>{k}</span>)}
+          </div>
+          <div className="dim" style={{fontSize:11,marginTop:10}}>Disse kjernetemaene har ingen loggede økter de siste 90 dagene.</div>
+        </Tile>
+        </>
+      )}
+
+      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe</span></div>
+      <Tile title="grupper" corner="balanse">
+        <HBar data={groupData} color="var(--accent)" height={20}/>
+      </Tile>
+
+      <div className="section-h">Posisjoner<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
+      <Tile title="posisjon" corner="position">
+        <ThemeBars keys={CORE_POS} allMap={allMap} recentMap={recentMap} color="#34B98C"/>
+      </Tile>
+
+      <div className="section-h">Handlinger<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
+      <Tile title="handling" corner="action">
+        <ThemeBars keys={CORE_ACT} allMap={allMap} recentMap={recentMap} color="#F2825F"/>
+      </Tile>
+    </div>
   );
 }
 
@@ -570,23 +664,6 @@ function Oppmote({ kpis, charts, live, isStyre }) {
           <KPI label="Siste økt" value={live.maxDate || '—'} accent="blue"/>
           <KPI label="Totalt m/ live" value={fmtN(t.totalCheckins + ls.total)} delta="historisk + live" accent="coral"/>
         </div>
-        {live.leaderboard && live.leaderboard.length > 0 && (
-          <Tile title="mest aktive (live)" corner="logget" style={{marginTop:16}}>
-            <table className="t">
-              <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist</th></tr></thead>
-              <tbody>
-                {live.leaderboard.slice(0,10).map((m,i)=>(
-                  <tr key={m.navn}>
-                    <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
-                    <td><strong>{m.navn}</strong></td>
-                    <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
-                    <td className="num dim">{m.sist || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Tile>
-        )}
         </>
       )}
 
@@ -596,22 +673,25 @@ function Oppmote({ kpis, charts, live, isStyre }) {
         <div className="dim" style={{fontSize:11, marginTop:12}}>Sterkeste pulser: torsdag 18 (1 071 estimerte check-ins) og tirsdag 18 (1 033) er klubbens hjerteslag — Erfaren-økter. Helga lever på Åpen Matte: lørdag og søndag 12 (~651 hver). Klokkeslett er estimert fra klassetype.</div>
       </Tile>
 
-      <div className="section-h">Topp 10 mest dedikerte<span className="meta">historisk (Spond)</span></div>
+      <div className="section-h">Topp 10 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
       <Tile title="leaderboard" corner="dedicated">
-        <table className="t">
-          <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Inviterte</th><th className="num">%</th></tr></thead>
-          <tbody>
-            {kpis.leaderboard.slice(0,10).map((m,i)=>(
-              <tr key={m.navn}>
-                <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
-                <td><strong>{m.navn}</strong>{i===0 && <span className="tag amber" style={{marginLeft:8}}>leder</span>}{i===1 && <span className="tag green" style={{marginLeft:8}}>2.</span>}{i===2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}</td>
-                <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
-                <td className="num dim">{m.invitert}</td>
-                <td className="num">{fmtPct(m.pct)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {live && live.leaderboard && live.leaderboard.length > 0 ? (
+          <table className="t">
+            <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
+            <tbody>
+              {live.leaderboard.slice(0,10).map((m,i)=>(
+                <tr key={m.id || m.navn}>
+                  <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
+                  <td><strong>{m.navn}</strong>{i===0 && <span className="tag amber" style={{marginLeft:8}}>leder</span>}{i===1 && <span className="tag green" style={{marginLeft:8}}>2.</span>}{i===2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}</td>
+                  <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
+                  <td className="num dim">{fmtDate(m.sist)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen nederst.</div>
+        )}
       </Tile>
 
       <div className="section-h">Klassepopularitet<span className="meta">snitt deltagere pr. økt</span></div>

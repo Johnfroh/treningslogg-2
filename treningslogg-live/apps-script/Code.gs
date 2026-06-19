@@ -119,6 +119,9 @@ function handle(e, method) {
       case 'dashUnmatched':     return json({ ok: true, data: dashUnmatchedAttendance() });
       case 'dashAssignMember':  return json({ ok: true, data: dashAssignMember(body.name, body.memberId) });
       case 'dashImportWeekAttendance': return json({ ok: true, data: dashImportWeekAttendance(body.events) });
+      case 'dashIgnoreName':    return json({ ok: true, data: dashIgnoreName(body.name, body.on) });
+      case 'dashThemes':        return json({ ok: true, data: dashThemes() });
+      case 'dashCalendar':      return json({ ok: true, data: dashCalendar() });
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
@@ -361,7 +364,9 @@ function dashMemberIndex() {
   });
   let aliases = {};
   try { aliases = JSON.parse(dashGetMeta().attendanceAliases || '{}'); } catch (e) { aliases = {}; }
-  return { byId: byId, bySlug: bySlug, byNavn: byNavn, aliases: aliases };
+  let ignored = {};
+  try { (JSON.parse(dashGetMeta().attendanceIgnored || '[]') || []).forEach(n => { ignored[String(n).toLowerCase()] = true; }); } catch (e) { ignored = {}; }
+  return { byId: byId, bySlug: bySlug, byNavn: byNavn, aliases: aliases, ignored: ignored };
 }
 
 function dashResolveMemberId(name, idx) {
@@ -415,16 +420,33 @@ function reconcileAttendance() {
 }
 
 // Liste over oppmøte-navn som ikke matcher et medlem (for avstemmings-UI).
+// Navn merket som «tidligere medlem» (sluttet) holdes utenfor.
 function dashUnmatchedAttendance() {
   const idx = dashMemberIndex();
   const set = {};
   readAttendance().forEach(r => {
     const id = r.memberId || dashResolveMemberId(r.memberName, idx);
-    if (!id && r.memberName) set[r.memberName] = (set[r.memberName] || 0) + 1;
+    if (id || !r.memberName) return;
+    if (idx.ignored[r.memberName.toLowerCase().trim()]) return;
+    set[r.memberName] = (set[r.memberName] || 0) + 1;
   });
   return Object.keys(set)
     .map(n => ({ name: n, count: set[n] }))
     .sort((a, b) => b.count - a.count);
+}
+
+// Merk et umatchet oppmøte-navn som tidligere medlem (sluttet) — eller angre.
+// Da forsvinner det fra avstemmingen uten å kobles til noen i registeret.
+function dashIgnoreName(name, on) {
+  const low = String(name || '').trim().toLowerCase();
+  if (!low) throw new Error('name kreves');
+  let list = [];
+  try { list = JSON.parse(dashGetMeta().attendanceIgnored || '[]') || []; } catch (e) { list = []; }
+  const setL = {};
+  list.forEach(n => { setL[String(n).toLowerCase()] = true; });
+  if (on === false) delete setL[low]; else setL[low] = true;
+  dashSetMeta({ attendanceIgnored: JSON.stringify(Object.keys(setL)) });
+  return { ignored: on !== false };
 }
 
 // Manuell kobling: bind et oppmøte-navn til et medlem. Lagrer alias (så
@@ -527,6 +549,48 @@ function dashImportWeekAttendance(events) {
   return { matched: matched, created: created, checkins: res.count, unmatchedMembers: res.unmatched || 0 };
 }
 
+// Kalenderdata for dashboardet: loggede + planlagte økter + trenere.
+// Skriving går via de eksisterende create/update/deleteSession|Planned.
+function dashCalendar() {
+  return {
+    sessions: readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow),
+    planned: readSheet(SHEET_NAMES.planned, PLANNED_COLS, parsePlannedRow),
+    trainers: readSheet(SHEET_NAMES.trainers, TRAINER_COLS, parseTrainerRow),
+  };
+}
+
+// Tema-balanse: fordeling av loggede økter på grupper og temaer (tags),
+// for hele perioden og siste 90 dager — så trenerne ser hva som er over-
+// eller underdekket. Kun økter med innhold (tittel/tags) teller som logget.
+function dashThemes() {
+  const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const groups = {}, tagsAll = {}, tagsRecent = {};
+  let logged = 0, recentLogged = 0;
+  sessions.forEach(s => {
+    if (!s.date) return;
+    const recent = s.date >= cutoff;
+    const g = s.group || 'ukjent';
+    const gg = groups[g] || (groups[g] = { group: g, sessions: 0, recent: 0, checkins: 0 });
+    gg.sessions++;
+    if (recent) gg.recent++;
+    if (s.attendance != null && s.attendance !== '') gg.checkins += Number(s.attendance);
+    const hasContent = (s.tags && s.tags.length) || s.title;
+    if (hasContent) { logged++; if (recent) recentLogged++; }
+    (s.tags || []).forEach(t => {
+      tagsAll[t] = (tagsAll[t] || 0) + 1;
+      if (recent) tagsRecent[t] = (tagsRecent[t] || 0) + 1;
+    });
+  });
+  const toArr = (o) => Object.keys(o).map(k => ({ tag: k, sessions: o[k] })).sort((a, b) => b.sessions - a.sessions);
+  return {
+    groups: Object.keys(groups).map(k => groups[k]).sort((a, b) => b.sessions - a.sessions),
+    tags: toArr(tagsAll),
+    tagsRecent: toArr(tagsRecent),
+    totalSessions: sessions.length, logged: logged, recentLogged: recentLogged, since: cutoff,
+  };
+}
+
 // Mandag (ukestart) for en YYYY-MM-DD-dato — samme nøkkelformat som det
 // historiske weeklyAttendance, så live-uker kan flettes rett inn.
 function dashMonday(ymdStr) {
@@ -568,6 +632,9 @@ function dashLiveOppmote() {
   const idx = dashMemberIndex();
   const roster = {};
   rosterLite().forEach(m => { roster[m.id] = m; });
+  // «Mest dedikerte» = nåværende medlemmer, talt fra faktiske oppmøte-rader.
+  // Umatchede navn (typisk tidligere medlemmer) holdes utenfor leaderboarden,
+  // men telles som unmatched (med mindre de er merket som sluttet).
   const byMember = {};
   let unmatched = 0;
   attRows.forEach(a => {
@@ -575,12 +642,14 @@ function dashLiveOppmote() {
     const s = sById[a.sessionId];
     const date = s ? s.date : '';
     const id = a.memberId || dashResolveMemberId(a.memberName, idx);
-    if (!id) unmatched++;
-    const key = id || ('navn:' + a.memberName.toLowerCase());
-    const rm = id ? roster[id] : null;
+    if (!id) {
+      if (!idx.ignored[a.memberName.toLowerCase().trim()]) unmatched++;
+      return;
+    }
+    const rm = roster[id];
     let navn = rm ? rm.navn : a.memberName;
     if (rm && rm.minor) navn = String(navn).split(/\s+/)[0] || 'Medlem';
-    const e = byMember[key] || (byMember[key] = { id: id || '', navn: navn, deltatt: 0, sist: '' });
+    const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
     if (date > e.sist) e.sist = date;
   });
