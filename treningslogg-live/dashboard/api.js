@@ -140,6 +140,7 @@ window.DASH_API = (function () {
     reconcileAttendance() { return post({ action: 'reconcileAttendance' }); },
     unmatchedAttendance() { return get('dashUnmatched'); },
     assignMember(name, memberId) { return post({ action: 'dashAssignMember', name, memberId }); },
+    importWeekAttendance(events) { return post({ action: 'dashImportWeekAttendance', events }); },
     // months: { 'YYYY-MM': { netto, brutto, avgifter, antall, byKategori } } — styre-only.
     importOkonomi(months) { return okPost({ action: 'dashImportOkonomi', months }); },
 

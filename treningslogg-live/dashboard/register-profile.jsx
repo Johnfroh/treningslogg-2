@@ -224,12 +224,28 @@ function MemberProfile({ member, onClose }){
 
         {/* Attendance */}
         <div className="so-card">
-          <div className="so-card-h"><span>Oppmøte</span></div>
+          <div className="so-card-h"><span>Oppmøte & deltagelse</span></div>
           <dl className="kv">
             <div><dt>Registrerte oppmøter</dt><dd><strong style={{color:'var(--accent)'}}>{fmtN(member.oppmote.checkins)}</strong></dd></div>
             {member.oppmote.pct!=null && <div><dt>Oppmøteandel</dt><dd>{fmtPct(member.oppmote.pct)}</dd></div>}
             <div><dt>Sist sett</dt><dd>{fmtDate(member.oppmote.sisteOppmote)}</dd></div>
           </dl>
+          {member.oppmote.recent && member.oppmote.recent.length>0 && (
+            <div style={{marginTop:14}}>
+              <div className="kv-h">Siste økter</div>
+              <div className="attend-list">
+                {member.oppmote.recent.map((s,i)=>(
+                  <div key={i} className="attend-row" style={{display:'flex',justifyContent:'space-between',gap:10,padding:'6px 0',borderTop:i?'1px solid var(--border)':'none',fontSize:12.5}}>
+                    <span style={{minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {s.group && <span className="tag" style={{marginRight:6,textTransform:'capitalize'}}>{s.group}</span>}
+                      {s.title || <span className="muted">økt uten tittel</span>}
+                    </span>
+                    <span className="muted" style={{whiteSpace:'nowrap'}}>{fmtDate(s.date)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact + guardians — skjult for mindreårige (personvern) */}

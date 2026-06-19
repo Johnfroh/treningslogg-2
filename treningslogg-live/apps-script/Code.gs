@@ -118,6 +118,7 @@ function handle(e, method) {
       case 'reconcileAttendance': return json({ ok: true, data: reconcileAttendance() });
       case 'dashUnmatched':     return json({ ok: true, data: dashUnmatchedAttendance() });
       case 'dashAssignMember':  return json({ ok: true, data: dashAssignMember(body.name, body.memberId) });
+      case 'dashImportWeekAttendance': return json({ ok: true, data: dashImportWeekAttendance(body.events) });
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
@@ -460,6 +461,72 @@ function dashList() {
   return { members: dashReadMembers(), meta: dashGetMeta(), live: dashLiveOppmote() };
 }
 
+// Per-medlem deltagelse fra attendance↔sessions, nøklet på memberId.
+// Brukes til å vise oppmøte + siste økter (med innhold) på medlemsprofilen.
+function dashAttendanceByMember() {
+  const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
+  const sById = {};
+  sessions.forEach(s => { sById[s.id] = s; });
+  const idx = dashMemberIndex();
+  const byId = {};
+  readAttendance().forEach(a => {
+    const id = a.memberId || dashResolveMemberId(a.memberName, idx);
+    if (!id) return;
+    const s = sById[a.sessionId];
+    const date = s ? s.date : '';
+    const e = byId[id] || (byId[id] = { checkins: 0, sist: '', _s: [] });
+    e.checkins++;
+    if (date > e.sist) e.sist = date;
+    if (s) e._s.push({ date: s.date, group: s.group, title: s.title });
+  });
+  Object.keys(byId).forEach(id => {
+    const e = byId[id];
+    e.recent = e._s.sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 12);
+    delete e._s;
+  });
+  return byId;
+}
+
+// Ukentlig oppmøte-opplastning (Spond) — matcher mot loggede økter på
+// dato+gruppe (beholder innholdet), oppretter minimal økt der ingen finnes,
+// og skriver attendance-rader koblet til dash_members. Idempotent pr. økt.
+// events: [{ date:'YYYY-MM-DD', time, group, title, attendees:[navn] }]
+function dashImportWeekAttendance(events) {
+  if (!Array.isArray(events)) throw new Error('events må være array');
+  const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
+  const byKey = {};
+  sessions.forEach(s => {
+    const k = s.date + '|' + s.group;
+    (byKey[k] || (byKey[k] = [])).push(s);
+  });
+  let matched = 0, created = 0;
+  const rows = [];
+  events.forEach((ev, i) => {
+    const attendees = (ev.attendees || []).filter(Boolean);
+    if (!ev.date || !ev.group) return;
+    const k = ev.date + '|' + ev.group;
+    let sess = (byKey[k] && byKey[k][0]) || null;
+    if (sess) {
+      matched++;
+      // Oppdater oppmøtetallet på den loggede økta (innholdet røres ikke).
+      updateSession(sess.id, { attendance: attendees.length });
+    } else if (attendees.length) {
+      sess = createSession({
+        id: 's-' + Date.now() + '-' + i, // unik id selv ved flere i samme ms
+        date: ev.date, time: ev.time || '', group: ev.group, trainer: '',
+        title: ev.title || '', content: '', tags: [], attendance: attendees.length,
+      });
+      created++;
+      (byKey[k] || (byKey[k] = [])).push(sess);
+    } else {
+      return;
+    }
+    attendees.forEach(name => rows.push({ sessionId: sess.id, memberName: name }));
+  });
+  const res = rows.length ? importAttendance(rows) : { count: 0, unmatched: 0 };
+  return { matched: matched, created: created, checkins: res.count, unmatchedMembers: res.unmatched || 0 };
+}
+
 // Mandag (ukestart) for en YYYY-MM-DD-dato — samme nøkkelformat som det
 // historiske weeklyAttendance, så live-uker kan flettes rett inn.
 function dashMonday(ymdStr) {
@@ -564,12 +631,13 @@ function dashReadGradingGrouped() {
 
 function dashReadMembers() {
   const grouped = dashReadGradingGrouped();
+  const att = dashAttendanceByMember();
   return dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
     .filter(o => o.id !== '' && o.id != null)
-    .map(o => dashMemberObj(o, grouped[String(o.id)] || []));
+    .map(o => dashMemberObj(o, grouped[String(o.id)] || [], att[String(o.id)] || null));
 }
 
-function dashMemberObj(o, events) {
+function dashMemberObj(o, events, att) {
   let history = events.map(e => ({
     id: String(e.eventId || ''),
     date: ymd(e.date),
@@ -611,11 +679,18 @@ function dashMemberObj(o, events) {
     poststed: String(o.poststed || ''),
     minor: o.minor === true || o.minor === 'true' || o.minor === 1,
     foresatte: [],
-    oppmote: {
-      checkins: o.oppmoteCheckins === '' || o.oppmoteCheckins == null ? 0 : Number(o.oppmoteCheckins),
-      pct: o.oppmotePct === '' || o.oppmotePct == null ? null : Number(o.oppmotePct),
-      sisteOppmote: o.oppmoteSiste ? ymd(o.oppmoteSiste) : null,
-    },
+    oppmote: (function () {
+      // Denormalisert (fra roster-import) vs. faktiske attendance-rader.
+      // Bruk den faktiske der den finnes — da stemmer profilen med oppmøtet.
+      const denCheckins = o.oppmoteCheckins === '' || o.oppmoteCheckins == null ? 0 : Number(o.oppmoteCheckins);
+      const denSiste = o.oppmoteSiste ? ymd(o.oppmoteSiste) : null;
+      return {
+        checkins: att && att.checkins ? att.checkins : denCheckins,
+        pct: o.oppmotePct === '' || o.oppmotePct == null ? null : Number(o.oppmotePct),
+        sisteOppmote: att && att.sist ? att.sist : denSiste,
+        recent: att && att.recent ? att.recent : [],
+      };
+    })(),
     grading: { current: { belt: curBelt, stripes: curStripes, since: curSince }, history: history },
   };
 }

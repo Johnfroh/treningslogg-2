@@ -46,7 +46,9 @@ async function inflateRaw(comp){
   const out=new Uint8Array(total); let off=0; for(const c of chunks){out.set(c,off);off+=c.length;}
   return new TextDecoder().decode(out);
 }
-async function parseXlsx(buf){
+// Rå-parser: returnerer alle rader som objekter {0:val,1:val,...,num:{idx:n}}.
+// Delt mellom medlemsimport (roster) og oppmøteimport (rutenett).
+async function parseXlsxRaw(buf){
   const bytes=new Uint8Array(buf), dvv=new DataView(buf);
   let p=-1; for(let i=bytes.length-22;i>=0;i--){ if(bytes[i]===0x50&&bytes[i+1]===0x4b&&bytes[i+2]===0x05&&bytes[i+3]===0x06){p=i;break;} }
   const cdOffset=dvv.getUint32(p+16,true), cdCount=dvv.getUint16(p+10,true);
@@ -66,9 +68,13 @@ async function parseXlsx(buf){
   const rows=[...sheet.matchAll(/<row[^>]*>(.*?)<\/row>/gs)].map(r=>r[1]);
   const colIdx=ls=>{let n=0;for(const ch of ls)n=n*26+(ch.charCodeAt(0)-64);return n-1;};
   function parseRow(r){const cells=[...r.matchAll(/<c r="([A-Z]+)\d+"([^>]*)>(.*?)<\/c>/gs)];const out={num:{}};for(const c of cells){const idx=colIdx(c[1]);const isStr=/t="s"/.test(c[2]);const v=(c[3].match(/<v>(.*?)<\/v>/s)||[])[1];if(v===undefined){out[idx]='';continue;}if(isStr){out[idx]=strings[parseInt(v)];}else{out[idx]=v;out.num[idx]=parseFloat(v);}}return out;}
+  return rows.map(parseRow);
+}
+async function parseXlsx(buf){
+  const parsed=await parseXlsxRaw(buf);
   const members=[];
-  for(let i=1;i<rows.length;i++){
-    const o2=parseRow(rows[i]);
+  for(let i=1;i<parsed.length;i++){
+    const o2=parsed[i];
     const fornavn=(o2[3]||'').trim(), etternavn=(o2[4]||'').trim();
     if(!fornavn&&!etternavn) continue;
     let innmSerial=null; for(let c=11;c<=23;c++){ if(o2.num[c]!=null&&o2.num[c]>=41000&&o2.num[c]<=47200){innmSerial=o2.num[c];break;} }
@@ -136,4 +142,4 @@ async function parseMemberFile(file){
   return parseCsv(new TextDecoder().decode(b));
 }
 
-Object.assign(window, { parseMemberFile });
+Object.assign(window, { parseMemberFile, parseXlsxRaw, serialToISOimp });
