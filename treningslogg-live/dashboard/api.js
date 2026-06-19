@@ -143,6 +143,14 @@ window.DASH_API = (function () {
     ignoreName(name, on) { return post({ action: 'dashIgnoreName', name, on }); },
     importWeekAttendance(events) { return post({ action: 'dashImportWeekAttendance', events }); },
     fetchThemes() { return get('dashThemes'); },
+    // Kalender + øktlogging (samme backend-handlinger som trener-appen).
+    fetchCalendar() { return get('dashCalendar'); },
+    createSession(payload) { return post({ action: 'createSession', payload }); },
+    updateSession(id, payload) { return post({ action: 'updateSession', id, payload }); },
+    deleteSession(id) { return post({ action: 'deleteSession', id }); },
+    createPlanned(payload) { return post({ action: 'createPlanned', payload }); },
+    updatePlanned(id, payload) { return post({ action: 'updatePlanned', id, payload }); },
+    deletePlanned(id) { return post({ action: 'deletePlanned', id }); },
     // months: { 'YYYY-MM': { netto, brutto, avgifter, antall, byKategori } } — styre-only.
     importOkonomi(months) { return okPost({ action: 'dashImportOkonomi', months }); },
 

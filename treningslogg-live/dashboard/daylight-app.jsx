@@ -25,6 +25,7 @@ function hexA(hex, a) {
 
 const TABS = [
   { id: 'oversikt', label: 'Oversikt' },
+  { id: 'kalender', label: 'Kalender' },
   { id: 'register', label: 'Medlemmer' },
   { id: 'statistikk', label: 'Medlemsstatistikk' },
   { id: 'oppmote', label: 'Oppmøte' },
@@ -210,6 +211,7 @@ function App() {
           </div>
         </div>
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
+        {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
         {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre}/>}
@@ -573,7 +575,7 @@ function ThemeBars({ keys, allMap, recentMap, color }){
         return (
           <div key={k} className="bar-row" style={{display:'grid',gridTemplateColumns:'120px 1fr auto',gap:10,alignItems:'center',padding:'5px 0'}}>
             <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.12em'}}>{k}</span>
-            <div className="meter" style={{background:'var(--surface-2,rgba(0,0,0,.05))',height:14,borderRadius:7,overflow:'hidden'}}>
+            <div className="meter" style={{background:'var(--bar-bg)',height:14,borderRadius:7,overflow:'hidden'}}>
               <div style={{width:(v/max)*100+'%',background:color,height:'100%'}}/>
             </div>
             <span className="tabular" style={{fontSize:12,minWidth:64,textAlign:'right'}}>{v} <span className="dim">· {r} siste 90d</span></span>

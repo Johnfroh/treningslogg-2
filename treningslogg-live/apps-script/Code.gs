@@ -121,6 +121,7 @@ function handle(e, method) {
       case 'dashImportWeekAttendance': return json({ ok: true, data: dashImportWeekAttendance(body.events) });
       case 'dashIgnoreName':    return json({ ok: true, data: dashIgnoreName(body.name, body.on) });
       case 'dashThemes':        return json({ ok: true, data: dashThemes() });
+      case 'dashCalendar':      return json({ ok: true, data: dashCalendar() });
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
@@ -546,6 +547,16 @@ function dashImportWeekAttendance(events) {
   });
   const res = rows.length ? importAttendance(rows) : { count: 0, unmatched: 0 };
   return { matched: matched, created: created, checkins: res.count, unmatchedMembers: res.unmatched || 0 };
+}
+
+// Kalenderdata for dashboardet: loggede + planlagte økter + trenere.
+// Skriving går via de eksisterende create/update/deleteSession|Planned.
+function dashCalendar() {
+  return {
+    sessions: readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow),
+    planned: readSheet(SHEET_NAMES.planned, PLANNED_COLS, parsePlannedRow),
+    trainers: readSheet(SHEET_NAMES.trainers, TRAINER_COLS, parseTrainerRow),
+  };
 }
 
 // Tema-balanse: fordeling av loggede økter på grupper og temaer (tags),
