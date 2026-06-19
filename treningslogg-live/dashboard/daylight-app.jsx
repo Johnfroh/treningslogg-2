@@ -85,6 +85,29 @@ function buildAarsrapport(kpis, members, okonomi, isStyre){
   return L.join('\n');
 }
 
+// ── Live oppmøte: flett trener-appens loggede økter med historisk grunnlag ──
+function histMaxWeek(kpis){
+  const ks = Object.keys((kpis && kpis.weeklyAttendance) || {});
+  if(!ks.length) return '';
+  ks.sort();
+  return ks[ks.length - 1];
+}
+// Live check-ins ETTER det historiske grunnlaget (unngår dobbelttelling).
+function liveSince(kpis, live){
+  if(!live || !live.weekly) return { total: 0, weekly: {} };
+  const cut = histMaxWeek(kpis);
+  const weekly = {}; let total = 0;
+  Object.keys(live.weekly).forEach(wk => { if(wk > cut){ weekly[wk] = live.weekly[wk]; total += live.weekly[wk]; } });
+  return { total, weekly };
+}
+// Historisk ukestrend + live-uker, sortert — for «Klubbens puls».
+function blendedWeeklyEntries(kpis, live){
+  const out = { ...((kpis && kpis.weeklyAttendance) || {}) };
+  const ls = liveSince(kpis, live).weekly;
+  Object.keys(ls).forEach(wk => { out[wk] = (out[wk] || 0) + ls[wk]; });
+  return Object.entries(out).sort((a,b) => a[0].localeCompare(b[0]));
+}
+
 // Slå sammen statiske KPI-er (oppmøte/historikk fra kpis.json) med live
 // medlems-aggregater regnet fra registeret. Øyeblikksbilde-feltene
 // (antall, kategori, kjønn, belte, alder, pris/MRR) overstyres med live-data
@@ -120,7 +143,7 @@ function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState('oversikt');
   const staticKpis = useKpis();
-  const { members, meta, access, okonomi } = useMembers();
+  const { members, meta, access, okonomi, live } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
   const lastUpdated = (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated);
@@ -185,10 +208,10 @@ function App() {
             </button>
           </div>
         </div>
-        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre}/>}
+        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live}/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts}/>}
         {effTab!=='register' && <DataFooter kpis={kpis} />}
@@ -277,8 +300,9 @@ function Tile({ title, corner, children, style }) {
   );
 }
 
-function Oversikt({ kpis, charts, isStyre }) {
+function Oversikt({ kpis, charts, isStyre, live }) {
   const t = kpis.totals;
+  const liveAdd = liveSince(kpis, live).total;
   return (
     <div>
       <div className="grid-4">
@@ -287,13 +311,13 @@ function Oversikt({ kpis, charts, isStyre }) {
           ? <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta={`ARR ≈ ${fmtN(t.arr)} kr`} deltaClass="amber" accent="green"/>
           : <KPI label="Nye i 2026" value={kpis.signupsPerYear['2026']||0} delta="nye medlemskap" accent="green"/>}
         <KPI label="Snitt medlemstid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" delta="aktive medlemmer" accent="blue"/>
-        <KPI label="Total check-ins" value={fmtN(t.totalCheckins)} delta={`${t.sessionsTracked} events · jan 2023 → apr 2026`} accent="coral"/>
+        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + liveAdd)} delta={liveAdd>0 ? `historisk + ${fmtN(liveAdd)} live` : `${t.sessionsTracked} events`} accent="coral"/>
       </div>
 
-      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · jan 2023 → uke 18/2026</span></div>
+      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
       <Tile title="oppmøte pr. uke" corner="weekly">
         <Spark
-          data={Object.entries(kpis.weeklyAttendance).sort((a,b)=>a[0].localeCompare(b[0]))}
+          data={blendedWeeklyEntries(kpis, live)}
           accessor={d => d[1]} height={140}
           color="var(--accent)" fill="var(--accent-soft)"
         />
@@ -440,8 +464,9 @@ function Medlemmer({ kpis, charts }) {
   );
 }
 
-function Oppmote({ kpis, charts }) {
+function Oppmote({ kpis, charts, live }) {
   const t = kpis.totals;
+  const ls = liveSince(kpis, live);
   function palette(intensity) {
     if (intensity === 0) return 'rgba(255,255,255,.03)';
     return `rgba(123,110,246,${0.1 + intensity * 0.85})`;
@@ -449,19 +474,48 @@ function Oppmote({ kpis, charts }) {
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Total check-ins" value={fmtN(t.totalCheckins)} delta="jan 2023 → apr 2026" accent="amber"/>
-        <KPI label="Økter holdt" value={fmtN(t.sessionsTracked)} delta="2023 → i dag" accent="green"/>
+        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + ls.total)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : 'jan 2023 → apr 2026'} accent="amber"/>
+        <KPI label="Økter holdt" value={fmtN(t.sessionsTracked)} delta="historisk grunnlag" accent="green"/>
         <KPI label="Snitt pr. økt" value={(t.totalCheckins/t.sessionsTracked).toFixed(1)} delta="deltagere" accent="blue"/>
         <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt`} deltaClass="amber" accent="coral"/>
       </div>
 
-      <div className="section-h">Heatmap<span className="meta">snitt oppmøte · ukedag × time</span></div>
+      {live && live.sessions > 0 && (
+        <>
+        <div className="section-h">Live — logget i appen<span className="meta">oppdateres løpende · etter {histMaxWeek(kpis)}</span></div>
+        <div className="grid-4">
+          <KPI label="Live check-ins" value={fmtN(ls.total)} delta="nye siden grunnlaget" deltaClass="up" accent="green"/>
+          <KPI label="Økter logget" value={fmtN(live.sessions)} delta="i trener-appen" accent="amber"/>
+          <KPI label="Siste økt" value={live.maxDate || '—'} accent="blue"/>
+          <KPI label="Totalt m/ live" value={fmtN(t.totalCheckins + ls.total)} delta="historisk + live" accent="coral"/>
+        </div>
+        {live.leaderboard && live.leaderboard.length > 0 && (
+          <Tile title="mest aktive (live)" corner="logget" style={{marginTop:16}}>
+            <table className="t">
+              <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist</th></tr></thead>
+              <tbody>
+                {live.leaderboard.slice(0,10).map((m,i)=>(
+                  <tr key={m.navn}>
+                    <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
+                    <td><strong>{m.navn}</strong></td>
+                    <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
+                    <td className="num dim">{m.sist || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Tile>
+        )}
+        </>
+      )}
+
+      <div className="section-h">Heatmap<span className="meta">historisk (Spond) · ukedag × time</span></div>
       <Tile title="når trener vi" corner="weekly">
         <Heatmap grid={charts.heatGrid} hours={charts.allHours} max={charts.maxAtt} palette={palette}/>
         <div className="dim" style={{fontSize:11, marginTop:12}}>Sterkeste pulser: torsdag 18 (1 071 estimerte check-ins) og tirsdag 18 (1 033) er klubbens hjerteslag — Erfaren-økter. Helga lever på Åpen Matte: lørdag og søndag 12 (~651 hver). Klokkeslett er estimert fra klassetype.</div>
       </Tile>
 
-      <div className="section-h">Topp 10 mest dedikerte</div>
+      <div className="section-h">Topp 10 mest dedikerte<span className="meta">historisk (Spond)</span></div>
       <Tile title="leaderboard" corner="dedicated">
         <table className="t">
           <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Inviterte</th><th className="num">%</th></tr></thead>
@@ -484,9 +538,9 @@ function Oppmote({ kpis, charts }) {
         <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
       </Tile>
 
-      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte over tid</span></div>
+      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
       <Tile title="weekly attendance" corner="long-range">
-        <Spark data={Object.entries(kpis.weeklyAttendance).sort((a,b)=>a[0].localeCompare(b[0]))} accessor={d=>d[1]} height={140} color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
+        <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140} color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
       </Tile>
     </div>
   );

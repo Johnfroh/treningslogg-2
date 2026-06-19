@@ -114,6 +114,7 @@ window.DASH_API = (function () {
       return get('dashList').then(d => ({
         members: maskMembers(d.members),
         meta: d.meta || {},
+        live: d.live || null,
       }));
     },
     // Innlogget identitet + om e-posten er på styre-lista. Robust: feiler den

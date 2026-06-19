@@ -6,7 +6,11 @@ const KAT_FILTERS = ['Alle','Voksen','Student','Junior','Knøtte','Introkurs','A
 
 function beltRank(belt){
   const m = beltMeta(belt);
-  return (m.adult ? 1000 : 0) + m.order; // adults above juniors; higher belt = higher
+  // Voksenbelter: Hvit=100, Blå=101, Lilla=102, Brun=103, Sort=104, Korall=105.
+  if(m.adult) return 100 + m.order;
+  // Juniorbelter sorteres OVER hvit, men UNDER blå — egen rekkefølge komprimert
+  // inn i intervallet 100–101 (grønn høyest, grå lavest).
+  return 100 + 0.001 + m.order * 0.01;
 }
 
 function Register(){

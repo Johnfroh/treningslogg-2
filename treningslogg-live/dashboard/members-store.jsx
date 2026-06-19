@@ -48,6 +48,7 @@ function MembersProvider({ children }) {
   const [members, setMembers] = React.useState(null);
   const [okonomi, setOkonomi] = React.useState(null);
   const [meta, setMeta] = React.useState({});
+  const [live, setLive] = React.useState(null);
   const [access, setAccess] = React.useState({ email: null, isStyre: false, configured: false });
   const [loading, setLoading] = React.useState(false);
 
@@ -66,6 +67,7 @@ function MembersProvider({ children }) {
       ]).then(([dash, months]) => {
         setMembers(dash.members);
         setMeta(dash.meta || {});
+        setLive(dash.live || null);
         setOkonomi({ months, keys: Object.keys(months).sort() });
       });
     })
@@ -161,7 +163,7 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, access, loading } }, children);
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, access, loading } }, children);
 }
 
 function useMembers() { return useContext(MembersCtx); }
