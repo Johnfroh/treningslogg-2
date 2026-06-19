@@ -136,6 +136,10 @@ window.DASH_API = (function () {
     undoLast(memberId) { return post({ action: 'dashUndoLast', memberId }); },
     // members: ferdig sammenslått register (full, umaskert — lagres bak Access).
     importRoster(members) { return post({ action: 'dashImportRoster', members }); },
+    // Oppmøte-avstemming (identitetsbro mot dash_members).
+    reconcileAttendance() { return post({ action: 'reconcileAttendance' }); },
+    unmatchedAttendance() { return get('dashUnmatched'); },
+    assignMember(name, memberId) { return post({ action: 'dashAssignMember', name, memberId }); },
     // months: { 'YYYY-MM': { netto, brutto, avgifter, antall, byKategori } } — styre-only.
     importOkonomi(months) { return okPost({ action: 'dashImportOkonomi', months }); },
 

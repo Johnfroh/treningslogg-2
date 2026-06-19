@@ -44,7 +44,7 @@ const SESSION_COLS = ['id','date','time','group','trainer','title','content','ta
 const PLANNED_COLS = ['id','date','time','group','trainer','title'];
 const TRAINER_COLS = ['id','name','active'];
 const MEMBER_COLS  = ['name','aliases','active'];
-const ATTENDANCE_COLS = ['sessionId','memberName','importedAt'];
+const ATTENDANCE_COLS = ['sessionId','memberName','importedAt','memberId'];
 // 'user'-kolonnen er tom i single-user-modus, klar for skalering når
 // flere brukere kommer på /fotball. 'program'-kolonna noterer hvilket
 // program raden tilhører (ungdom/junior/rg). Tom = ungdom (legacy).
@@ -114,6 +114,10 @@ function handle(e, method) {
       case 'dashGrade':         return json({ ok: true, data: dashGrade(body.events) });
       case 'dashUndoLast':      return json({ ok: true, data: dashUndoLast(body.memberId) });
       case 'dashImportRoster':  return json({ ok: true, data: dashImportRoster(body.members) });
+      case 'rosterLite':        return json({ ok: true, data: rosterLite() });
+      case 'reconcileAttendance': return json({ ok: true, data: reconcileAttendance() });
+      case 'dashUnmatched':     return json({ ok: true, data: dashUnmatchedAttendance() });
+      case 'dashAssignMember':  return json({ ok: true, data: dashAssignMember(body.name, body.memberId) });
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
@@ -147,6 +151,7 @@ function readAttendance() {
     sessionId: String(row[0] || ''),
     memberName: String(row[1] || ''),
     importedAt: safeIso(row[2]) || (row[2] ? String(row[2]) : null),
+    memberId: String(row[3] || ''),
   })).filter(r => r.sessionId && r.memberName);
 }
 
@@ -282,7 +287,7 @@ function deleteRow(sheetName, id) {
 
 function importAttendance(rows) {
   if (!Array.isArray(rows)) throw new Error('rows må være array');
-  if (rows.length === 0) return { count: 0, newMembers: 0 };
+  if (rows.length === 0) return { count: 0, newMembers: 0, unmatched: 0 };
   const sh = sheet(SHEET_NAMES.attendance);
   const now = new Date().toISOString();
 
@@ -299,8 +304,15 @@ function importAttendance(rows) {
     }
   }
 
-  // Skriv nye rader
-  const data = rows.map(r => [String(r.sessionId), String(r.memberName), r.importedAt || now]);
+  // Skriv nye rader — knytt hvert oppmøte til et dash_members-id (identitetsbro).
+  // Klienten kan sende memberId direkte; ellers slår vi opp navnet i rosteret.
+  const idx = dashMemberIndex();
+  let unmatched = 0;
+  const data = rows.map(r => {
+    const memberId = String(r.memberId || '') || dashResolveMemberId(r.memberName, idx);
+    if (!memberId) unmatched++;
+    return [String(r.sessionId), String(r.memberName), r.importedAt || now, memberId];
+  });
   const startRow = sh.getLastRow() + 1;
   sh.getRange(startRow, 1, data.length, ATTENDANCE_COLS.length).setValues(data);
 
@@ -324,7 +336,122 @@ function importAttendance(rows) {
     memberSh.getRange(memberSh.getLastRow() + 1, 1, memberData.length, MEMBER_COLS.length).setValues(memberData);
   }
 
-  return { count: data.length, newMembers: newNames.length };
+  return { count: data.length, newMembers: newNames.length, unmatched: unmatched };
+}
+
+// ─── Identitetsbro: oppmøte ↔ dash_members ─────────────────────────
+// dash_members.id er en slug av navnet, så oppmøte-navn kan slås opp
+// deterministisk. Manuelle koblinger lagres som aliaser i dash_meta.
+function dashSlug(s) {
+  return String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function dashMemberIndex() {
+  const rows = dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
+    .filter(o => o.id !== '' && o.id != null);
+  const byId = {}, bySlug = {}, byNavn = {};
+  rows.forEach(o => {
+    const id = String(o.id);
+    byId[id] = true;
+    const navn = String(o.navn || '');
+    if (navn) { bySlug[dashSlug(navn)] = id; byNavn[navn.toLowerCase().trim()] = id; }
+  });
+  let aliases = {};
+  try { aliases = JSON.parse(dashGetMeta().attendanceAliases || '{}'); } catch (e) { aliases = {}; }
+  return { byId: byId, bySlug: bySlug, byNavn: byNavn, aliases: aliases };
+}
+
+function dashResolveMemberId(name, idx) {
+  const n = String(name || '').trim();
+  if (!n) return '';
+  const low = n.toLowerCase();
+  if (idx.aliases[low]) return String(idx.aliases[low]);
+  const slug = dashSlug(n);
+  if (idx.bySlug[slug]) return idx.bySlug[slug];
+  if (idx.byNavn[low]) return idx.byNavn[low];
+  if (idx.byId[low]) return low; // navnet ER allerede en id
+  return '';
+}
+
+// Lett roster for trener-appens oppmøte-velger (Fase 2) og avstemming.
+function rosterLite() {
+  return dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
+    .filter(o => o.id !== '' && o.id != null)
+    .map(o => ({
+      id: String(o.id),
+      navn: String(o.navn || ''),
+      kategori: String(o.kategori || ''),
+      minor: o.minor === true || o.minor === 'true' || o.minor === 1,
+    }));
+}
+
+// Backfill memberId på alle eksisterende oppmøte-rader. Kjøres manuelt én
+// gang fra editoren etter deploy (og igjen ved behov). Idempotent.
+function reconcileAttendance() {
+  const sh = sheet(SHEET_NAMES.attendance);
+  sh.getRange(1, 1, 1, ATTENDANCE_COLS.length).setValues([ATTENDANCE_COLS]); // sikre header
+  const last = sh.getLastRow();
+  if (last < 2) return { total: 0, matched: 0, unmatched: 0, unmatchedNames: [] };
+  const idx = dashMemberIndex();
+  const rng = sh.getRange(2, 1, last - 1, ATTENDANCE_COLS.length);
+  const vals = rng.getValues();
+  let matched = 0, unmatched = 0;
+  const unmatchedSet = {};
+  vals.forEach(row => {
+    const name = String(row[1] || '');
+    let id = String(row[3] || '');
+    if (!id) id = dashResolveMemberId(name, idx);
+    if (id) { row[3] = id; matched++; }
+    else { unmatched++; if (name) unmatchedSet[name] = (unmatchedSet[name] || 0) + 1; }
+  });
+  rng.setValues(vals);
+  const unmatchedNames = Object.keys(unmatchedSet)
+    .map(n => ({ name: n, count: unmatchedSet[n] }))
+    .sort((a, b) => b.count - a.count);
+  return { total: vals.length, matched: matched, unmatched: unmatched, unmatchedNames: unmatchedNames };
+}
+
+// Liste over oppmøte-navn som ikke matcher et medlem (for avstemmings-UI).
+function dashUnmatchedAttendance() {
+  const idx = dashMemberIndex();
+  const set = {};
+  readAttendance().forEach(r => {
+    const id = r.memberId || dashResolveMemberId(r.memberName, idx);
+    if (!id && r.memberName) set[r.memberName] = (set[r.memberName] || 0) + 1;
+  });
+  return Object.keys(set)
+    .map(n => ({ name: n, count: set[n] }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// Manuell kobling: bind et oppmøte-navn til et medlem. Lagrer alias (så
+// framtidige importer treffer) og oppdaterer eksisterende rader.
+function dashAssignMember(name, memberId) {
+  const low = String(name || '').trim().toLowerCase();
+  if (!low || !memberId) throw new Error('name og memberId kreves');
+  let aliases = {};
+  try { aliases = JSON.parse(dashGetMeta().attendanceAliases || '{}'); } catch (e) { aliases = {}; }
+  aliases[low] = String(memberId);
+  dashSetMeta({ attendanceAliases: JSON.stringify(aliases) });
+  const sh = sheet(SHEET_NAMES.attendance);
+  const last = sh.getLastRow();
+  let updated = 0;
+  if (last >= 2) {
+    const rng = sh.getRange(2, 1, last - 1, ATTENDANCE_COLS.length);
+    const vals = rng.getValues();
+    vals.forEach(row => {
+      if (String(row[1] || '').trim().toLowerCase() === low) { row[3] = String(memberId); updated++; }
+    });
+    rng.setValues(vals);
+  }
+  return { updated: updated };
+}
+
+// Engangs-oppsett etter deploy: legg til memberId-kolonna + backfill.
+function _setupAttendanceMemberId() {
+  return reconcileAttendance();
 }
 
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
@@ -369,19 +496,31 @@ function dashLiveOppmote() {
     if (s.date > maxDate) maxDate = s.date;
   });
 
+  // Per-medlem leaderboard på memberId (faller tilbake til navn der id mangler).
+  // Mindreårige maskeres til fornavn, som ellers i dashboardet.
+  const idx = dashMemberIndex();
+  const roster = {};
+  rosterLite().forEach(m => { roster[m.id] = m; });
   const byMember = {};
+  let unmatched = 0;
   attRows.forEach(a => {
     if (!a.memberName) return;
     const s = sById[a.sessionId];
     const date = s ? s.date : '';
-    const e = byMember[a.memberName] || (byMember[a.memberName] = { navn: a.memberName, deltatt: 0, sist: '' });
+    const id = a.memberId || dashResolveMemberId(a.memberName, idx);
+    if (!id) unmatched++;
+    const key = id || ('navn:' + a.memberName.toLowerCase());
+    const rm = id ? roster[id] : null;
+    let navn = rm ? rm.navn : a.memberName;
+    if (rm && rm.minor) navn = String(navn).split(/\s+/)[0] || 'Medlem';
+    const e = byMember[key] || (byMember[key] = { id: id || '', navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
     if (date > e.sist) e.sist = date;
   });
   const leaderboard = Object.keys(byMember).map(k => byMember[k])
     .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
 
-  return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate };
+  return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).
