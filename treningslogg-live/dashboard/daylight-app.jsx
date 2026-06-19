@@ -375,21 +375,25 @@ function Oversikt({ kpis, charts, isStyre, live }) {
         <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
       </Tile>
 
-      <div className="section-h">Topp 5 mest dedikerte<span className="meta">flest registrerte oppmøter</span></div>
+      <div className="section-h">Topp 5 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
       <Tile title="leaderboard" corner="hot">
-        <table className="t">
-          <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Snitt %</th></tr></thead>
-          <tbody>
-            {kpis.leaderboard.slice(0,5).map((m,i)=>(
-              <tr key={m.navn}>
-                <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
-                <td><strong>{m.navn}</strong> {i===0 && <span className="tag amber">leder</span>}</td>
-                <td className="num"><span style={{color:'var(--amber)'}}>{m.deltatt}</span></td>
-                <td className="num">{fmtPct(m.pct)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {live && live.leaderboard && live.leaderboard.length > 0 ? (
+          <table className="t">
+            <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
+            <tbody>
+              {live.leaderboard.slice(0,5).map((m,i)=>(
+                <tr key={m.id || m.navn}>
+                  <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
+                  <td><strong>{m.navn}</strong> {i===0 && <span className="tag amber">leder</span>}</td>
+                  <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
+                  <td className="num dim">{fmtDate(m.sist)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen under Oppmøte-fanen.</div>
+        )}
       </Tile>
     </div>
   );
