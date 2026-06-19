@@ -330,7 +330,58 @@ function importAttendance(rows) {
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
 
 function dashList() {
-  return { members: dashReadMembers(), meta: dashGetMeta() };
+  return { members: dashReadMembers(), meta: dashGetMeta(), live: dashLiveOppmote() };
+}
+
+// Mandag (ukestart) for en YYYY-MM-DD-dato — samme nøkkelformat som det
+// historiske weeklyAttendance, så live-uker kan flettes rett inn.
+function dashMonday(ymdStr) {
+  const d = new Date(ymdStr + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  const dow = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  return d.toISOString().slice(0, 10);
+}
+
+// Live oppmøte fra trener-appens loggede økter (sessions + attendance).
+// Check-ins pr. økt = session.attendance hvis satt, ellers antall
+// attendance-rader. Brukes til å forlenge dashboardets historiske grunnlag.
+function dashLiveOppmote() {
+  const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
+  const attRows = readAttendance();
+  const sById = {};
+  sessions.forEach(s => { sById[s.id] = s; });
+  const namesBySession = {};
+  attRows.forEach(a => { (namesBySession[a.sessionId] || (namesBySession[a.sessionId] = [])).push(a.memberName); });
+
+  const weekly = {};
+  let total = 0;
+  let sessCount = 0;
+  let maxDate = '';
+  sessions.forEach(s => {
+    if (!s.date) return;
+    const names = namesBySession[s.id] || [];
+    const cnt = (s.attendance != null && s.attendance !== '') ? Number(s.attendance) : names.length;
+    if (cnt > 0) sessCount++;
+    total += cnt;
+    const wk = dashMonday(s.date);
+    if (wk) weekly[wk] = (weekly[wk] || 0) + cnt;
+    if (s.date > maxDate) maxDate = s.date;
+  });
+
+  const byMember = {};
+  attRows.forEach(a => {
+    if (!a.memberName) return;
+    const s = sById[a.sessionId];
+    const date = s ? s.date : '';
+    const e = byMember[a.memberName] || (byMember[a.memberName] = { navn: a.memberName, deltatt: 0, sist: '' });
+    e.deltatt++;
+    if (date > e.sist) e.sist = date;
+  });
+  const leaderboard = Object.keys(byMember).map(k => byMember[k])
+    .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
+
+  return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).
@@ -396,6 +447,12 @@ function dashMemberObj(o, events) {
   }
   history.sort((a, b) => a.date === b.date ? (a._seq - b._seq) : String(a.date).localeCompare(String(b.date)));
   const last = history[history.length - 1];
+  // Gjeldende belte tas fra den denormaliserte kolonna (settes ved gradering/
+  // import), IKKE fra dato-sortert historikk. Da trumfer beltegraden datoen —
+  // viktig fordi graderingsdato kan være før innmeldingsdato (Spond-bytte 2019/20).
+  const curBelt = o.beltCurrent ? String(o.beltCurrent) : last.belt;
+  const curStripes = o.beltCurrent ? Number(o.stripesCurrent || 0) : last.stripes;
+  const curSince = o.beltSince ? ymd(o.beltSince) : last.date;
   return {
     id: String(o.id),
     fornavn: String(o.fornavn || ''),
@@ -420,7 +477,7 @@ function dashMemberObj(o, events) {
       pct: o.oppmotePct === '' || o.oppmotePct == null ? null : Number(o.oppmotePct),
       sisteOppmote: o.oppmoteSiste ? ymd(o.oppmoteSiste) : null,
     },
-    grading: { current: { belt: last.belt, stripes: last.stripes, since: last.date }, history: history },
+    grading: { current: { belt: curBelt, stripes: curStripes, since: curSince }, history: history },
   };
 }
 
