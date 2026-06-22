@@ -49,12 +49,13 @@ async function parseAttendanceFile(file){
   return events.filter(e => e.attendees.length > 0);
 }
 
+const ATT_GROUPS = ['junior', 'gi', 'nogi', 'åpen matte'];
+
 function AttendanceImportModal({ onClose }){
   const { actions } = useMembers();
   const [busy, setBusy] = useAi(false);
   const [err, setErr] = useAi('');
-  const [events, setEvents] = useAi(null);
-  const [inclNonTraining, setInclNonTraining] = useAi(false);
+  const [events, setEvents] = useAi(null);   // [{date, group, title, training, include, attendees, ...}]
   const [drag, setDrag] = useAi(false);
   const [done, setDone] = useAi(null);
 
@@ -64,21 +65,25 @@ function AttendanceImportModal({ onClose }){
     try {
       const evs = await parseAttendanceFile(file);
       if(!evs.length) throw new Error('Fant ingen oppmøter i fila.');
-      setEvents(evs);
+      // include = importens gjetning (trening tas med, ikke-trening hoppes over) — kan overstyres per økt
+      setEvents(evs.map(e => ({ ...e, include: e.training })));
     } catch(e){ setErr(e.message || 'Kunne ikke lese fila.'); }
     setBusy(false);
   }
   function onDrop(e){ e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }
 
-  const selected = events ? events.filter(e => inclNonTraining || e.training) : [];
+  function setRow(i, patch){ setEvents(evs => evs.map((e,ix) => ix===i ? { ...e, ...patch } : e)); }
+  function setAllIncluded(on){ setEvents(evs => evs.map(e => ({ ...e, include: on }))); }
+
+  const selected = events ? events.filter(e => e.include) : [];
   const totalCheckins = selected.reduce((n,e)=>n+e.attendees.length, 0);
   const dates = selected.map(e=>e.date).sort();
-  const skipped = events ? events.length - selected.length : 0;
+  const allIncluded = events ? events.every(e => e.include) : false;
 
   async function apply(){
     setBusy(true); setErr('');
     try {
-      const payload = selected.map(({ training, ...e }) => e); // dropp intern flagg
+      const payload = selected.map(({ training, include, ...e }) => e); // dropp interne flagg
       const res = await actions.importWeekAttendance(payload);
       setDone(res);
     } catch(e){ setErr(e.message || 'Import feilet.'); }
@@ -132,16 +137,43 @@ function AttendanceImportModal({ onClose }){
         ) : (
           <div className="dlg-body">
             <div className="import-stats">
-              <div className="ist blue"><div className="n">{selected.length}</div><div className="l">Økter</div></div>
+              <div className="ist blue"><div className="n">{selected.length}</div><div className="l">Økter med</div></div>
               <div className="ist green"><div className="n">{totalCheckins}</div><div className="l">Oppmøter</div></div>
               <div className="ist"><div className="n">{dates.length? (dates[0]===dates[dates.length-1]? dates[0] : dates[0]+' → '+dates[dates.length-1]) : '—'}</div><div className="l">Periode</div></div>
             </div>
-            {skipped>0 && (
-              <label className="import-note" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-                <input type="checkbox" checked={inclNonTraining} onChange={e=>setInclNonTraining(e.target.checked)}/>
-                <span>Ta med {skipped} ikke-trening (dugnad, gradering, konkurranse …). Som standard hoppes disse over.</span>
-              </label>
-            )}
+            <div className="import-note" style={{marginBottom:10}}>
+              Kontroller hver økt før import: <strong>gruppe</strong> er gjettet fra klassenavnet og kan endres, og økter som ser ut som dugnad/gradering/konkurranse er forhåndsvalgt bort. Huk av «Med» for det som faktisk skal telles.
+            </div>
+            <div style={{maxHeight:300, overflowY:'auto', margin:'0 -4px 4px'}}>
+              <table className="t">
+                <thead>
+                  <tr>
+                    <th style={{width:34}}>
+                      <input type="checkbox" checked={allIncluded} title={allIncluded?'Fjern alle':'Velg alle'} onChange={e=>setAllIncluded(e.target.checked)}/>
+                    </th>
+                    <th>Dato</th>
+                    <th>Klasse (fra Spond)</th>
+                    <th>Gruppe</th>
+                    <th className="num">Antall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((e,i)=>(
+                    <tr key={i} style={{opacity: e.include?1:0.45}}>
+                      <td><input type="checkbox" checked={e.include} onChange={ev=>setRow(i,{include:ev.target.checked})}/></td>
+                      <td className="num" style={{textAlign:'left',whiteSpace:'nowrap'}}>{e.date}</td>
+                      <td><strong>{e.title}</strong>{!e.training && <span className="tag coral" style={{marginLeft:6}}>ikke-trening</span>}</td>
+                      <td>
+                        <select className="mini-select" value={e.group} onChange={ev=>setRow(i,{group:ev.target.value})}>
+                          {ATT_GROUPS.map(g=><option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </td>
+                      <td className="num">{e.attendees.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {err && <div className="import-err">{err}</div>}
             <div className="modal-foot">
               <button className="btn ghost" onClick={()=>{ setEvents(null); setErr(''); }}>Velg en annen fil</button>
