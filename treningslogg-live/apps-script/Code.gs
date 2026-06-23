@@ -546,6 +546,7 @@ function dashImportWeekAttendance(events) {
     attendees.forEach(name => rows.push({ sessionId: sess.id, memberName: name }));
   });
   const res = rows.length ? importAttendance(rows) : { count: 0, unmatched: 0 };
+  dashSetMeta({ attendanceImportedAt: new Date().toISOString() });
   return { matched: matched, created: created, checkins: res.count, unmatchedMembers: res.unmatched || 0 };
 }
 
@@ -616,6 +617,9 @@ function dashLiveOppmote() {
   let total = 0;
   let sessCount = 0;
   let maxDate = '';
+  // Bare ekte ISO-datoer teller for maxDate/«sist». Uten dette kan en rusk-/
+  // header-rad (f.eks. teksten «date») vinne, siden den sorteres etter ISO.
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   sessions.forEach(s => {
     if (!s.date) return;
     const names = namesBySession[s.id] || [];
@@ -624,7 +628,7 @@ function dashLiveOppmote() {
     total += cnt;
     const wk = dashMonday(s.date);
     if (wk) weekly[wk] = (weekly[wk] || 0) + cnt;
-    if (s.date > maxDate) maxDate = s.date;
+    if (ISO_DATE.test(s.date) && s.date > maxDate) maxDate = s.date;
   });
 
   // Per-medlem leaderboard på memberId (faller tilbake til navn der id mangler).
@@ -651,7 +655,7 @@ function dashLiveOppmote() {
     if (rm && rm.minor) navn = String(navn).split(/\s+/)[0] || 'Medlem';
     const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
-    if (date > e.sist) e.sist = date;
+    if (ISO_DATE.test(date) && date > e.sist) e.sist = date;
   });
   const leaderboard = Object.keys(byMember).map(k => byMember[k])
     .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
