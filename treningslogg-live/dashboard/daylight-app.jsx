@@ -44,6 +44,22 @@ function fmtDateTime(v){
     + ', ' + d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
 }
 
+// Ferskhet: nyeste av alle importer + siste loggede økt. Avgjør om brukeren
+// ser på live eller utdaterte tall. Grønn ≤7 dager, gul 8–21, rød >21.
+function freshnessInfo(meta, live, kpis){
+  const cands = [];
+  if(meta){ ['rosterImportedAt','okonomiImportedAt','attendanceImportedAt'].forEach(k=>{ if(meta[k]) cands.push(meta[k]); }); }
+  if(live && live.maxDate) cands.push(live.maxDate);
+  if(kpis && kpis.generated) cands.push(kpis.generated);
+  const times = cands.map(v=>new Date(v).getTime()).filter(t=>!isNaN(t));
+  if(!times.length) return { ts:null, days:null, level:'old' };
+  const ts = Math.max(...times);
+  const days = Math.floor((Date.now()-ts)/86400000);
+  const level = days<=7 ? 'fresh' : days<=21 ? 'stale' : 'old';
+  return { ts, days, level };
+}
+function fmtDayMonth(ts){ return new Date(ts).toLocaleDateString('nb-NO',{day:'numeric',month:'numeric'}); }
+
 // Nedlastbar årsrapport (tekst). Bygger på live medlems-aggregater + statisk
 // oppmøtegrunnlag; økonomidelen tas kun med for styre.
 function buildAarsrapport(kpis, members, okonomi, isStyre){
@@ -148,7 +164,7 @@ function App() {
   const { members, meta, access, okonomi, live } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
-  const lastUpdated = (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated);
+  const lastUpdated = (() => { const f = freshnessInfo(meta, live, kpis); return f.ts != null ? f.ts : ((meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated)); })();
 
   useEffect(() => {
     const r = document.documentElement.style;
@@ -200,7 +216,21 @@ function App() {
             <h1 className="h1">{tabLabel} <small>oppdatert {fmtDateTime(lastUpdated)}</small></h1>
           </div>
           <div className="topbar-pills">
-            <span className="pill" title="Konsolidert oppmøtefil"><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
+            {(() => {
+              const f = freshnessInfo(meta, live, kpis);
+              const color = f.level==='fresh' ? 'var(--green)' : f.level==='stale' ? 'var(--amber)' : 'var(--coral)';
+              const txt = f.ts==null
+                ? 'Ingen import ennå'
+                : `Siste import: ${fmtDayMonth(f.ts)} · ${f.days} ${f.days===1?'dag':'dager'} siden`;
+              const weight = f.level==='old' ? 700 : 600;
+              return (
+                <span className="pill" title="Ferskhet på data — grønn ≤7 dager, gul 8–21, rød >21 dager"
+                  style={{borderColor:color, color, fontWeight:weight}}>
+                  <span className="sw" style={{background:color}}/>{txt}
+                </span>
+              );
+            })()}
+            <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
             <span className="pill"><span className="sw" style={{background:'var(--accent)'}}/>jan 2023 → apr 2026</span>
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
             <button className="btn outline sm" title="Last ned årsrapport (tekst)"
@@ -665,7 +695,7 @@ function Oppmote({ kpis, charts, live, isStyre }) {
         <div className="grid-4">
           <KPI label="Live check-ins" value={fmtN(ls.total)} delta="nye siden grunnlaget" deltaClass="up" accent="green"/>
           <KPI label="Økter logget" value={fmtN(live.sessions)} delta="i trener-appen" accent="amber"/>
-          <KPI label="Siste økt" value={live.maxDate || '—'} accent="blue"/>
+          <KPI label="Siste økt" value={/^\d{4}-\d{2}-\d{2}$/.test(live.maxDate) ? fmtDate(live.maxDate) : '—'} accent="blue"/>
           <KPI label="Totalt m/ live" value={fmtN(t.totalCheckins + ls.total)} delta="historisk + live" accent="coral"/>
         </div>
         </>
