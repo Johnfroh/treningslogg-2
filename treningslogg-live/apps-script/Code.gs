@@ -563,6 +563,26 @@ function dashCalendar() {
 // Tema-balanse: fordeling av loggede økter på grupper og temaer (tags),
 // for hele perioden og siste 90 dager — så trenerne ser hva som er over-
 // eller underdekket. Kun økter med innhold (tittel/tags) teller som logget.
+// Kanonisk gruppe fra et rått group-felt (+ tittel for gamle nivånavn).
+// Ett sett: junior / gi / nogi / åpen matte. Skrivemåte-varianter slås sammen;
+// rusk (tomt, «group», «group (1)», ukjent) → 'ukjent' (skjules i hovedvisning,
+// flagges som ryddeoppgave). Speiler _migrateToNewGroups + attendance-importen.
+function dashNormGroup_(raw, title) {
+  var s = String(raw == null ? '' : raw).toLowerCase().replace(/\*+\s*$/, '').trim();
+  if (!s || s === 'group' || /^group\s*\(\d+\)$/.test(s)) return 'ukjent';
+  if (s.indexOf('junior') >= 0 || s.indexOf('knøtte') >= 0 || s.indexOf('knotte') >= 0) return 'junior';
+  if (s.indexOf('åpen matte') >= 0 || s.indexOf('apen matte') >= 0 ||
+      s.indexOf('åpne matter') >= 0 || s.indexOf('open mat') >= 0) return 'åpen matte';
+  if (s === 'nogi' || s.indexOf('no-gi') >= 0 || s.indexOf('no gi') >= 0 || s.indexOf('nogi') >= 0) return 'nogi';
+  // gamle nivånavn → gruppe etter «nogi» i tittel (nivå bæres som tag separat)
+  if (s === 'grunnleggende' || s === 'erfaren' || s === 'alle nivåer' || s === 'alle nivaer') {
+    var t = String(title || '').toLowerCase();
+    return (t.indexOf('nogi') >= 0 || t.indexOf('no-gi') >= 0 || t.indexOf('no gi') >= 0) ? 'nogi' : 'gi';
+  }
+  if (s === 'gi' || s.indexOf('gi') >= 0) return 'gi';
+  return 'ukjent';
+}
+
 function dashThemes() {
   const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
@@ -571,7 +591,7 @@ function dashThemes() {
   sessions.forEach(s => {
     if (!s.date) return;
     const recent = s.date >= cutoff;
-    const g = s.group || 'ukjent';
+    const g = dashNormGroup_(s.group, s.title);
     const gg = groups[g] || (groups[g] = { group: g, sessions: 0, recent: 0, checkins: 0 });
     gg.sessions++;
     if (recent) gg.recent++;

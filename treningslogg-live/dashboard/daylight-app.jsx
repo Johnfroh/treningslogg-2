@@ -425,7 +425,7 @@ function Oversikt({ kpis, charts, isStyre, live }) {
         </Tile>
       </div>
 
-      <div className="section-h">Klassepopularitet<span className="meta">snitt deltagere pr. økt</span></div>
+      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · snitt deltagere pr. økt</span></div>
       <Tile title="alle klassetyper" corner="ranking">
         <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
       </Tile>
@@ -662,7 +662,11 @@ function Innhold(){
   const allMap = {}; data.tags.forEach(t => { allMap[t.tag] = t.sessions; });
   const recentMap = {}; data.tagsRecent.forEach(t => { recentMap[t.tag] = t.sessions; });
   const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(recentMap[k] > 0));
-  const groupData = data.groups.map(g => ({ label: `${GROUP_LABEL[g.group] || g.group} (${g.recent} siste 90d)`, value: g.sessions }));
+  // Rusk-grupper («ukjent») holdes ute av hovedvisningen, men flagges som ryddeoppgave.
+  const ukjentGroup = data.groups.find(g => g.group === 'ukjent');
+  const groupData = data.groups
+    .filter(g => g.group !== 'ukjent')
+    .map(g => ({ label: `${GROUP_LABEL[g.group] || g.group} (${g.recent} siste 90d)`, value: g.sessions }));
 
   return (
     <div>
@@ -685,9 +689,14 @@ function Innhold(){
         </>
       )}
 
-      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe</span></div>
+      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · junior / gi / no-gi / åpen matte</span></div>
       <Tile title="grupper" corner="balanse">
         <HBar data={groupData} color="var(--accent)" height={20}/>
+        {ukjentGroup && ukjentGroup.sessions > 0 && (
+          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+            ⚠ {ukjentGroup.sessions} økter har ukjent/ugyldig gruppe — rydd dem til junior / gi / no-gi / åpen matte i kalenderen.
+          </div>
+        )}
       </Tile>
 
       <div className="section-h">Posisjoner<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
@@ -763,7 +772,7 @@ function Oppmote({ kpis, charts, live, isStyre }) {
         )}
       </Tile>
 
-      <div className="section-h">Klassepopularitet<span className="meta">snitt deltagere pr. økt</span></div>
+      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · snitt deltagere pr. økt</span></div>
       <Tile title="ranking" corner="popularity">
         <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
       </Tile>
