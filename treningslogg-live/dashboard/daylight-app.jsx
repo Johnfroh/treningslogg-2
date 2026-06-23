@@ -14,7 +14,11 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "font": "Plus Jakarta Sans",
   "accent": "#7B6EF6",
   "bgTone": "Lavendel",
-  "radius": 1
+  "radius": 1,
+  "stilleUker": 3,
+  "gradMinOppmote": 30,
+  "gradMinMnd": 6,
+  "introUker": 2
 }/*EDITMODE-END*/;
 
 function hexA(hex, a) {
@@ -24,6 +28,7 @@ function hexA(hex, a) {
 }
 
 const TABS = [
+  { id: 'idag', label: 'I dag' },
   { id: 'oversikt', label: 'Oversikt' },
   { id: 'kalender', label: 'Kalender' },
   { id: 'register', label: 'Medlemmer' },
@@ -159,7 +164,7 @@ function mergeLiveKpis(kpis, members){
 
 function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [tab, setTab] = useState('oversikt');
+  const [tab, setTab] = useState('idag');
   const staticKpis = useKpis();
   const { members, meta, access, okonomi, live } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
@@ -254,6 +259,7 @@ function App() {
             </button>
           </div>
         </div>
+        {effTab==='idag' && <Today members={members} thresholds={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>}
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
         {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
@@ -262,7 +268,7 @@ function App() {
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile}/>}
-        {effTab!=='register' && <DataFooter kpis={kpis} />}
+        {effTab!=='register' && effTab!=='idag' && <DataFooter kpis={kpis} />}
       </main>
       <TweaksPanel>
         <TweakSection label="Typografi" />
@@ -271,6 +277,11 @@ function App() {
         <TweakColor label="Aksentfarge" value={tw.accent} options={ACCENTS} onChange={v=>setTweak('accent', v)} />
         <TweakRadio label="Bakgrunn" value={tw.bgTone} options={Object.keys(BG_TONES)} onChange={v=>setTweak('bgTone', v)} />
         <TweakSlider label="Avrunding" value={tw.radius} min={0.5} max={1.5} step={0.1} onChange={v=>setTweak('radius', v)} />
+        <TweakSection label="«I dag»-terskler" />
+        <TweakSlider label="Stille etter" value={tw.stilleUker} min={1} max={12} step={1} unit=" uker" onChange={v=>setTweak('stilleUker', v)} />
+        <TweakSlider label="Graderingsklar — oppmøter" value={tw.gradMinOppmote} min={5} max={150} step={5} onChange={v=>setTweak('gradMinOppmote', v)} />
+        <TweakSlider label="Graderingsklar — måneder" value={tw.gradMinMnd} min={1} max={24} step={1} unit=" mnd" onChange={v=>setTweak('gradMinMnd', v)} />
+        <TweakSlider label="Intro-oppfølging etter" value={tw.introUker} min={1} max={8} step={1} unit=" uker" onChange={v=>setTweak('introUker', v)} />
       </TweaksPanel>
     </div>
   );
