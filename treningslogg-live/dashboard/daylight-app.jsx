@@ -178,6 +178,13 @@ function App() {
 
   if (!kpis) return <div style={{padding:40, color:'#9290A6'}}>Laster…</div>;
   const isStyre = !!(access && access.isStyre);
+  // Identitetsbro: umatchede oppmøter er én rot bak feil i leaderboard, oppmøte
+  // OG konvertering. Gjør den til en tydelig inngang, ikke en boks nederst.
+  const unmatched = (live && live.unmatched) ? live.unmatched : 0;
+  const gotoReconcile = () => {
+    setTab('oppmote');
+    setTimeout(() => { const el = document.getElementById('avstemming'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+  };
   const visibleTabs = TABS.filter(x => x.id !== 'okonomi' || isStyre);
   // Ikke-styre skal aldri ende på økonomi-fanen.
   const effTab = (tab === 'okonomi' && !isStyre) ? 'oversikt' : tab;
@@ -216,6 +223,13 @@ function App() {
             <h1 className="h1">{tabLabel} <small>oppdatert {fmtDateTime(lastUpdated)}</small></h1>
           </div>
           <div className="topbar-pills">
+            {isStyre && unmatched>0 && (
+              <button className="btn outline sm" onClick={gotoReconcile}
+                title="Oppmøter som ikke er koblet til medlemsregisteret. Klikk for å koble dem nå."
+                style={{borderColor:'var(--coral)', color:'var(--coral)', fontWeight:700}}>
+                ⚠ {unmatched} umatchede — koble nå
+              </button>
+            )}
             {(() => {
               const f = freshnessInfo(meta, live, kpis);
               const color = f.level==='fresh' ? 'var(--green)' : f.level==='stale' ? 'var(--amber)' : 'var(--coral)';
@@ -247,7 +261,7 @@ function App() {
         {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
-        {effTab==='churn' && <Churn kpis={kpis} charts={charts}/>}
+        {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile}/>}
         {effTab!=='register' && <DataFooter kpis={kpis} />}
       </main>
       <TweaksPanel>
@@ -424,6 +438,11 @@ function Oversikt({ kpis, charts, isStyre, live }) {
         ) : (
           <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen under Oppmøte-fanen.</div>
         )}
+        {live && live.unmatched > 0 && (
+          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+            ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. Kjør identitetsbroen under Oppmøte.
+          </div>
+        )}
       </Tile>
     </div>
   );
@@ -551,7 +570,7 @@ function Avstemming() {
   const liveUnmatched = live && live.unmatched ? live.unmatched : 0;
   return (
     <>
-      <div className="section-h">Oppmøte-avstemming<span className="meta">styre · knytt oppmøte til medlemsregisteret</span></div>
+      <div id="avstemming" className="section-h" style={{scrollMarginTop:80}}>Oppmøte-avstemming<span className="meta">styre · knytt oppmøte til medlemsregisteret</span></div>
       <Tile title="identitetsbro" corner="avstemming">
         <div className="dim" style={{fontSize:12, lineHeight:1.6, marginBottom:12}}>
           Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer kobles her én gang (huskes som alias) — eller merkes «Sluttet» hvis det er et tidligere medlem, så forsvinner det fra lista.
@@ -726,6 +745,11 @@ function Oppmote({ kpis, charts, live, isStyre }) {
         ) : (
           <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen nederst.</div>
         )}
+        {live && live.unmatched > 0 && (
+          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+            ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. Koble dem i avstemmingen nederst.
+          </div>
+        )}
       </Tile>
 
       <div className="section-h">Klassepopularitet<span className="meta">snitt deltagere pr. økt</span></div>
@@ -854,15 +878,20 @@ function Okonomi({ kpis, charts }) {
   );
 }
 
-function Churn({ kpis, charts }) {
+function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
   const t = kpis.totals;
+  const conv = kpis.conversion || {};
+  // 0 konverterte av N intro er nesten sikkert join-svikt, ikke virkelighet.
+  // Da viser vi ikke en falsk «0 %», men en oppfordring om å koble navn først.
+  const convUnreliable = !(conv.converted > 0);
+  const unmatched = (live && live.unmatched) ? live.unmatched : 0;
   return (
     <div>
       <div className="grid-4">
         <KPI label="Totalt deaktiverte" value={t.deactivated} delta="siden 2023" deltaClass="down" accent="coral"/>
         <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
         <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
-        <KPI label="Konv. intro→fast" value={fmtPct(kpis.conversion.rate)} delta={`${kpis.conversion.converted} / ${kpis.conversion.introTotal}`} accent="blue"/>
+        <KPI label="Konv. intro→fast" value={convUnreliable ? '—' : fmtPct(conv.rate)} delta={convUnreliable ? 'ikke beregnet — kjør identitetsbro' : `${conv.converted} / ${conv.introTotal}`} accent="blue"/>
       </div>
 
       <div className="section-h">Kohort-retention<span className="meta">hvor mange fra hvert år trener fortsatt?</span></div>
@@ -893,18 +922,29 @@ function Churn({ kpis, charts }) {
           <div className="dim" style={{fontSize:24}}>→</div>
           <div style={{flex:1}}>
             <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 2 — fast medlem nå</div>
-            <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{kpis.conversion.converted}</div>
-            <div className="dim" style={{fontSize:11}}>fortsatt aktive</div>
+            <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{convUnreliable ? '—' : conv.converted}</div>
+            <div className="dim" style={{fontSize:11}}>{convUnreliable ? 'ikke koblet ennå' : 'fortsatt aktive'}</div>
           </div>
           <div style={{flex:1}}>
             <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Konverteringsrate</div>
-            <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{fmtPct(kpis.conversion.rate)}</div>
-            <div className="dim" style={{fontSize:11}}>navn-match-basert</div>
+            {convUnreliable
+              ? <><div style={{fontSize:22, fontWeight:700, color:'var(--coral)'}}>Ikke beregnet</div>
+                  <div className="dim" style={{fontSize:11}}>avhenger av navnematching</div></>
+              : <><div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{fmtPct(conv.rate)}</div>
+                  <div className="dim" style={{fontSize:11}}>navn-match-basert</div></>}
           </div>
         </div>
-        <div className="dim" style={{fontSize:11, padding:14, borderTop:'1px solid var(--border)', marginTop:8}}>
-          <strong>Merknad:</strong> intro-deltagere som senere ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Anbefaling: tag intro-kohorter eksplisitt så vi får ekte konverteringstall.
-        </div>
+        {convUnreliable ? (
+          <div style={{fontSize:12, padding:14, borderTop:'1px solid var(--border)', marginTop:8, lineHeight:1.6}}>
+            <strong>{conv.introTotal || 0} introdeltakere</strong>{unmatched>0 && <> · <strong style={{color:'var(--coral)'}}>{unmatched} umatchede oppmøter</strong></>} — konvertering kan ikke beregnes før navnene er koblet til medlemsregisteret.
+            {isStyre && <button className="btn primary sm" style={{marginLeft:10}} onClick={onGotoReconcile}>Kjør identitetsbro</button>}
+            <div className="dim" style={{fontSize:11, marginTop:8}}>Merk: intro-deltagere som ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Tag intro-kohorter eksplisitt for ekte konverteringstall.</div>
+          </div>
+        ) : (
+          <div className="dim" style={{fontSize:11, padding:14, borderTop:'1px solid var(--border)', marginTop:8}}>
+            <strong>Merknad:</strong> intro-deltagere som senere ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Anbefaling: tag intro-kohorter eksplisitt så vi får ekte konverteringstall.
+          </div>
+        )}
       </Tile>
     </div>
   );
