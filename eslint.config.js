@@ -139,6 +139,8 @@ module.exports = [
         Register: 'readonly',
         // calendar-app.jsx
         Kalender: 'readonly', LogSessionModal: 'readonly',
+        // today-app.jsx
+        Today: 'readonly',
         // daylight-app.jsx (window.KPI / window.Tile)
         KPI: 'readonly', Tile: 'readonly',
       },
