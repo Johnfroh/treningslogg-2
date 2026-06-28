@@ -159,6 +159,20 @@ function levelInfo(xp){
 }
 function earnedBadges(stats){ return D.badges.filter(function(b){ return b.check(stats); }).map(function(b){ return b.key; }); }
 
+/* ---------- trinn pr. økt (egen akse, uavhengig av XP) ----------
+   Opplåst trinn utledes fra antall gjennomføringer (stats.types[øktId]).
+   Ingen ny lagring, ingen backend-endring. */
+function oktTierInfo(stats, okt){
+  var T = window.BM_NIVAA_TERSKEL || 5;
+  var count = (stats && stats.types && stats.types[okt.key]) || 0;
+  var maxTier = (okt.tiers && okt.tiers.length) ? okt.tiers.length : 1;
+  var unlocked = Math.min(maxTier, 1 + Math.floor(count / T));
+  var atMax = unlocked >= maxTier;
+  var inLevel = count % T;
+  return { count:count, T:T, maxTier:maxTier, unlocked:unlocked, atMax:atMax,
+    inLevel:inLevel, toNext: atMax ? 0 : (T - inLevel) };
+}
+
 /* ---------- program-bytte: tema + tekster ---------- */
 function applyTheme(){
   var root=document.documentElement;
@@ -272,7 +286,8 @@ function renderDashboard(){
     recent.forEach(function(e){
       var okt=oktByKey(e.okt); if(!okt) return;
       var det=[]; var partsArr = Array.isArray(e.parts) ? e.parts : [];
-      det.push(partsArr.filter(Boolean).length+"/"+okt.parts.length+" deler");
+      var nDeler = partsArr.length || (okt.parts ? okt.parts.length : 0);
+      det.push(partsArr.filter(Boolean).length+"/"+nDeler+" deler");
       if(e.rekord) det.push("rekord: "+e.rekord);
       if(e.note) det.push(e.note);
       var row=document.createElement("div"); row.className="lograw";
@@ -346,8 +361,9 @@ function exportCSV(){
   entries.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(e){
     var okt=oktByKey(e.okt);
     var partsArr = Array.isArray(e.parts) ? e.parts : [];
+    var nDeler = partsArr.length || (okt && okt.parts ? okt.parts.length : "");
     lines.push([e.date, okt?okt.label+" "+okt.title:e.okt, e.rekord||"",
-      partsArr.filter(Boolean).length+"/"+(okt?okt.parts.length:""), (e.note||"").replace(/;/g,",")].join(";"));
+      partsArr.filter(Boolean).length+"/"+nDeler, (e.note||"").replace(/;/g,",")].join(";"));
   });
   var txt=lines.join("\n");
   function done(){ window.BM.toast("Loggen er kopiert — lim inn i Google Sheets"); }
@@ -381,6 +397,7 @@ window.BM = {
   computeStats: computeStats,
   levelInfo: levelInfo,
   earnedBadges: earnedBadges,
+  oktTierInfo: oktTierInfo,
   oktByKey: oktByKey,
   parseNum: parseNum,
   isBetter: isBetter,

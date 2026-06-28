@@ -265,6 +265,25 @@
   .partrow details[open] .p-mer{ color:var(--green-bright); }
   .partrow .p-desc{ font-size:11px; line-height:1.6; color:var(--ink-soft); margin-top:7px; }
 
+  /* trinn-progresjon på øktkort (junior + rg) */
+  .oc-tier{ display:flex; align-items:center; gap:7px; margin-top:9px; }
+  .oc-tier .oct-bar{ flex:none; width:56px; height:6px; border-radius:999px; background:rgba(255,255,255,.16); overflow:hidden; }
+  .oc-tier .oct-bar i{ display:block; height:100%; background:var(--green-bright); }
+  .oc-tier .oct-txt{ font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--green-bright); text-transform:uppercase; }
+  .oc-tier.max .oct-txt{ color:var(--gold-bright); }
+  .oktcard.acc-coral .oc-tier .oct-bar i{ background:#ff9b7a; }
+
+  /* trinnvelger i øktdetalj */
+  .tiernav{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 14px; }
+  .tierbtn{ flex:1; min-width:96px; text-align:left; background:var(--field); border:1px solid var(--line); border-left:3px solid var(--green); padding:9px 11px; cursor:pointer; color:var(--ink); position:relative; }
+  .tierbtn .tb-kick{ font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green-bright); }
+  .tierbtn .tb-name{ display:block; font-family:var(--display); font-size:14px; letter-spacing:.02em; text-transform:uppercase; margin-top:3px; }
+  .tierbtn .tb-prog{ display:block; font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.05em; color:var(--gold-bright); text-transform:uppercase; margin-top:5px; }
+  .tierbtn.active{ background:rgba(255,210,62,.16); border-left-color:var(--green-bright); }
+  .tierbtn.locked{ opacity:.5; cursor:not-allowed; border-left-color:var(--muted-2); }
+  .tierbtn.locked .tb-kick{ color:var(--muted); }
+  .tierbtn .tb-lock{ position:absolute; top:9px; right:10px; font-size:13px; opacity:.85; }
+
   .skannbtn{ margin-top:14px; width:100%; height:50px; background:transparent; border:2px solid var(--green-bright); color:var(--green-bright);
     font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
     display:flex; align-items:center; justify-content:center; gap:10px; }
@@ -471,7 +490,8 @@
       </div>
       <p class="ov-intro" id="od-intro"></p>
 
-      <div class="seclabel">Deløvelser <span>kryss av det du gjorde</span></div>
+      <div id="od-tiers"></div>
+      <div class="seclabel">Deløvelser <span id="od-parts-sub">kryss av det du gjorde</span></div>
       <div id="od-parts"></div>
       <button class="skannbtn" id="od-skannbtn" style="display:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>

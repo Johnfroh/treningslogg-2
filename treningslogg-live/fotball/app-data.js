@@ -10,3 +10,9 @@
    ============================================================ */
 window.BM_PROGRAMS = window.BM_PROGRAMS || {};
 window.BM_PROGRAM_ORDER = ["ungdom", "junior", "rg", "core_a"];
+
+// Trinn-progresjon (junior + rg): antall gjennomføringer av samme økt før
+// neste trinn låses opp. Én felles, lett-justerbar konstant. Trinn er en egen
+// akse — XP, streak og ukemål er uberørt.
+window.BM_NIVAA_TERSKEL = 5;
+
