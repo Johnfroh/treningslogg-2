@@ -29,10 +29,21 @@ function renderOktList(){
       var count=stats.types[o.key]||0;
       var btn=document.createElement("button");
       btn.className="oktcard"+(o.accent==="gold"?" acc-gold":o.accent==="coral"?" acc-coral":"");
+      var tierHtml="";
+      if(o.tiers && o.tiers.length && BM.oktTierInfo){
+        var ti=BM.oktTierInfo(stats,o);
+        if(ti.atMax){
+          tierHtml='<span class="oc-tier max"><span class="oct-txt">Maks trinn ✓</span></span>';
+        } else {
+          var pct=Math.round(ti.inLevel/ti.T*100);
+          tierHtml='<span class="oc-tier"><span class="oct-bar"><i style="width:'+pct+'%"></i></span>'+
+            '<span class="oct-txt">'+ti.toNext+' / '+ti.T+' til Trinn '+(ti.unlocked+1)+'</span></span>';
+        }
+      }
       btn.innerHTML='<span class="oc-top"><span class="oc-label">'+o.label+'</span>'+
         '<span class="oc-count">'+(count>0?count+" × "+verb(P):"ikke prøvd ennå")+'</span></span>'+
         '<span class="oc-title">'+o.title+'</span>'+
-        '<span class="oc-meta">'+o.meta+'</span>';
+        '<span class="oc-meta">'+o.meta+'</span>'+tierHtml;
       btn.addEventListener("click", function(){ openDetail(o); });
       list.appendChild(btn);
     });
@@ -41,14 +52,15 @@ function renderOktList(){
 
 /* ---------- øktdetalj ---------- */
 var currentOkt=null;
-function openDetail(o){
-  currentOkt=o;
-  $("od-label").textContent=o.label;
-  $("od-title").textContent=o.title;
-  $("od-meta").textContent=o.meta;
-  $("od-intro").textContent=o.intro;
+var currentTier=1;
+
+function partsForTier(o, tier){
+  if(o.tiers && o.tiers.length) return o.tiers[Math.min(tier, o.tiers.length)-1].parts;
+  return o.parts;
+}
+function renderParts(arr){
   var parts=$("od-parts"); parts.innerHTML="";
-  o.parts.forEach(function(p,i){
+  arr.forEach(function(p,i){
     var row=document.createElement("div"); row.className="partrow";
     row.innerHTML='<input type="checkbox" class="pcheck" id="part-'+i+'">'+
       '<details><summary><span class="p-name">'+p.name+'</span>'+
@@ -56,6 +68,51 @@ function openDetail(o){
       '<div class="p-desc">'+p.desc+'</div></details>';
     parts.appendChild(row);
   });
+}
+function selectTier(o, tier){
+  currentTier=tier;
+  var sub=$("od-parts-sub");
+  if(o.tiers && o.tiers.length){
+    var t=o.tiers[tier-1];
+    if(sub) sub.textContent="Trinn "+tier+(t.undertittel?" · "+t.undertittel:"");
+    var nav=$("od-tiers");
+    if(nav) nav.querySelectorAll(".tierbtn").forEach(function(b){ b.classList.toggle("active", parseInt(b.dataset.tier,10)===tier); });
+  } else if(sub){ sub.textContent="kryss av det du gjorde"; }
+  renderParts(partsForTier(o, tier));
+}
+// Bygger trinnvelgeren. Returnerer trinnet som skal være valgt (høyeste opplåste).
+function renderTierNav(o, stats){
+  var nav=$("od-tiers"); if(!nav) return 1;
+  nav.innerHTML="";
+  if(!(o.tiers && o.tiers.length)){ nav.style.display="none"; return 1; }
+  nav.style.display="flex"; nav.className="tiernav";
+  var ti=BM.oktTierInfo(stats, o);
+  o.tiers.forEach(function(t){
+    var locked = t.tier > ti.unlocked;
+    var b=document.createElement("button");
+    b.className="tierbtn"+(locked?" locked":"");
+    b.dataset.tier=t.tier;
+    var prog = locked
+      ? '<span class="tb-prog">'+(t.tier===ti.unlocked+1 ? (ti.toNext+" / "+ti.T+" til opplåsing") : "låst")+'</span>'
+      : '';
+    b.innerHTML='<span class="tb-kick">Trinn '+t.tier+'</span>'+
+      '<span class="tb-name">'+(t.undertittel||("Trinn "+t.tier))+'</span>'+prog+
+      (locked?'<span class="tb-lock">🔒</span>':'');
+    if(!locked) b.addEventListener("click", function(){ selectTier(o, t.tier); });
+    nav.appendChild(b);
+  });
+  return ti.unlocked;
+}
+
+function openDetail(o){
+  currentOkt=o;
+  $("od-label").textContent=o.label;
+  $("od-title").textContent=o.title;
+  $("od-meta").textContent=o.meta;
+  $("od-intro").textContent=o.intro;
+  var stats=BM.computeStats(BM.entries);
+  var defTier=renderTierNav(o, stats);
+  selectTier(o, defTier);
   $("od-skannbtn").style.display = o.skann ? "flex" : "none";
   // «Husk»-kort
   var husk=$("od-husk");
@@ -67,7 +124,7 @@ function openDetail(o){
     rbox.style.display="block";
     $("od-rekorddesc").textContent=o.rekord.desc;
     var inp=$("od-rekord"); inp.value=""; inp.placeholder=o.rekord.placeholder;
-    var stats=BM.computeStats(BM.entries); var best=stats.best[o.key];
+    var best=stats.best[o.key];
     $("od-prev").textContent = best!==undefined ? "beste: "+best : "ingen ennå";
   } else { rbox.style.display="none"; }
   $("od-date").value=BM.todayStr();
@@ -82,7 +139,8 @@ $("od-skannbtn").addEventListener("click", function(){ $("okt-detail").classList
 $("od-save").addEventListener("click", function(){
   if(!currentOkt) return;
   var o=currentOkt, D=BM.current;
-  var parts=o.parts.map(function(_,i){ return $("part-"+i).checked; });
+  var activeParts = (o.tiers && o.tiers.length) ? o.tiers[currentTier-1].parts : o.parts;
+  var parts=activeParts.map(function(_,i){ return $("part-"+i).checked; });
   if(parts.filter(Boolean).length===0){ BM.toast("Kryss av minst én del først"); return; }
   var date=$("od-date").value||BM.todayStr();
   var rekord=o.rekord ? $("od-rekord").value.trim() : "";
@@ -105,9 +163,15 @@ $("od-save").addEventListener("click", function(){
   var after=BM.computeStats(BM.entries);
   var newBadges=BM.earnedBadges(after).filter(function(k){ return badgesBefore.indexOf(k)<0; });
   var lvlAfter=BM.levelInfo(after.xp);
+  // Trinn-opplåsing (egen akse, uavhengig av XP-nivå)
+  var tierUnlock=null;
+  if(o.tiers && o.tiers.length && BM.oktTierInfo){
+    var tb=BM.oktTierInfo(before,o), ta=BM.oktTierInfo(after,o);
+    if(ta.unlocked>tb.unlocked) tierUnlock=ta.unlocked;
+  }
 
   $("okt-detail").classList.remove("open");
-  celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec);
+  celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock);
 });
 
 var CHEERS_FOTBALL=["Sterkt!","Ført inn!","Møtte opp!","Motoren går!","Egentrent!","Den teller!"];
@@ -116,13 +180,17 @@ var CHEERS_RG=["Så fint!","Mykt og flott!","Det fløt!","Elegant!","Vakkert!","
 var CHEERS_CORE=["Sterkt!","Ført inn!","Reps i banken!","Helkropp – ferdig!","Grunnmuren står!","Den teller!"];
 function cheers(){ var id=BM.current.id; return id==="junior"?CHEERS_JUNIOR:id==="rg"?CHEERS_RG:id.indexOf("core")===0?CHEERS_CORE:CHEERS_FOTBALL; }
 
-function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec){
+function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock){
   var C=cheers();
   $("cb-title").textContent = newRec ? "Ny rekord!" : C[Math.floor(Math.random()*C.length)];
   $("cb-okt").textContent = o.label+" · "+o.title;
   $("cb-xp").textContent = "+"+xp+" XP";
   $("cb-xpdetail").innerHTML = detail.join("<br>");
   var news=$("cb-news"); news.innerHTML="";
+  if(tierUnlock){
+    var tl=document.createElement("div"); tl.className="cb-newitem lvl";
+    tl.textContent="🔓 Trinn "+tierUnlock+" låst opp i "+o.title+"!"; news.appendChild(tl);
+  }
   if(lvlAfter.num>lvlBefore.num){
     var li=document.createElement("div"); li.className="cb-newitem lvl";
     li.textContent="Nivå "+lvlAfter.num+" — «"+lvlAfter.name+"»"; news.appendChild(li);
