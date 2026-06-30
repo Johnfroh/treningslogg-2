@@ -158,6 +158,7 @@ $("od-save").addEventListener("click", function(){
   }
 
   var badgesBefore=BM.earnedBadges(before);
+  var eqBefore=BM.earnedEquipment ? BM.earnedEquipment(before) : [];
   var lvlBefore=BM.levelInfo(before.xp);
   BM.addEntry({ id: "bm-"+Date.now()+"-"+Math.random().toString(36).slice(2,7), date:date, okt:o.key, parts:parts, rekord:rekord, note:note, xp:xp });
   var after=BM.computeStats(BM.entries);
@@ -169,9 +170,15 @@ $("od-save").addEventListener("click", function(){
     var tb=BM.oktTierInfo(before,o), ta=BM.oktTierInfo(after,o);
     if(ta.unlocked>tb.unlocked) tierUnlock=ta.unlocked;
   }
+  // Nytt utstyr låst opp av denne økta (utledet)
+  var newEq=[];
+  if(BM.earnedEquipment){
+    var eqAfter=BM.earnedEquipment(after);
+    newEq=eqAfter.filter(function(id){ return eqBefore.indexOf(id)<0; });
+  }
 
   $("okt-detail").classList.remove("open");
-  celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock);
+  celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock, newEq);
 });
 
 var CHEERS_FOTBALL=["Sterkt!","Ført inn!","Møtte opp!","Motoren går!","Egentrent!","Den teller!"];
@@ -180,21 +187,31 @@ var CHEERS_RG=["Så fint!","Mykt og flott!","Det fløt!","Elegant!","Vakkert!","
 var CHEERS_CORE=["Sterkt!","Ført inn!","Reps i banken!","Helkropp – ferdig!","Grunnmuren står!","Den teller!"];
 function cheers(){ var id=BM.current.id; return id==="junior"?CHEERS_JUNIOR:id==="rg"?CHEERS_RG:id.indexOf("core")===0?CHEERS_CORE:CHEERS_FOTBALL; }
 
-function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock){
+function celebrate(o, xp, detail, newBadges, lvlBefore, lvlAfter, newRec, tierUnlock, newEq){
   var C=cheers();
   $("cb-title").textContent = newRec ? "Ny rekord!" : C[Math.floor(Math.random()*C.length)];
   $("cb-okt").textContent = o.label+" · "+o.title;
   $("cb-xp").textContent = "+"+xp+" XP";
   $("cb-xpdetail").innerHTML = detail.join("<br>");
   var news=$("cb-news"); news.innerHTML="";
+  // TRINN-opplåsing: gull-kort med tre runde «pip» — visuelt ulikt nivå-opp
   if(tierUnlock){
-    var tl=document.createElement("div"); tl.className="cb-newitem lvl";
-    tl.textContent="🔓 Trinn "+tierUnlock+" låst opp i "+o.title+"!"; news.appendChild(tl);
+    var tl=document.createElement("div"); tl.className="cb-newitem";
+    tl.style.borderColor="var(--gold)"; tl.style.color="var(--gold-bright)";
+    tl.innerHTML='<span style="margin-right:8px;">●●●</span>Trinn '+tierUnlock+' låst opp i '+o.title;
+    news.appendChild(tl);
   }
+  // NIVÅ-opp: grønt kort med stigende «gir»-streker
   if(lvlAfter.num>lvlBefore.num){
     var li=document.createElement("div"); li.className="cb-newitem lvl";
-    li.textContent="Nivå "+lvlAfter.num+" — «"+lvlAfter.name+"»"; news.appendChild(li);
+    li.innerHTML='<span style="margin-right:8px;">▮▮▮</span>Nivå '+lvlAfter.num+' — «'+lvlAfter.name+'»';
+    news.appendChild(li);
   }
+  (newEq||[]).forEach(function(id){
+    var it=(BM.current.equipment||[]).filter(function(e){return e.id===id;})[0]; if(!it) return;
+    var ei=document.createElement("div"); ei.className="cb-newitem";
+    ei.textContent="🎽 Nytt utstyr: "+it.name; news.appendChild(ei);
+  });
   newBadges.forEach(function(k){
     var b=BM.current.badges.find(function(x){ return x.key===k; }); if(!b) return;
     var bi=document.createElement("div"); bi.className="cb-newitem";

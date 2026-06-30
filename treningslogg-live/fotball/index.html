@@ -75,6 +75,7 @@
   @keyframes crestPulse{ 0%,100%{ box-shadow:0 0 11px rgba(60,200,120,.45); } 50%{ box-shadow:0 0 22px rgba(255,210,120,.75); } }
   @keyframes sweep{ 0%{ left:-70%; } 55%,100%{ left:150%; } }
   @keyframes cb-fall{ to{ transform:translateY(125vh) rotate(540deg); opacity:.7; } }
+  @keyframes floaty{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
 
   /* pitch backdrop (per tab) */
   .pitchbg{ position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
@@ -386,6 +387,7 @@
     <div class="inner">
       <div class="brandline"><span id="brand-name">Bygg motoren</span><span id="brand-tagline">Kroppen · Blikkene · Ballen</span></div>
 
+      <div id="avatar-hero" style="display:none;"></div>
       <div class="fhero">
         <div class="fh-lbl"><span id="hero-top">Streak</span><small id="streak-sub">hold gløden</small></div>
         <div class="bignum"><span id="streak-num">0</span></div>
@@ -469,12 +471,41 @@
     <iframe id="skann-frame" src="skann.html" title="Skanntrening" allow="fullscreen; screen-wake-lock" allowfullscreen></iframe>
   </div>
 
+  <!-- ============ MIN SPILLER ============ -->
+  <div class="tab" id="tab-spiller" data-screen-label="Min spiller">
+    <div class="pitchbg"><div class="flood"></div><div class="pl box"></div><div class="pl circle"></div></div>
+    <div class="inner">
+      <div class="pagetitle"><h1>Min <span class="hl">spiller</span></h1></div>
+      <div id="ms-body"></div>
+    </div>
+  </div>
+
   <!-- ============ nav ============ -->
   <nav class="bottomnav">
     <button data-tab="tab-hjem" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 10v10h14V10"></path></svg>Hjem</button>
     <button data-tab="tab-okter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><span id="nav-mid-label">Økter</span></button>
+    <button data-tab="tab-spiller" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Min spiller</button>
     <button data-tab="tab-skann"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>Skann</button>
   </nav>
+
+  <!-- ============ GARDEROBE ============ -->
+  <div class="overlay" id="garderobe" data-screen-label="Garderobe">
+    <div class="ov-inner">
+      <div class="ov-topbar">
+        <span class="ov-kick">Garderobe</span>
+        <button class="ov-close" id="gd-close" aria-label="Lukk">✕</button>
+      </div>
+      <div id="gd-preview" style="height:120px;display:flex;align-items:flex-end;justify-content:center;border:1px solid var(--line);margin-top:12px;"></div>
+      <div id="gd-base" style="margin-top:14px;">
+        <div class="fieldlabel">Velg figur</div>
+        <div id="gd-base-row" style="display:flex;gap:8px;"></div>
+        <div class="fieldlabel">Draktfarge</div>
+        <div id="gd-color-row" style="display:flex;gap:10px;"></div>
+      </div>
+      <div id="gd-tabs" style="display:flex;gap:6px;margin-top:16px;"></div>
+      <div id="gd-items" style="margin-top:12px;"></div>
+    </div>
+  </div>
 
   <!-- ============ økt-detalj ============ -->
   <div class="overlay" id="okt-detail" data-screen-label="Økt-detalj">
@@ -544,6 +575,7 @@
 <script src="data-core-a.js"></script>
 <script src="app-core.js"></script>
 <script src="app-ui.js"></script>
+<script src="app-avatar.js"></script>
 <style id="__om-edit-overrides"></style>
 </body>
 </html>
