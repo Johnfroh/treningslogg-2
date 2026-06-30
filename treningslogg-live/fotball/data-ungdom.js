@@ -190,7 +190,9 @@ window.BM_PROGRAMS.ungdom = {
     { xp: 360, name: "Tredjegir" },
     { xp: 500, name: "Fjerdegir" },
     { xp: 660, name: "Femtegir" },
-    { xp: 840, name: "Full gass" }
+    { xp: 840, name: "Full gass" },
+    { xp: 1080, name: "Turbo" },
+    { xp: 1400, name: "Toppfart" }
   ],
 
   xpRules: { base: 20, allParts: 10, newRecord: 15 },

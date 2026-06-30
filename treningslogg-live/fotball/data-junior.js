@@ -164,7 +164,8 @@ window.BM_PROGRAMS.junior = {
     { xp: 120, name: "Touch-samler" },
     { xp: 210, name: "Triksevenn" },
     { xp: 320, name: "Løkkeløve" },
-    { xp: 450, name: "Sommerstjerne" }
+    { xp: 450, name: "Sommerstjerne" },
+    { xp: 630, name: "Gullsommer" }
   ],
 
   xpRules: { base: 20, allParts: 10, newRecord: 15 },

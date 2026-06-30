@@ -204,7 +204,8 @@ window.BM_PROGRAMS.rg = {
     { xp: 120, name: "Mykhet" },
     { xp: 210, name: "Flyt" },
     { xp: 320, name: "Eleganse" },
-    { xp: 450, name: "Egen stil" }
+    { xp: 450, name: "Egen stil" },
+    { xp: 630, name: "Scenestjerne" }
   ],
 
   xpRules: { base: 20, allParts: 10, newRecord: 15 },
