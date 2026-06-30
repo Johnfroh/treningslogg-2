@@ -126,8 +126,7 @@ function drawHero(host){
     '<span style="font:700 8.5px/1 \'Roboto Mono\';letter-spacing:.1em;text-transform:uppercase;color:#08395f;background:var(--green-bright);padding:7px 11px;">Nivå '+lvl.num+' · '+lvl.name+'</span>'+
     '<span style="font:700 8.5px/1 \'Roboto Mono\';letter-spacing:.1em;text-transform:uppercase;color:var(--green-bright);border:1px solid var(--line-strong);padding:7px 11px;">🔥 '+stats.streak+' uker</span>';
   host.appendChild(chips);
-  var edit = el("button","margin-top:14px;width:100%;height:44px;background:transparent;border:2px solid var(--green-bright);color:var(--green-bright);font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;","Endre spilleren");
-  edit.addEventListener("click", openGarderobe); host.appendChild(edit);
+  // Ingen «Endre spilleren»-knapp på Hjem — redigering skjer via «Min spiller» i bunnmenyen.
 }
 
 // ---- «Min spiller»-fane ----
