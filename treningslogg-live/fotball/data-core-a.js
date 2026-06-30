@@ -40,6 +40,8 @@ window.BM_PROGRAMS.core_a = {
   },
   confetti: ["#ff8a3d", "#ffcf7a", "#c43d2a", "#d9531f", "#ffce4a"],
 
+  progressStyle: "heat",   // smie-varme-måler; ingen avatar/garderobe
+
   okter: window.CORE_OKTER,
   quotes: window.CORE_QUOTES,
 

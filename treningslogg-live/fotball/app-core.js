@@ -174,6 +174,42 @@ function oktTierInfo(stats, okt){
     inLevel:inLevel, toNext: atMax ? 0 : (T - inLevel) };
 }
 
+/* ---------- utstyr + avatar (utledet av eksisterende fremgang) ---------- */
+function tierUnlockedFor(stats, oktKey){
+  var okt = oktByKey(oktKey); if(!okt || !okt.tiers) return 0;
+  return oktTierInfo(stats, okt).unlocked;
+}
+// Id-ene til utstyret brukeren har låst opp (utledet, ALDRI lagret).
+function earnedEquipment(stats){
+  if(!D.equipment) return [];
+  var lvl = levelInfo(stats.xp).num;
+  var tier = function(k){ return tierUnlockedFor(stats, k); };
+  return D.equipment.filter(function(e){
+    if(e.base) return true;
+    try { return !!(e.check && e.check(stats, lvl, tier)); } catch(_){ return false; }
+  }).map(function(e){ return e.id; });
+}
+// Valgt antrekk. Eneste nye LAGREDE tilstand — rir på bmSetSetting (key 'avatar').
+function defaultAvatarCfg(){
+  var d = D.avatarDefault || { base:"gutt", kitColor:null, equipped:{} };
+  return JSON.parse(JSON.stringify(d));
+}
+function getAvatarCfg(){
+  var base = defaultAvatarCfg();
+  if(settings.avatar){
+    base.base    = settings.avatar.base    || base.base;
+    base.kitColor= settings.avatar.kitColor || base.kitColor;
+    base.equipped= Object.assign(base.equipped||{}, settings.avatar.equipped||{});
+  }
+  return base;
+}
+function setAvatarCfg(cfg){
+  settings.avatar = cfg; saveCache();
+  apiPost({ action:'bmSetSetting', user:USER, program:P.id, key:'avatar', value:JSON.stringify(cfg) })
+    .catch(function(err){ console.warn('avatar-lagring feilet:', err.message); });
+  if(window.BM_AVATAR && window.BM_AVATAR.refresh) window.BM_AVATAR.refresh();
+}
+
 /* ---------- program-bytte: tema + tekster ---------- */
 function applyTheme(){
   var root=document.documentElement;
@@ -240,6 +276,7 @@ function setProgram(id, opts){
     }
     var srvSettings = data.settings || {};
     if (srvSettings.goal) settings.goal = parseInt(srvSettings.goal, 10) || settings.goal;
+    if (srvSettings.avatar) { try { settings.avatar = JSON.parse(srvSettings.avatar); } catch(e){} }
     if (data.weekGoals && typeof data.weekGoals === 'object') weekGoals = data.weekGoals;
     saveCache();
     renderDashboard();
@@ -321,6 +358,8 @@ function renderDashboard(){
       ll.appendChild(row);
     });
   }
+  // avataren tegnes på nytt ved hver render (utledet av samme stats)
+  if (window.BM_AVATAR && window.BM_AVATAR.refresh) window.BM_AVATAR.refresh();
 }
 
 /* ---------- mutasjoner (optimistisk + server, per program) ---------- */
@@ -421,6 +460,9 @@ window.BM = {
   levelInfo: levelInfo,
   earnedBadges: earnedBadges,
   oktTierInfo: oktTierInfo,
+  earnedEquipment: earnedEquipment,
+  getAvatarCfg: getAvatarCfg,
+  setAvatarCfg: setAvatarCfg,
   oktByKey: oktByKey,
   parseNum: parseNum,
   isBetter: isBetter,

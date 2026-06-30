@@ -44,6 +44,26 @@ window.BM_PROGRAMS.junior = {
   },
   confetti: ["#ffd23e", "#ff8a3d", "#46c06a", "#ff5d6c", "#7be08f", "#8fe0ff"],
 
+  progressStyle: "avatar",
+  avatarDefault: { base: "gutt", kitColor: "#ffd23e",
+                   equipped: { hode:"", drakt:"drakt_std", fottoy:"sko_std", tilbehor:"" } },
+  equipment: [
+    { id:"drakt_std", slot:"drakt", name:"Drakt",     base:true },
+    { id:"sko_std",   slot:"fottoy",name:"Sko",        base:true },
+    { id:"drakt10",   slot:"drakt", name:"Drakt #10",  hint:"Nivå 2",
+      check:function(s,lvl){ return lvl >= 2; } },
+    { id:"solcaps",   slot:"hode",  name:"Solcaps",    hint:"Nådd ukemålet",
+      check:function(s){ return s.weeksMet >= 1; } },
+    { id:"sko_gull",  slot:"fottoy",name:"Gullsko",    hint:"Slo egen rekord",
+      check:function(s){ return s.improvements >= 1; } },
+    { id:"ball_egen", slot:"tilbehor",name:"Egen ball", hint:"5 økter",
+      check:function(s){ return s.total >= 5; } },
+    { id:"ball_magisk",slot:"tilbehor",name:"Magisk ball", hint:"Trinn 3 i Trikseskolen",
+      check:function(s,lvl,tier){ return tier("lek2") >= 3; } },
+    { id:"kappe",     slot:"tilbehor",name:"Heltekappe", hint:"2 uker på rad",
+      check:function(s){ return s.bestStreak >= 2; } }
+  ],
+
   okter: [
     {
       key: "lek1", label: "Økt 1", title: "Sålemesteren", group: "lek",

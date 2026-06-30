@@ -44,6 +44,26 @@ window.BM_PROGRAMS.rg = {
   },
   confetti: ["#ff8fc4", "#b98cff", "#f3cf76", "#9fdcc8", "#ffd0e8", "#6fc8ff"],
 
+  progressStyle: "avatar",
+  avatarDefault: { base: "jente", kitColor: "#ff8fc4",
+                   equipped: { hode:"", drakt:"drakt_std", fottoy:"sko_std", tilbehor:"" } },
+  equipment: [
+    { id:"drakt_std", slot:"drakt", name:"Drakt",      base:true },
+    { id:"sko_std",   slot:"fottoy",name:"Tøfler",      base:true },
+    { id:"turndrakt", slot:"drakt", name:"Turndrakt",   hint:"Nivå 2",
+      check:function(s,lvl){ return lvl >= 2; } },
+    { id:"harslojfe", slot:"hode",  name:"Hårsløyfe",   hint:"Nådd ukemålet",
+      check:function(s){ return s.weeksMet >= 1; } },
+    { id:"turnball",  slot:"tilbehor",name:"Turnball",  hint:"5 økter",
+      check:function(s){ return s.total >= 5; } },
+    { id:"hoppetau",  slot:"tilbehor",name:"Hoppetau",  hint:"Trinn 3 i Tauet",
+      check:function(s,lvl,tier){ return tier("akt6") >= 3; } },
+    { id:"band",      slot:"tilbehor",name:"Gymnastikkband", hint:"2 uker på rad",
+      check:function(s){ return s.bestStreak >= 2; } },
+    { id:"ballettsko",slot:"fottoy",name:"Ballettsko",  hint:"Nivå 4",
+      check:function(s,lvl){ return lvl >= 4; } }
+  ],
+
   okter: [
     {
       key: "akt1", label: "Aktivitet 1", title: "Bli venn med ballen", group: "akt",

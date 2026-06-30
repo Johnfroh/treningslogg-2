@@ -42,6 +42,29 @@ window.BM_PROGRAMS.ungdom = {
   },
   confetti: ["#5fe0a0", "#ffce8a", "#da5b3b", "#3ea86a", "#e0992e"],
 
+  progressStyle: "motor",
+  avatarDefault: { base: "gutt", kitColor: "#2fa860",
+                   equipped: { hode:"band_std", drakt:"kit_std", fottoy:"sko_std", tilbehor:"" } },
+  equipment: [
+    { id:"band_std", slot:"hode",  name:"Pannebånd",     base:true },
+    { id:"kit_std",  slot:"drakt", name:"Standarddrakt", base:true },
+    { id:"sko_std",  slot:"fottoy",name:"Standardsko",   base:true },
+    { id:"visir_skann", slot:"hode",   name:"Skann-visir",   hint:"Skann-økt ×5",
+      check:function(s){ return (s.types.okt2||0) >= 5; } },
+    { id:"kit_proff",   slot:"drakt",  name:"Proff-drakt",   hint:"Nivå 5",
+      check:function(s,lvl){ return lvl >= 5; } },
+    { id:"sko_gull",    slot:"fottoy", name:"Gullsko",       hint:"25 økter",
+      check:function(s){ return s.total >= 25; } },
+    { id:"sko_lyn",     slot:"fottoy", name:"Lyn-sko",       hint:"Fartsskolen ×5",
+      check:function(s){ return (s.types.fart1||0) >= 5; } },
+    { id:"sko_sju",     slot:"fottoy", name:"Sjumilssko",    hint:"Nivå 8 «Full gass»",
+      check:function(s,lvl){ return lvl >= 8; } },
+    { id:"band_kaptein",slot:"tilbehor", name:"Kapteinsbind", hint:"4 uker på rad",
+      check:function(s){ return s.bestStreak >= 4; } },
+    { id:"merke_svakfot",slot:"tilbehor",name:"Svakfot-merke", hint:"Bonus B ×3",
+      check:function(s){ return (s.types.bonusB||0) >= 3; } }
+  ],
+
   okter: [
     {
       key: "okt1", label: "Økt 1", title: "Aldri samme touch to ganger", group: "ball",
