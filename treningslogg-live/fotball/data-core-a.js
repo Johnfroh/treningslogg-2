@@ -51,7 +51,9 @@ window.BM_PROGRAMS.core_a = {
     { xp: 440,  name: "Smibar" },
     { xp: 640,  name: "Herdet" },
     { xp: 880,  name: "Smidd" },
-    { xp: 1150, name: "Stål" }
+    { xp: 1150, name: "Stål" },
+    { xp: 1500, name: "Damaskus" },
+    { xp: 2050, name: "Rextål" }
   ],
 
   xpRules: { base: 20, allParts: 10, newRecord: 15 },

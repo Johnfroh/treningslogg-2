@@ -37,7 +37,7 @@ function renderOktList(){
         } else {
           var pct=Math.round(ti.inLevel/ti.T*100);
           tierHtml='<span class="oc-tier"><span class="oct-bar"><i style="width:'+pct+'%"></i></span>'+
-            '<span class="oct-txt">'+ti.toNext+' / '+ti.T+' til Trinn '+(ti.unlocked+1)+'</span></span>';
+            '<span class="oct-txt">'+ti.inLevel+' / '+ti.T+' til Trinn '+(ti.unlocked+1)+'</span></span>';
         }
       }
       btn.innerHTML='<span class="oc-top"><span class="oc-label">'+o.label+'</span>'+
