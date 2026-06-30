@@ -75,6 +75,7 @@ var entries = [];
 var settings = { goal: 3 };
 var weekGoals = {};
 var weekDots = [];
+var loadSeq = 0;   // teller pr. last/program-bytte — verner mot utdaterte svar
 
 /* ---------- localStorage-cache per program (rask åpning) ---------- */
 function $(id){ return document.getElementById(id); }
@@ -206,15 +207,37 @@ function setProgram(id, opts){
   saveActiveProgram(id);
   // last fra cache først (rask), så bootstrap fra serveren
   var cached = loadCache();
-  entries  = cached ? cached.entries : [];
+  entries  = cached && Array.isArray(cached.entries) ? cached.entries : [];
   settings = Object.assign({ goal: P.weekGoalDefault||3 }, cached ? (cached.settings||{}) : {});
   if (typeof settings.goal === 'string') settings.goal = parseInt(settings.goal, 10) || (P.weekGoalDefault||3);
   weekGoals = (cached && cached.weekGoals) ? cached.weekGoals : {};
   applyTheme(); applyChrome(); renderDashboard();
   if(window.BM.uiSync) window.BM.uiSync();
-  // Hent fersk data
-  apiGet('bmList', { user: USER, program: P.id }).then(function(data){
-    entries  = Array.isArray(data.entries) ? data.entries : [];
+  // Hent fersk data. mySeq + reqProg verner mot at et utdatert eller
+  // kryss-program-svar overskriver gjeldende visning (årsak til at data
+  // «hopper inn og ut» ved program-bytte eller treg/flaky backend).
+  var mySeq = ++loadSeq;
+  var reqProg = P.id;
+  apiGet('bmList', { user: USER, program: reqProg }).then(function(data){
+    if (mySeq !== loadSeq || !P || P.id !== reqProg) return; // utdatert svar — ignorer
+    var srv = Array.isArray(data.entries) ? data.entries : null;
+    if (srv) {
+      // Behold ubekreftede, optimistisk lagrede økter (client-id «bm-») som
+      // serveren ennå ikke har returnert, så de ikke blinker ut.
+      var srvIds = {};
+      srv.forEach(function(e){ if (e && e.id) srvIds[e.id] = true; });
+      var pending = entries.filter(function(e){
+        return e && typeof e.id === 'string' && e.id.indexOf('bm-') === 0 && !srvIds[e.id];
+      });
+      var next = srv.concat(pending);
+      // Et tomt server-svar skal ikke viske ut data vi allerede viser
+      // (typisk transient/eventuell konsistens i Sheets).
+      if (next.length === 0 && entries.length > 0) {
+        console.warn('bmList for "'+reqProg+'" kom tomt — beholder lokale data.');
+      } else {
+        entries = next;
+      }
+    }
     var srvSettings = data.settings || {};
     if (srvSettings.goal) settings.goal = parseInt(srvSettings.goal, 10) || settings.goal;
     if (data.weekGoals && typeof data.weekGoals === 'object') weekGoals = data.weekGoals;
@@ -222,7 +245,7 @@ function setProgram(id, opts){
     renderDashboard();
     if(window.BM.uiSync) window.BM.uiSync();
   }).catch(function(err){
-    console.warn('bmList for "'+P.id+'" feilet:', err.message);
+    console.warn('bmList for "'+reqProg+'" feilet:', err.message);
   });
 }
 
