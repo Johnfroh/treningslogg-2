@@ -64,6 +64,13 @@ function buildAvatar(cfg, size){
   var bodyGrad = "linear-gradient(180deg,"+kit+","+shade(kit,-26)+")";
   var body = el("div","position:absolute;left:50%;top:"+px(70)+"px;transform:translateX(-50%);width:"+px(94)+"px;height:"+px(62)+"px;border-radius:15px 15px 13px 13px;background:"+bodyGrad+";z-index:1;box-shadow:0 0 16px "+hexA(kit,.35)+";");
   if(eq.drakt==="drakt10"||eq.drakt==="kit_proff"){ body.innerHTML='<span style="position:absolute;left:50%;top:'+px(18)+'px;transform:translateX(-50%);font-family:\'Anton\',sans-serif;font-size:'+px(28)+'px;color:#fffdf5;">10</span>'; }
+  // Turndrakt: glansfull gymnastikkdrakt — tydelig annerledes enn standarddrakten.
+  if(eq.drakt==="turndrakt"){
+    body.style.background="linear-gradient(160deg,"+shade(kit,45)+" 0%,"+kit+" 46%,"+shade(kit,-22)+" 100%)";
+    body.style.boxShadow="0 0 20px "+hexA(kit,.55);
+    body.innerHTML+='<span style="position:absolute;left:50%;top:'+px(9)+'px;transform:translateX(-50%);width:'+px(74)+'px;height:'+px(9)+'px;border-radius:6px;background:linear-gradient(90deg,transparent,'+hexA("#ffffff",.6)+',transparent);"></span>'+
+      '<span style="position:absolute;right:'+px(14)+'px;top:'+px(16)+'px;font-size:'+px(17)+'px;line-height:1;color:'+shade(kit,90)+';">✦</span>';
+  }
   if(eq.tilbehor==="band_kaptein"){ body.innerHTML+='<span style="position:absolute;left:'+px(5)+'px;top:'+px(11)+'px;width:'+px(11)+'px;height:'+px(19)+'px;background:#ffce8a;border-radius:3px;"></span>'; }
   wrap.appendChild(body);
 
@@ -126,8 +133,7 @@ function drawHero(host){
     '<span style="font:700 8.5px/1 \'Roboto Mono\';letter-spacing:.1em;text-transform:uppercase;color:#08395f;background:var(--green-bright);padding:7px 11px;">Nivå '+lvl.num+' · '+lvl.name+'</span>'+
     '<span style="font:700 8.5px/1 \'Roboto Mono\';letter-spacing:.1em;text-transform:uppercase;color:var(--green-bright);border:1px solid var(--line-strong);padding:7px 11px;">🔥 '+stats.streak+' uker</span>';
   host.appendChild(chips);
-  var edit = el("button","margin-top:14px;width:100%;height:44px;background:transparent;border:2px solid var(--green-bright);color:var(--green-bright);font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;","Endre spilleren");
-  edit.addEventListener("click", openGarderobe); host.appendChild(edit);
+  // Ingen «Endre spilleren»-knapp på Hjem — redigering skjer via «Min spiller» i bunnmenyen.
 }
 
 // ---- «Min spiller»-fane ----
@@ -204,13 +210,19 @@ function drawGarderobe(){
     var has = e.base || earned.indexOf(e.id)>=0;
     var onNow = (cfg.equipped[curSlot]||"")===e.id || (e.base && !cfg.equipped[curSlot]);
     var row=el("div","display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:8px;border:"+(onNow?"2px solid var(--green-bright)":"1px solid "+(has?"var(--line-strong)":"var(--line)"))+";background:"+(onNow?"rgba(20,60,36,.5)":has?"var(--field)":"rgba(10,22,16,.5)")+";");
-    var right = onNow ? '<span style="width:20px;height:20px;border-radius:50%;background:var(--green-bright);color:#06140c;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</span>'
+    // onNow: base-plagg viser ✓ (kan ikke tas av — er standard); ikke-base viser «Ta av».
+    var right = onNow
+      ? (e.base
+          ? '<span style="width:20px;height:20px;border-radius:50%;background:var(--green-bright);color:#06140c;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</span>'
+          : '<button style="font:700 8px/1 \'Roboto Mono\';letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:transparent;border:1px solid var(--line-strong);padding:7px 10px;cursor:pointer;" data-off="1">Ta av</button>')
       : has ? '<button style="font:700 8px/1 \'Roboto Mono\';letter-spacing:.06em;text-transform:uppercase;color:#06140c;background:var(--green-bright);border:none;padding:7px 10px;cursor:pointer;" data-eq="'+e.id+'">Sett på</button>'
       : '<span style="font-size:13px;color:var(--muted);">🔒</span>';
     row.innerHTML='<div style="flex:1;"><div style="font:700 10px/1 \'Roboto Mono\';text-transform:uppercase;color:'+(has?'var(--ink)':'#9fc3aa')+';">'+e.name+'</div>'+
       '<div style="font:700 7.5px/1.3 \'Roboto Mono\';color:'+(has?'var(--muted)':'var(--gold-bright)')+';margin-top:4px;">'+(onNow?'PÅ NÅ':has?'LÅST OPP':('LÅS OPP · '+(e.hint||'')))+'</div></div>'+right;
     var setBtn = row.querySelector("[data-eq]");
     if(setBtn) setBtn.addEventListener("click",function(){ cfg.equipped[curSlot]=e.id; BM.setAvatarCfg(cfg); drawGarderobe(); });
+    var offBtn = row.querySelector("[data-off]");
+    if(offBtn) offBtn.addEventListener("click",function(){ cfg.equipped[curSlot]=""; BM.setAvatarCfg(cfg); drawGarderobe(); });
     list.appendChild(row);
   });
 }
