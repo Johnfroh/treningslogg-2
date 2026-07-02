@@ -359,6 +359,44 @@ function Tile({ title, corner, children, style }) {
   );
 }
 
+// Delt «mest dedikerte»-tabell — brukes av Oversikt (topp 5) og Oppmøte
+// (topp 10, med 2./3.-merker). Én kilde for kolonner, tomtilstand og
+// umatchet-advarselen, så de to visningene ikke driver fra hverandre.
+function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHint }) {
+  const rows = (live && live.leaderboard) || [];
+  return (
+    <>
+      {rows.length > 0 ? (
+        <table className="t">
+          <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
+          <tbody>
+            {rows.slice(0, limit).map((m, i) => (
+              <tr key={m.id || m.navn}>
+                <td className="dim tabular">{String(i + 1).padStart(2, '0')}</td>
+                <td>
+                  <strong>{m.navn}</strong>
+                  {i === 0 && <span className="tag amber" style={{marginLeft:8}}>leder</span>}
+                  {medals && i === 1 && <span className="tag green" style={{marginLeft:8}}>2.</span>}
+                  {medals && i === 2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}
+                </td>
+                <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
+                <td className="num dim">{fmtDate(m.sist)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — {emptyHint}</div>
+      )}
+      {live && live.unmatched > 0 && (
+        <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+          ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. {unmatchedHint}
+        </div>
+      )}
+    </>
+  );
+}
+
 function Oversikt({ kpis, charts, isStyre, live }) {
   const t = kpis.totals;
   const liveAdd = liveSince(kpis, live).total;
@@ -432,28 +470,9 @@ function Oversikt({ kpis, charts, isStyre, live }) {
 
       <div className="section-h">Topp 5 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
       <Tile title="leaderboard" corner="hot">
-        {live && live.leaderboard && live.leaderboard.length > 0 ? (
-          <table className="t">
-            <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
-            <tbody>
-              {live.leaderboard.slice(0,5).map((m,i)=>(
-                <tr key={m.id || m.navn}>
-                  <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
-                  <td><strong>{m.navn}</strong> {i===0 && <span className="tag amber">leder</span>}</td>
-                  <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
-                  <td className="num dim">{fmtDate(m.sist)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen under Oppmøte-fanen.</div>
-        )}
-        {live && live.unmatched > 0 && (
-          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
-            ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. Kjør identitetsbroen under Oppmøte.
-          </div>
-        )}
+        <LeaderboardTable live={live} limit={5}
+          emptyHint="last opp ukesoppmøte i avstemmingen under Oppmøte-fanen."
+          unmatchedHint="Kjør identitetsbroen under Oppmøte."/>
       </Tile>
     </div>
   );
@@ -748,28 +767,9 @@ function Oppmote({ kpis, charts, live, isStyre }) {
 
       <div className="section-h">Topp 10 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
       <Tile title="leaderboard" corner="dedicated">
-        {live && live.leaderboard && live.leaderboard.length > 0 ? (
-          <table className="t">
-            <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
-            <tbody>
-              {live.leaderboard.slice(0,10).map((m,i)=>(
-                <tr key={m.id || m.navn}>
-                  <td className="dim tabular">{String(i+1).padStart(2,'0')}</td>
-                  <td><strong>{m.navn}</strong>{i===0 && <span className="tag amber" style={{marginLeft:8}}>leder</span>}{i===1 && <span className="tag green" style={{marginLeft:8}}>2.</span>}{i===2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}</td>
-                  <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
-                  <td className="num dim">{fmtDate(m.sist)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — last opp ukesoppmøte i avstemmingen nederst.</div>
-        )}
-        {live && live.unmatched > 0 && (
-          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
-            ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. Koble dem i avstemmingen nederst.
-          </div>
-        )}
+        <LeaderboardTable live={live} limit={10} medals
+          emptyHint="last opp ukesoppmøte i avstemmingen nederst."
+          unmatchedHint="Koble dem i avstemmingen nederst."/>
       </Tile>
 
       <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · snitt deltagere pr. økt</span></div>

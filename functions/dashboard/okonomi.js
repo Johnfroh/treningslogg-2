@@ -20,7 +20,7 @@
 // Settes disse, stoles kun JWT-er med gyldig signatur. Uten dem brukes
 // e-post-header / udekodet claim (som i dag).
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1b40xgzhTyPuDjF0uuGPqr9pyYfEyS0OmLtei1Pjqihpadnz2XtwGixgZISpXNiUY/exec';
+import { proxyToAppsScript } from '../_lib/proxy.js';
 
 function styreList(env) {
   return String((env && env.STYRE_EMAILS) || '')
@@ -117,30 +117,6 @@ export async function onRequest(context) {
   // Alt annet (lese/skrive økonomi) krever styre-tilgang.
   if (!isStyre) return json({ ok: false, error: 'forbidden' }, 403);
 
-  // Proxy videre til Apps Script (samme mønster som functions/api.js).
-  const upstream = new URL(APPS_SCRIPT_URL);
-  url.searchParams.forEach((v, k) => upstream.searchParams.set(k, v));
-
-  const init = { method: request.method, headers: {}, redirect: 'follow' };
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    init.body = await request.text();
-    const ct = request.headers.get('Content-Type');
-    if (ct) init.headers['Content-Type'] = ct;
-  }
-
-  let response;
-  try {
-    response = await fetch(upstream.toString(), init);
-  } catch (err) {
-    return json({ ok: false, error: 'proxy fetch feilet: ' + err.message }, 502);
-  }
-
-  const body = await response.text();
-  return new Response(body, {
-    status: response.status,
-    headers: {
-      'Content-Type': response.headers.get('Content-Type') || 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
+  // Proxy videre til Apps Script (delt hjelper med /api og /fotball/api).
+  return proxyToAppsScript(request, env);
 }
