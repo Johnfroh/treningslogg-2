@@ -135,6 +135,17 @@ function DesktopApp() {
     return () => { alive = false; };
   }, []);
 
+  // Rull «i dag» ved fokus hvis fanen sto åpen over midnatt — og hent da
+  // ferske data så visningen re-rendres mot riktig dato.
+  React.useEffect(() => {
+    const onFocus = async () => {
+      if (!refreshNowClock()) return;
+      try { applyData(await window.TL_API.refresh()); } catch (_) {}
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
   function applyData(d) {
     if (Array.isArray(d.sessions)) setSessions(d.sessions);
     if (Array.isArray(d.planned))  setPlanned(d.planned);

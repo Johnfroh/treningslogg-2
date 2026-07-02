@@ -45,7 +45,7 @@ const projectGlobals = {
   // shared.js — util
   pad: 'readonly', ymdM: 'readonly', parseYmdM: 'readonly',
   sameMonth: 'readonly', slugifyTag: 'readonly', countTagUse: 'readonly',
-  expandRecurring: 'readonly',
+  expandRecurring: 'readonly', isoWeek: 'readonly', refreshNowClock: 'readonly',
   NOW: 'readonly', TODAY_M: 'readonly',
   NORWAY_MONTHS: 'readonly', NORWAY_DAYS_SHORT: 'readonly',
   NORWAY_DAYS_LONG: 'readonly', NORWAY_DAYS_INITIAL: 'readonly',
@@ -134,7 +134,7 @@ module.exports = [
         // register-profile.jsx
         GradeDialog: 'readonly', MemberProfile: 'readonly', Timeline: 'readonly',
         Stepper: 'readonly', fmtDate: 'readonly', tenure: 'readonly',
-        initials: 'readonly', INSTRUKTORER: 'readonly',
+        initials: 'readonly', INSTRUKTORER: 'readonly', todayP: 'readonly',
         // register-app.jsx
         Register: 'readonly',
         // calendar-app.jsx

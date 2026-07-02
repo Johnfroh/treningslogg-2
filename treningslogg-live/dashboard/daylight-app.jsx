@@ -724,7 +724,7 @@ function Oppmote({ kpis, charts, live, isStyre }) {
       <div className="grid-4">
         <KPI label="Total check-ins" value={fmtN(t.totalCheckins + ls.total)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : 'jan 2023 → apr 2026'} accent="amber"/>
         <KPI label="Økter holdt" value={fmtN(t.sessionsTracked)} delta="historisk grunnlag" accent="green"/>
-        <KPI label="Snitt pr. økt" value={(t.totalCheckins/t.sessionsTracked).toFixed(1)} delta="deltagere" accent="blue"/>
+        <KPI label="Snitt pr. økt" value={t.sessionsTracked ? (t.totalCheckins/t.sessionsTracked).toFixed(1) : '—'} delta="deltagere" accent="blue"/>
         <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt`} deltaClass="amber" accent="coral"/>
       </div>
 
@@ -854,7 +854,7 @@ function Okonomi({ kpis, charts }) {
       <div className="grid-4">
         <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta="månedlig kontingent" accent="amber"/>
         <KPI label="Estimert ARR" value={fmtN(t.arr)} unit=" kr" delta="× 12" accent="green"/>
-        <KPI label="Snitt pr. medlem" value={fmtN(t.mrr/t.activeMembers)} unit=" kr/mnd" accent="blue"/>
+        <KPI label="Snitt pr. medlem" value={t.activeMembers ? fmtN(t.mrr/t.activeMembers) : '—'} unit=" kr/mnd" accent="blue"/>
         <KPI label="Betalende medlemmer" value={charts.pricing.filter(p=>p.monthly>0).reduce((s,p)=>s+p.count,0)} delta={`av ${t.activeMembers} aktive`} accent="coral"/>
       </div>
       <div className="section-h">Inntekt pr. medlemstype</div>
@@ -922,7 +922,7 @@ function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
           <span><span style={{display:'inline-block',width:8,height:8,background:'rgba(242,130,95,.35)',marginRight:6}}/>sluttet</span>
         </div>
         <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
-          Av 51 personer som meldte seg inn i 2021 trener {kpis.cohortByYear['2021']||0} fortsatt — det er {fmtPct((kpis.cohortByYear['2021']||0)/51)} 5-års-retention. Av 78 fra 2025 er {kpis.cohortByYear['2025']||0} fortsatt aktive ({fmtPct((kpis.cohortByYear['2025']||0)/78)}).
+          Av {kpis.signupsPerYear['2021']||0} personer som meldte seg inn i 2021 trener {kpis.cohortByYear['2021']||0} fortsatt — det er {fmtPct((kpis.cohortByYear['2021']||0)/Math.max(1, kpis.signupsPerYear['2021']||0))} 5-års-retention. Av {kpis.signupsPerYear['2025']||0} fra 2025 er {kpis.cohortByYear['2025']||0} fortsatt aktive ({fmtPct((kpis.cohortByYear['2025']||0)/Math.max(1, kpis.signupsPerYear['2025']||0))}).
         </div>
       </Tile>
 
