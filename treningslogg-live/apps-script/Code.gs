@@ -879,11 +879,13 @@ function dashGrade(events) {
   const now = new Date().toISOString();
   const append = [];
   const updates = {};
+  const pendingCount = {}; // nye events pr. medlem i denne batchen — O(1)-oppslag
   events.forEach(ev => {
     const id = String(ev.memberId || '');
     if (!id) return;
     const existing = grouped[id] || [];
-    const pendingForId = append.filter(a => a[0] === id).length;
+    const pendingForId = pendingCount[id] || 0;
+    pendingCount[id] = pendingForId + 1;
     const seq = existing.reduce((mx, e) => Math.max(mx, Number(e.seq || 0)), 0) + 1 + pendingForId;
     append.push([id, 'g' + Math.random().toString(36).slice(2, 9), ymd(ev.date) || ymd(now),
       String(ev.kind || ''), String(ev.belt || 'Hvit'), Number(ev.stripes || 0),
