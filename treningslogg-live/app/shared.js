@@ -150,10 +150,13 @@ const computeDashboard = (sessions, planned, attendance, periodDays = 30) => {
 
   const plannedFuture = (planned || []).filter(p => p.date >= todayY);
 
-  // Aktive medlemmer = unike navn med oppmøte i valgt periode
+  // Aktive medlemmer = unike navn med oppmøte i valgt periode.
+  // Oppslag i stedet for .find() i løkke — attendance × sessions vokser fort.
+  const sessionById = {};
+  sessions.forEach(s => { sessionById[s.id] = s; });
   const activeSet = new Set();
   (attendance || []).forEach(a => {
-    const s = sessions.find(x => x.id === a.sessionId);
+    const s = sessionById[a.sessionId];
     if (s && s.date >= cyCur) activeSet.add(a.memberName);
   });
 
