@@ -3,7 +3,6 @@
    Exposes window.parseMemberFile(file) -> Promise<{members, format}>. */
 
 const NOW_IMP = new Date();
-const todayImp = () => new Date().toISOString().slice(0,10);
 
 function serialToISOimp(n){ if(n==null||isNaN(n)) return null; return new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000).toISOString().slice(0,10); }
 function parseDateLoose(v){

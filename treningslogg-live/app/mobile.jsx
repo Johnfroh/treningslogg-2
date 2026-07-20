@@ -125,6 +125,7 @@ function MobileApp() {
   // + sjekk om ny build er deployet og last på nytt om så.
   React.useEffect(() => {
     const onFocus = async () => {
+      refreshNowClock(); // rull «i dag» hvis appen sto åpen over midnatt
       checkForUpdate(); // ikke await — kan kjøre i bakgrunnen
       try {
         const fresh = await window.TL_API.refresh();
@@ -553,7 +554,7 @@ function HomeScreen({ T, tweaks, sessions, planned, onOpenLog }) {
           fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase',
           color: T.mid, fontWeight: 700,
         }}>
-          uke {(() => { const d = new Date(selectedDateObj); const onejan = new Date(d.getFullYear(), 0, 1); const w = Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7); return String(w).padStart(2, '0'); })()} · {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}
+          uke {String(isoWeek(selectedDateObj)).padStart(2, '0')} · {NORWAY_DAYS_LONG[selectedDateObj.getDay()]}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
           <div style={{ fontSize: 36, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.01em' }}>
@@ -1544,9 +1545,7 @@ function PersonDetail({ T, member }) {
   const weeks = new Set();
   attended.forEach(s => {
     const d = parseYmdM(s.date);
-    const onejan = new Date(d.getFullYear(), 0, 1);
-    const week = Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7);
-    weeks.add(`${d.getFullYear()}-${week}`);
+    weeks.add(`${d.getFullYear()}-${isoWeek(d)}`);
   });
 
   return (

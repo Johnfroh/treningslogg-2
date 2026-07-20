@@ -7,7 +7,8 @@ const { createContext, useContext } = React;
 const MembersCtx = createContext(null);
 
 const normName = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Lokal dato, ikke toISOString(): UTC-datoen er «i går» før kl. 01/02 norsk tid.
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 function blankGrading(since) {
   since = since || todayISO();

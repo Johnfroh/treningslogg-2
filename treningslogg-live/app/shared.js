@@ -110,8 +110,28 @@ const expandRecurring = (startYmd, untilYmd, dayOfWeeks) => {
   return out;
 };
 
-const NOW = new Date();
-const TODAY_M = ymdM(NOW);
+// «I dag» kan ikke være frosset: PWA-en blir gjerne stående åpen over
+// midnatt. let + refreshNowClock() lar fokus-håndtereren rulle døgnet.
+let NOW = new Date();
+let TODAY_M = ymdM(NOW);
+// Kalles ved fokus/synlighet. Returnerer true hvis døgnet har rullet.
+const refreshNowClock = () => {
+  const d = new Date();
+  const rolled = ymdM(d) !== TODAY_M;
+  NOW = d;
+  TODAY_M = ymdM(d);
+  return rolled;
+};
+
+// ISO-ukenummer (norsk standard: uke 1 = uka med årets første torsdag).
+// Samme algoritme som fotball-appens weekKey, så ukenumre er like overalt.
+const isoWeek = (date) => {
+  const t = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));
+  const jan4 = new Date(t.getFullYear(), 0, 4);
+  jan4.setDate(jan4.getDate() + 3 - ((jan4.getDay() + 6) % 7));
+  return 1 + Math.round((t - jan4) / (7 * 86400000));
+};
 
 const NORWAY_MONTHS = ['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
 const NORWAY_DAYS_SHORT = ['søn','man','tir','ons','tor','fre','lør'];

@@ -3,7 +3,8 @@
 const { useState: useStateP } = React;
 
 const INSTRUKTORER = ['Frank R. Dahl','John-Anders Frøhlich','Magnus Andersen','Andreas Høier'];
-const todayP = () => new Date().toISOString().slice(0,10);
+// Lokal dato, ikke toISOString(): UTC-datoen er «i går» før kl. 01/02 norsk tid.
+const todayP = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 function fmtDate(iso){
   if(!iso) return '—';
   try { return new Date(iso).toLocaleDateString('nb-NO',{day:'numeric',month:'short',year:'numeric'}); }

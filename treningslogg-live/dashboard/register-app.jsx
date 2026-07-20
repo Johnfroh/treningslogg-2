@@ -189,7 +189,7 @@ function InlineEdit({ member, onDone }){
   const g = member.grading.current;
   const [belt,setBelt] = useS(g.belt);
   const [stripes,setStripes] = useS(g.stripes);
-  const [date,setDate] = useS(new Date().toISOString().slice(0,10));
+  const [date,setDate] = useS(todayP()); // lokal dato — toISOString() er UTC og «i går» før kl. 01/02
   function save(){ actions.setCurrent(member.id,{belt,stripes,date}); onDone(); }
   return (
     <div className="inline-edit" onClick={e=>e.stopPropagation()}>
@@ -198,7 +198,7 @@ function InlineEdit({ member, onDone }){
         <optgroup label="Junior">{JUNIOR_BELTS.map(b=><option key={b} value={b}>{b}</option>)}</optgroup>
       </select>
       <Stepper value={stripes} onChange={setStripes}/>
-      <input type="date" value={date} max={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.target.value)}/>
+      <input type="date" value={date} max={todayP()} onChange={e=>setDate(e.target.value)}/>
       <button className="btn primary xs" onClick={save}>Lagre</button>
       <button className="btn ghost xs" onClick={onDone}>✕</button>
     </div>
