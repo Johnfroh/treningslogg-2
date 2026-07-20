@@ -158,6 +158,5 @@ window.TL_API = (function () {
     importAttendance,
     ping,
     clearLocalCache,
-    _config: { ENDPOINT, TOKEN }, // for debugging
   };
 })();
