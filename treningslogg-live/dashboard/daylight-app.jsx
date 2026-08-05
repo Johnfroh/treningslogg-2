@@ -65,47 +65,119 @@ function freshnessInfo(meta, live, kpis){
 }
 function fmtDayMonth(ts){ return new Date(ts).toLocaleDateString('nb-NO',{day:'numeric',month:'numeric'}); }
 
-// Nedlastbar årsrapport (tekst). Bygger på live medlems-aggregater + statisk
-// oppmøtegrunnlag; økonomidelen tas kun med for styre.
-function buildAarsrapport(kpis, members, okonomi, isStyre){
+// Grafisk årsrapport — åpnes i eget vindu, skrives ut / lagres som PDF derfra.
+// Bygger på LIVE medlems-aggregater (mergeLiveKpis) + live leaderboard der den
+// finnes; kun oppmøte-historikk uten live-motstykke kommer fra kpis.json.
+function buildAarsrapportHTML(kpis, members, okonomi, isStyre, live){
   const t = kpis.totals || {};
   const year = new Date().getFullYear();
-  const L = [];
-  L.push('ÅRSRAPPORT — Bodø Jiu Jitsu');
-  L.push('Generert ' + new Date().toLocaleDateString('nb-NO') + ' · rapportår ' + year);
-  L.push('');
-  L.push('== MEDLEMMER ==');
-  L.push('Aktive medlemmer: ' + (t.activeMembers || 0));
-  Object.entries(kpis.byKategori || {}).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=> L.push('  ' + k + ': ' + v));
-  const kj = kpis.byKjonn || {};
-  L.push('Kjønn: Mann ' + (kj.Mann || 0) + ' · Kvinne ' + (kj.Kvinne || 0));
-  L.push('');
-  L.push('== BELTER ==');
-  Object.entries(kpis.byBelt || {}).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=> L.push('  ' + k + ': ' + v));
+  const ls = liveSince(kpis, live);
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
   let grad = 0;
   (members || []).forEach(m => (m.grading.history || []).forEach(e => {
     if(e.kind !== 'innmelding' && String(e.date).slice(0,4) === String(year)) grad++;
   }));
-  L.push('Graderinger i ' + year + ': ' + grad);
-  L.push('');
-  L.push('== OPPMØTE (historisk Spond-grunnlag) ==');
-  L.push('Totale check-ins: ' + fmtN(t.totalCheckins || 0));
-  L.push('Økter registrert: ' + fmtN(t.sessionsTracked || 0));
-  if(kpis.leaderboard && kpis.leaderboard.length){
-    L.push('Mest dedikerte:');
-    kpis.leaderboard.slice(0,5).forEach((m,i)=> L.push('  ' + (i+1) + '. ' + m.navn + ' — ' + m.deltatt + ' oppmøter'));
-  }
-  L.push('');
-  if(isStyre && okonomi && okonomi.keys && okonomi.keys.length){
+
+  // Horisontale søylerader (label · track · verdi), skalert mot største verdi.
+  const barRows = (entries, color) => {
+    const max = Math.max(1, ...entries.map(([,v]) => v));
+    return entries.map(([k,v]) =>
+      `<div class="brow"><span class="bl">${esc(k)}</span>` +
+      `<span class="bt"><span class="bf" style="width:${Math.round(v/max*100)}%;background:${color}"></span></span>` +
+      `<span class="bv">${v}</span></div>`).join('');
+  };
+  const byKat  = Object.entries(kpis.byKategori || {}).sort((a,b)=>b[1]-a[1]);
+  const byBelt = Object.entries(kpis.byBelt || {}).sort((a,b)=>b[1]-a[1]);
+  const kj = kpis.byKjonn || {};
+
+  // Mest dedikerte: live (register-koblet) foran statisk grunnlag.
+  const lb = (live && live.leaderboard && live.leaderboard.length)
+    ? live.leaderboard.map(m => ({ navn: m.navn, deltatt: m.deltatt }))
+    : (kpis.leaderboard || []);
+  const lbRows = lb.slice(0,5).map((m,i) =>
+    `<tr><td class="dim">${String(i+1).padStart(2,'0')}</td><td><strong>${esc(m.navn)}</strong></td>` +
+    `<td class="num">${fmtN(m.deltatt)}</td></tr>`).join('');
+
+  // Økonomi (kun styre): netto pr. måned i rapportåret som kolonner.
+  let okHtml = '';
+  if (isStyre && okonomi && okonomi.keys && okonomi.keys.length){
     const ym = okonomi.keys.filter(k => String(k).slice(0,4) === String(year));
     const netto = ym.reduce((s,k)=> s + (okonomi.months[k].netto || 0), 0);
-    L.push('== ØKONOMI ' + year + ' (kun styre) ==');
-    L.push('Netto innbetalt (' + ym.length + ' mnd registrert): ' + fmtN(netto) + ' kr');
-    L.push('Estimert MRR: ' + fmtN(t.mrr || 0) + ' kr · ARR: ' + fmtN(t.arr || 0) + ' kr');
-    L.push('');
+    const maxN = Math.max(1, ...ym.map(k => okonomi.months[k].netto || 0));
+    const cols = ym.map(k => {
+      const v = okonomi.months[k].netto || 0;
+      const mnd = MND_NO[parseInt(String(k).slice(5,7),10)-1];
+      return `<div class="col"><div class="cv">${fmtN(Math.round(v/1000))}k</div>` +
+        `<div class="ct"><div class="cf" style="height:${Math.round(v/maxN*100)}%"></div></div>` +
+        `<div class="cl">${mnd}</div></div>`;
+    }).join('');
+    okHtml = `<div class="sec"><h2>Økonomi ${year} <small>kun styre · faktiske utbetalinger (Spond)</small></h2>` +
+      `<div class="kpis"><div class="kpi"><div class="kv">${fmtN(netto)} kr</div><div class="kl">netto innbetalt · ${ym.length} mnd</div></div>` +
+      `<div class="kpi"><div class="kv">${fmtN(t.mrr||0)} kr</div><div class="kl">estimert MRR</div></div>` +
+      `<div class="kpi"><div class="kv">${fmtN(t.arr||0)} kr</div><div class="kl">estimert ARR</div></div></div>` +
+      (cols ? `<div class="cols">${cols}</div>` : '') + `</div>`;
   }
-  L.push('— Generert av løft.app/dashboard —');
-  return L.join('\n');
+
+  return `<!DOCTYPE html><html lang="nb"><head><meta charset="utf-8">
+<title>Årsrapport ${year} — Bodø Jiu Jitsu</title>
+<style>
+  :root{ --accent:#7B6EF6; --green:#34B98C; --coral:#F2825F; --blue:#4F9BEA; --ink:#232136; --mut:#8A86A0; --rule:#ECEAF4; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{ font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color:var(--ink); padding:44px 52px; max-width:840px; margin:0 auto; }
+  header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--accent); padding-bottom:18px; }
+  h1{ font-size:30px; letter-spacing:-0.02em; } h1 small{ display:block; font-size:12px; color:var(--mut); font-weight:600; letter-spacing:.14em; text-transform:uppercase; margin-bottom:6px; }
+  .gen{ font-size:11px; color:var(--mut); text-align:right; }
+  h2{ font-size:15px; margin:0 0 14px; } h2 small{ color:var(--mut); font-weight:500; font-size:11px; margin-left:8px; }
+  .sec{ margin-top:30px; page-break-inside:avoid; }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:6px; }
+  .kpi{ border:1px solid var(--rule); border-radius:12px; padding:14px 16px; }
+  .kv{ font-size:24px; font-weight:800; } .kl{ font-size:10.5px; color:var(--mut); text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }
+  .brow{ display:flex; align-items:center; gap:10px; margin:7px 0; font-size:12.5px; }
+  .bl{ width:150px; } .bv{ width:40px; text-align:right; font-weight:700; }
+  .bt{ flex:1; height:14px; background:#F4F3FB; border-radius:7px; overflow:hidden; }
+  .bf{ display:block; height:100%; border-radius:7px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:left; font-size:10px; color:var(--mut); text-transform:uppercase; letter-spacing:.1em; padding:6px 8px; border-bottom:1px solid var(--rule); }
+  td{ padding:7px 8px; border-bottom:1px solid var(--rule); } .num{ text-align:right; font-weight:700; } .dim{ color:var(--mut); }
+  .cols{ display:flex; align-items:flex-end; gap:8px; height:130px; margin-top:14px; }
+  .col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; }
+  .cv{ font-size:10px; font-weight:700; color:var(--mut); margin-bottom:4px; }
+  .ct{ width:100%; max-width:38px; flex:1; background:#F4F3FB; border-radius:6px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; }
+  .cf{ background:linear-gradient(180deg,var(--green),#2a9d77); border-radius:6px 6px 0 0; min-height:2px; }
+  .cl{ font-size:10px; color:var(--mut); margin-top:5px; }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  footer{ margin-top:36px; padding-top:12px; border-top:1px solid var(--rule); font-size:10.5px; color:var(--mut); display:flex; justify-content:space-between; }
+  .printbtn{ position:fixed; top:16px; right:16px; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 18px; font:700 13px 'Plus Jakarta Sans',system-ui; cursor:pointer; }
+  @media print{ .printbtn{ display:none; } body{ padding:10mm 6mm; } }
+</style></head><body>
+<button class="printbtn" onclick="window.print()">Skriv ut / lagre PDF</button>
+<header><h1><small>Årsrapport ${year}</small>Bodø Jiu Jitsu</h1>
+  <div class="gen">Generert ${new Date().toLocaleDateString('nb-NO')}<br>løft.app/dashboard</div></header>
+<div class="sec"><div class="kpis">
+  <div class="kpi"><div class="kv">${fmtN(t.activeMembers||0)}</div><div class="kl">aktive medlemmer</div></div>
+  <div class="kpi"><div class="kv">${fmtN(kpis.signupsPerYear && kpis.signupsPerYear[String(year)] || 0)}</div><div class="kl">nye i ${year}</div></div>
+  <div class="kpi"><div class="kv">${fmtN(grad)}</div><div class="kl">graderinger i ${year}</div></div>
+  <div class="kpi"><div class="kv">${fmtN((t.totalCheckins||0) + ls.total)}</div><div class="kl">check-ins totalt${ls.total>0?' · inkl. live':''}</div></div>
+</div></div>
+<div class="sec two">
+  <div><h2>Medlemstype</h2>${barRows(byKat, 'var(--accent)')}
+    <h2 style="margin-top:20px">Kjønn</h2>${barRows([['Mann', kj.Mann||0], ['Kvinne', kj.Kvinne||0]], 'var(--blue)')}</div>
+  <div><h2>Belter</h2>${barRows(byBelt, 'var(--green)')}</div>
+</div>
+<div class="sec"><h2>Mest dedikerte <small>${(live && live.leaderboard && live.leaderboard.length) ? 'nåværende medlemmer · faktiske oppmøte-rader' : 'historisk grunnlag'}</small></h2>
+  ${lbRows ? `<table><thead><tr><th>#</th><th>Navn</th><th class="num">Oppmøter</th></tr></thead><tbody>${lbRows}</tbody></table>` : '<p class="dim">Ingen oppmøtedata.</p>'}
+</div>
+${okHtml}
+<footer><span>Bodø Jiu Jitsu · klubbpanel</span><span>Generert av løft.app/dashboard</span></footer>
+</body></html>`;
+}
+
+function openAarsrapport(kpis, members, okonomi, isStyre, live){
+  const w = window.open('', '_blank');
+  if (!w) { alert('Nettleseren blokkerte rapport-vinduet — tillat popups for løft.app.'); return; }
+  w.document.write(buildAarsrapportHTML(kpis, members, okonomi, isStyre, live));
+  w.document.close();
 }
 
 // ── Live oppmøte: flett trener-appens loggede økter med historisk grunnlag ──
@@ -252,9 +324,8 @@ function App() {
             <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
             <span className="pill"><span className="sw" style={{background:'var(--accent)'}}/>jan 2023 → apr 2026</span>
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
-            <button className="btn outline sm" title="Last ned årsrapport (tekst)"
-              onClick={()=>downloadText('arsrapport_'+new Date().getFullYear()+'.txt',
-                buildAarsrapport(kpis, members, okonomi, isStyre), 'text/plain;charset=utf-8')}>
+            <button className="btn outline sm" title="Åpne grafisk årsrapport — skriv ut eller lagre som PDF derfra"
+              onClick={()=>openAarsrapport(kpis, members, okonomi, isStyre, live)}>
               ⤓ Årsrapport
             </button>
           </div>
@@ -827,7 +898,10 @@ function Okonomi({ kpis, charts }) {
               <div key={k} className="okbar">
                 <div className="okbar-v tabular">{fmtN(ok.months[k].netto/1000)}k</div>
                 <div className="okbar-track"><div className="okbar-fill" style={{height:(ok.months[k].netto/maxNet)*100+'%'}}/></div>
-                <div className="okbar-l" title={monthLabel(k)}>{String(k).slice(5)==='01' ? String(k).slice(0,4) : ''}</div>
+                <div className="okbar-l" title={monthLabel(k)}>
+                  {MND_NO[parseInt(String(k).slice(5,7),10)-1]}
+                  {(String(k).slice(5,7)==='01' || k===shownKeys[0]) ? ' ’'+String(k).slice(2,4) : ''}
+                </div>
               </div>
             ))}
           </div>
