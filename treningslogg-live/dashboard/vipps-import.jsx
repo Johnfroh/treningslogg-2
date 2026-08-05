@@ -97,6 +97,7 @@ function VippsImportModal({ onClose, onSaved }){
   async function apply(){
     setBusy(true); setErr('');
     try {
+      if (typeof DASH_API.importVipps !== 'function') throw new Error('Nettleseren kjører en eldre versjon — last siden på nytt (Ctrl+F5) og prøv igjen.');
       const res = await DASH_API.importVipps({ months: months||[], products: products||[] });
       setDone(res);
     } catch(e){ setErr(e.message==='forbidden' ? 'Kun styre kan importere økonomi.' : (e.message||'Import feilet.')); }
