@@ -114,7 +114,7 @@ module.exports = [
         useKpis: 'readonly', deriveCharts: 'readonly',
         fmtN: 'readonly', fmtKr: 'readonly', fmtPct: 'readonly', WD: 'readonly',
         HBar: 'readonly', Spark: 'readonly', Donut: 'readonly',
-        Heatmap: 'readonly', CohortBar: 'readonly',
+        CohortBar: 'readonly',
         // belt-system.jsx
         BELT_META: 'readonly', ADULT_BELTS: 'readonly', JUNIOR_BELTS: 'readonly',
         ALL_BELTS: 'readonly', maxStripes: 'readonly', beltMeta: 'readonly',

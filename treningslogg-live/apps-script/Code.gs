@@ -660,6 +660,8 @@ function dashLiveOppmote() {
   // Umatchede navn (typisk tidligere medlemmer) holdes utenfor leaderboarden,
   // men telles som unmatched (med mindre de er merket som sluttet).
   const byMember = {};
+  const kategoriWeekly = {};  // { kategori: { mandag: n } } — trend pr. gruppe
+  const memberWeekly = {};    // { memberId: { mandag: n } } — trend pr. medlem
   let unmatched = 0;
   attRows.forEach(a => {
     if (!a.memberName) return;
@@ -676,11 +678,21 @@ function dashLiveOppmote() {
     const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
     if (ISO_DATE.test(date) && date > e.sist) e.sist = date;
+    // Ukeserier for trendene i dashboardet — kun register-koblede oppmøter.
+    const wkm = ISO_DATE.test(date) ? dashMonday(date) : '';
+    if (wkm) {
+      const kat = (rm && rm.kategori) || 'Ukjent';
+      const kw = kategoriWeekly[kat] || (kategoriWeekly[kat] = {});
+      kw[wkm] = (kw[wkm] || 0) + 1;
+      const mwk = memberWeekly[id] || (memberWeekly[id] = {});
+      mwk[wkm] = (mwk[wkm] || 0) + 1;
+    }
   });
   const leaderboard = Object.keys(byMember).map(k => byMember[k])
     .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
 
-  return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched };
+  return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched,
+    kategoriWeekly: kategoriWeekly, memberWeekly: memberWeekly };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).

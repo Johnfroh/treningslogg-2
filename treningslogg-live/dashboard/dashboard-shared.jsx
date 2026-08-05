@@ -43,22 +43,6 @@ function deriveCharts(kpis) {
   }
   const monthlyArr = Object.entries(monthly).map(([k,v]) => ({m:k, v})).sort((a,b)=>a.m.localeCompare(b.m));
 
-  // Heatmap matrix [day][hour] — broaden to cover full active range (7–22)
-  const allHours = [11,12,13,14,15,16,17,18,19,20,21];
-  const heatGrid = [];
-  let maxAtt = 0;
-  for (let d = 0; d < 7; d++) {
-    const row = [];
-    for (const h of allHours) {
-      const att = kpis.heatmap.attendance[`${d}-${h}`] || 0;
-      const sessions = kpis.heatmap.sessions[`${d}-${h}`] || 0;
-      const avg = sessions ? att/sessions : 0;
-      row.push({ d, h, att, sessions, avg });
-      if (avg > maxAtt) maxAtt = avg;
-    }
-    heatGrid.push(row);
-  }
-
   // Cohort retention: people from year X still active
   const signups = kpis.signupsPerYear;
   const stillActive = kpis.cohortByYear;
@@ -91,7 +75,7 @@ function deriveCharts(kpis) {
     .map(([type, info]) => ({ type, ...info }))
     .sort((a,b) => b.mrr - a.mrr);
 
-  return { classes, daily, monthlyArr, heatGrid, allHours, maxAtt, cohorts, yearly, belts, pricing };
+  return { classes, daily, monthlyArr, cohorts, yearly, belts, pricing };
 }
 
 // =============== TINY CHART PRIMITIVES ===============
@@ -189,32 +173,6 @@ function Donut({ data, size=140, thickness=22, colors, centerLabel, centerValue 
   );
 }
 
-// Heatmap
-function Heatmap({ grid, hours, max, palette }) {
-  return (
-    <div style={{ fontSize: 11 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `40px repeat(${hours.length}, 1fr)`, gap: 2 }}>
-        <div></div>
-        {hours.map(h => <div key={h} style={{ textAlign:'center', opacity:.6 }}>{h}</div>)}
-        {grid.map((row, di) => (
-          <React.Fragment key={di}>
-            <div style={{ display:'flex', alignItems:'center', opacity:.7 }}>{WD[di]}</div>
-            {row.map((cell, hi) => {
-              const intensity = max ? Math.min(1, cell.avg/max) : 0;
-              return (
-                <div key={hi} title={`${WD[di]} ${hours[hi]}:00 — ${fmtN(cell.avg)} snitt (${cell.sessions} økter)`}
-                     style={{ aspectRatio:'1', background: palette(intensity), display:'flex', alignItems:'center', justifyContent:'center', fontSize: 9, color: intensity > 0.5 ? '#fff' : 'inherit' }}>
-                  {cell.sessions > 0 ? Math.round(cell.avg) : ''}
-                </div>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // Stacked bar - cohort
 function CohortBar({ cohorts, color1, color2 }) {
   const max = Math.max(...cohorts.map(c => c.signups));
@@ -253,5 +211,4 @@ window.WD = WD;
 window.HBar = HBar;
 window.Spark = Spark;
 window.Donut = Donut;
-window.Heatmap = Heatmap;
 window.CohortBar = CohortBar;
