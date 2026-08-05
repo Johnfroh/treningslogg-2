@@ -264,7 +264,7 @@ function App() {
         {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile}/>}
@@ -731,13 +731,120 @@ function Innhold(){
   );
 }
 
-function Oppmote({ kpis, charts, live, isStyre }) {
+// ── Trend-hjelpere: uke-serier fra live.kategoriWeekly / live.memberWeekly ──
+const KAT_COLORS = { 'Junior':'#B06FD6', 'Voksen':'#7B6EF6', 'Student':'#4F9BEA', 'Knøtte':'#F2825F', 'Familie':'#34B98C', 'Introkurs':'#E0B03A' };
+function lastMondays(n){
+  const t = new Date();
+  const d = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  d.setDate(d.getDate() - ((d.getDay()+6)%7)); // denne ukas mandag (lokal tid)
+  const out = [];
+  for(let i=n-1;i>=0;i--){
+    const w = new Date(d); w.setDate(w.getDate()-7*i);
+    out.push(`${w.getFullYear()}-${String(w.getMonth()+1).padStart(2,'0')}-${String(w.getDate()).padStart(2,'0')}`);
+  }
+  return out;
+}
+const sum4 = (arr, endOffset) => arr.slice(arr.length-endOffset-4, arr.length-endOffset).reduce((s,v)=>s+v,0);
+function TrendDelta({ now, prev }){
+  const d = now - prev;
+  const col = d>0?'var(--green)':d<0?'var(--coral)':'var(--muted)';
+  return <span style={{color:col, fontWeight:700, fontSize:12}}>{d>0?`▲ +${d}`:d<0?`▼ ${d}`:'— 0'}</span>;
+}
+
+// Trend pr. gruppe (medlemskategori): små ukesserier med 4-ukers endring.
+function TrendPerGruppe({ live }){
+  const kw = live && live.kategoriWeekly;
+  const weeks = React.useMemo(()=>lastMondays(26), []);
+  const groups = React.useMemo(()=>{
+    if(!kw) return [];
+    return Object.keys(kw).map(kat=>{
+      const series = weeks.map(w=>kw[kat][w]||0);
+      return { kat, series, total: series.reduce((s,v)=>s+v,0), last4: sum4(series,0), prev4: sum4(series,4) };
+    }).filter(g=>g.total>0).sort((a,b)=>b.total-a.total);
+  }, [kw, weeks]);
+  if(!groups.length) return (
+    <Tile title="trend pr. gruppe" corner="live">
+      <div className="dim" style={{fontSize:12}}>Ingen gruppetrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
+    </Tile>
+  );
+  return (
+    <div className="grid-3">
+      {groups.map(g=>{
+        const c = KAT_COLORS[g.kat] || '#7B6EF6';
+        return (
+          <Tile key={g.kat} title={g.kat.toLowerCase()} corner={`${fmtN(g.total)} oppmøter`}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8, fontSize:12}}>
+              <span className="dim">siste 4 uker: <strong style={{color:'var(--ink)'}}>{g.last4}</strong> · før: {g.prev4}</span>
+              <TrendDelta now={g.last4} prev={g.prev4}/>
+            </div>
+            <Spark data={g.series} height={64} color={c} fill={hexA(c, 0.12)}/>
+          </Tile>
+        );
+      })}
+    </div>
+  );
+}
+
+// Trend pr. medlem: velg medlem → ukesserie, pluss størst endring opp/ned.
+function TrendPerMedlem({ live, members }){
+  const mw = live && live.memberWeekly;
+  const weeks = React.useMemo(()=>lastMondays(26), []);
+  const byId = React.useMemo(()=>{ const m={}; (members||[]).forEach(x=>{ m[x.id]=x; }); return m; }, [members]);
+  const rows = React.useMemo(()=>{
+    if(!mw) return [];
+    return Object.keys(mw).map(id=>{
+      const series = weeks.map(w=>mw[id][w]||0);
+      const m = byId[id];
+      return { id, navn: m ? m.navn : '(ukjent)', kategori: m ? m.kategori : '', series,
+        total: series.reduce((s,v)=>s+v,0), last4: sum4(series,0), prev4: sum4(series,4) };
+    }).filter(r=>r.total>0).sort((a,b)=>b.total-a.total);
+  }, [mw, weeks, byId]);
+  const [selId, setSelId] = useState('');
+  if(!rows.length) return (
+    <Tile title="trend pr. medlem" corner="live">
+      <div className="dim" style={{fontSize:12}}>Ingen medlemstrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
+    </Tile>
+  );
+  const sel = rows.find(r=>r.id===selId) || rows[0];
+  const opp = rows.filter(r=>r.last4>r.prev4).sort((a,b)=>(b.last4-b.prev4)-(a.last4-a.prev4)).slice(0,5);
+  const ned = rows.filter(r=>r.last4<r.prev4).sort((a,b)=>(a.last4-a.prev4)-(b.last4-b.prev4)).slice(0,5);
+  const moverRow = (r) => (
+    <div key={r.id} style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)', fontSize:12.5, cursor:'pointer'}}
+      onClick={()=>setSelId(r.id)} title="Vis trend for medlemmet">
+      <span><strong>{r.navn}</strong>{r.kategori && <span className="dim" style={{marginLeft:6, fontSize:11}}>{r.kategori}</span>}</span>
+      <span style={{whiteSpace:'nowrap'}}><span className="dim" style={{marginRight:8}}>{r.prev4} → {r.last4}</span><TrendDelta now={r.last4} prev={r.prev4}/></span>
+    </div>
+  );
+  return (
+    <>
+      <Tile title="trend pr. medlem" corner="live">
+        <div style={{display:'flex', gap:14, alignItems:'center', marginBottom:12, flexWrap:'wrap'}}>
+          <select value={sel.id} onChange={e=>setSelId(e.target.value)}
+            style={{padding:'8px 12px', borderRadius:10, border:'1px solid var(--border)', background:'var(--card)', color:'var(--ink)', font:'inherit', fontSize:13}}>
+            {rows.map(r=><option key={r.id} value={r.id}>{r.navn} · {r.total} oppmøter</option>)}
+          </select>
+          <span className="dim" style={{fontSize:12}}>siste 4 uker: <strong style={{color:'var(--ink)'}}>{sel.last4}</strong> · før: {sel.prev4}</span>
+          <TrendDelta now={sel.last4} prev={sel.prev4}/>
+        </div>
+        <Spark data={sel.series} height={90} color="var(--accent)" fill="var(--accent-soft)"/>
+      </Tile>
+      {(opp.length>0 || ned.length>0) && (
+        <div className="grid-2" style={{marginTop:16}}>
+          <Tile title="størst fremgang" corner="4 uker vs forrige 4">
+            {opp.length ? opp.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med fremgang i perioden.</div>}
+          </Tile>
+          <Tile title="størst nedgang" corner="4 uker vs forrige 4">
+            {ned.length ? ned.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med nedgang i perioden.</div>}
+          </Tile>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Oppmote({ kpis, charts, live, isStyre, members }) {
   const t = kpis.totals;
   const ls = liveSince(kpis, live);
-  function palette(intensity) {
-    if (intensity === 0) return 'rgba(255,255,255,.03)';
-    return `rgba(123,110,246,${0.1 + intensity * 0.85})`;
-  }
   return (
     <div>
       <div className="grid-4">
@@ -759,11 +866,11 @@ function Oppmote({ kpis, charts, live, isStyre }) {
         </>
       )}
 
-      <div className="section-h">Heatmap<span className="meta">historisk (Spond) · ukedag × time</span></div>
-      <Tile title="når trener vi" corner="weekly">
-        <Heatmap grid={charts.heatGrid} hours={charts.allHours} max={charts.maxAtt} palette={palette}/>
-        <div className="dim" style={{fontSize:11, marginTop:12}}>Sterkeste pulser: torsdag 18 (1 071 estimerte check-ins) og tirsdag 18 (1 033) er klubbens hjerteslag — Erfaren-økter. Helga lever på Åpen Matte: lørdag og søndag 12 (~651 hver). Klokkeslett er estimert fra klassetype.</div>
-      </Tile>
+      <div className="section-h">Trend pr. gruppe<span className="meta">live · register-koblede oppmøter · siste 26 uker</span></div>
+      <TrendPerGruppe live={live}/>
+
+      <div className="section-h">Trend pr. medlem<span className="meta">live · siste 26 uker · 4-ukers endring</span></div>
+      <TrendPerMedlem live={live} members={members}/>
 
       <div className="section-h">Topp 10 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
       <Tile title="leaderboard" corner="dedicated">
