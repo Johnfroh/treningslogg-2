@@ -129,6 +129,13 @@ window.DASH_API = (function () {
     fetchOkonomi() {
       return okGet('dashOkonomiList').then(d => (d.okonomi && d.okonomi.months) || {});
     },
+    // Vipps-utsalg (merch) — samme styre-skjerming som øvrig økonomi.
+    fetchVipps() {
+      return okGet('dashVippsList').then(d => ({ months: d.months || [], products: d.products || [] }));
+    },
+    importVipps(payload) {
+      return okPost({ action: 'dashVippsImport', months: payload.months || [], products: payload.products || [] });
+    },
 
     // ── Skriving ──
     // events: [{ memberId, kind, belt, stripes, date, by, note }]

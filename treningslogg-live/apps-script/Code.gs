@@ -38,6 +38,9 @@ const SHEET_NAMES = {
   dashGrading: 'dash_grading',
   dashOkonomi: 'dash_okonomi',
   dashMeta: 'dash_meta',
+  // Vipps-utsalg (merch): månedstall pr. strøm + produkttopp fra salgsrapport.
+  dashVipps: 'dash_vipps',
+  dashVippsProd: 'dash_vipps_produkter',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -65,6 +68,11 @@ const DASH_MEMBER_COLS = ['id','fornavn','etternavn','navn','kategori','medlemst
 const DASH_GRADING_COLS = ['memberId','eventId','date','kind','belt','stripes','by','note','seq','createdAt'];
 // dash_okonomi: faktiske månedstall fra Spond. byKategori lagres som JSON-streng.
 const DASH_OKONOMI_COLS = ['month','netto','brutto','avgifter','antall','byKategori','updatedAt'];
+// dash_vipps: Vipps-utsalg pr. måned og strøm ('butikk' = Handlekurv/vippsbutikken,
+// 'diverse' = Valgfritt beløp — historisk blandet strøm). Fra oppgjørsrapport-CSV.
+const DASH_VIPPS_COLS = ['month','stream','brutto','gebyr','netto','antall','updatedAt'];
+// dash_vipps_produkter: produkttopp fra salgsrapport-xlsx (hele perioden, overskrives).
+const DASH_VIPPS_PROD_COLS = ['navn','antall','belop','updatedAt'];
 // dash_meta: nøkkel/verdi for import-metadata (sist importert, antall …).
 const DASH_META_COLS = ['key','value'];
 
@@ -125,6 +133,8 @@ function handle(e, method) {
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
+      case 'dashVippsList':     return json({ ok: true, data: dashVippsList() });
+      case 'dashVippsImport':   return json({ ok: true, data: dashVippsImport(body) });
 
       case 'ping':            return json({ ok: true, data: { now: new Date().toISOString() } });
       default:                return json({ ok: false, error: 'unknown action: ' + action });
@@ -935,6 +945,51 @@ function dashUndoLast(memberId) {
   return { undone: true };
 }
 
+// ─── Vipps-utsalg (merch) ──────────────────────────────────────────
+// Månedstall pr. strøm + produkttopp. Importen leverer alltid HELE perioden
+// (oppgjørsrapport/salgsrapport eksporteres fra 01.01.2023 → i dag), så hvert
+// datasett overskrives i sin helhet — idempotent re-import.
+function dashVippsList() {
+  const months = dashRows(SHEET_NAMES.dashVipps, DASH_VIPPS_COLS).map(r => ({
+    month: ymKey(r.month), stream: String(r.stream || 'butikk'),
+    brutto: Number(r.brutto || 0), gebyr: Number(r.gebyr || 0),
+    netto: Number(r.netto || 0), antall: Number(r.antall || 0),
+  })).filter(r => r.month);
+  const products = dashRows(SHEET_NAMES.dashVippsProd, DASH_VIPPS_PROD_COLS).map(r => ({
+    navn: String(r.navn || ''), antall: Number(r.antall || 0), belop: Number(r.belop || 0),
+  })).filter(p => p.navn);
+  return { months: months, products: products };
+}
+
+function dashVippsImport(body) {
+  if (!body || typeof body !== 'object') throw new Error('payload mangler');
+  const now = new Date().toISOString();
+  let months = 0, products = 0;
+  if (Array.isArray(body.months) && body.months.length) {
+    dashClear(SHEET_NAMES.dashVipps, DASH_VIPPS_COLS);
+    const sh = sheet(SHEET_NAMES.dashVipps);
+    const rows = body.months.map(m => [ymKey(m.month), String(m.stream || 'butikk'),
+      Number(m.brutto || 0), Number(m.gebyr || 0), Number(m.netto || 0), Number(m.antall || 0), now])
+      .filter(r => r[0]);
+    if (rows.length) {
+      // Tving måned-kolonna til tekst FØR skriving, ellers omkoder Sheets «2026-01» til dato.
+      sh.getRange(2, 1, rows.length, 1).setNumberFormat('@');
+      sh.getRange(2, 1, rows.length, DASH_VIPPS_COLS.length).setValues(rows);
+    }
+    months = rows.length;
+  }
+  if (Array.isArray(body.products) && body.products.length) {
+    dashClear(SHEET_NAMES.dashVippsProd, DASH_VIPPS_PROD_COLS);
+    const sh2 = sheet(SHEET_NAMES.dashVippsProd);
+    const prows = body.products.map(p => [String(p.navn || ''), Number(p.antall || 0), Number(p.belop || 0), now])
+      .filter(r => r[0]);
+    if (prows.length) sh2.getRange(2, 1, prows.length, DASH_VIPPS_PROD_COLS.length).setValues(prows);
+    products = prows.length;
+  }
+  dashSetMeta({ vippsImportedAt: now });
+  return { months: months, products: products };
+}
+
 // Slå sammen importerte måneder med eksisterende (idempotent re-import).
 function dashImportOkonomi(months) {
   if (!months || typeof months !== 'object') throw new Error('months mangler');
@@ -961,8 +1016,9 @@ function dashImportOkonomi(months) {
 
 // Kjør én gang fra editoren for å opprette dashboard-arkene.
 function _setupDashSheets() {
-  [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi, SHEET_NAMES.dashMeta].forEach(n => sheet(n));
-  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi, dash_meta.');
+  [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi, SHEET_NAMES.dashMeta,
+   SHEET_NAMES.dashVipps, SHEET_NAMES.dashVippsProd].forEach(n => sheet(n));
+  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi, dash_meta, dash_vipps, dash_vipps_produkter.');
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -983,6 +1039,8 @@ function sheet(name) {
               : name === SHEET_NAMES.dashMembers ? DASH_MEMBER_COLS
               : name === SHEET_NAMES.dashGrading ? DASH_GRADING_COLS
               : name === SHEET_NAMES.dashOkonomi ? DASH_OKONOMI_COLS
+              : name === SHEET_NAMES.dashVipps   ? DASH_VIPPS_COLS
+              : name === SHEET_NAMES.dashVippsProd ? DASH_VIPPS_PROD_COLS
               : name === SHEET_NAMES.dashMeta    ? DASH_META_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
