@@ -970,6 +970,14 @@ function Okonomi({ kpis, charts }) {
   const { okonomi, okonomiActions } = useMembers();
   const [impOpen, setImpOpen] = useState(false);
   const [trendMonths, setTrendMonths] = useState(24);
+  // Vipps-utsalg (merch) — lastes separat via samme styre-skjermede rute.
+  const [vipps, setVipps] = useState(null);
+  const [vImpOpen, setVImpOpen] = useState(false);
+  const [vStream, setVStream] = useState('butikk');
+  const loadVipps = React.useCallback(() => {
+    DASH_API.fetchVipps().then(setVipps).catch(()=>setVipps({ months: [], products: [] }));
+  }, []);
+  useEffect(() => { loadVipps(); }, [loadVipps]);
   const ok = okonomi;
   const latestKey = ok && ok.keys.length ? ok.keys[ok.keys.length-1] : null;
   const latest = latestKey ? ok.months[latestKey] : null;
@@ -1026,6 +1034,77 @@ function Okonomi({ kpis, charts }) {
       )}
       </>
       )}
+
+      {(() => {
+        const vm = (vipps && vipps.months) || [];
+        const vp = (vipps && vipps.products) || [];
+        const shown = vm.filter(m => m.stream === vStream).sort((a,b)=>a.month.localeCompare(b.month));
+        const maxV = shown.length ? Math.max(1, ...shown.map(m=>m.netto)) : 1;
+        const yr = String(new Date().getFullYear());
+        const iYr = vm.filter(m => m.stream==='butikk' && m.month.startsWith(yr));
+        const nettoYr = iYr.reduce((s,m)=>s+m.netto,0);
+        const gebyrYr = iYr.reduce((s,m)=>s+m.gebyr,0);
+        const antallYr = iYr.reduce((s,m)=>s+m.antall,0);
+        const hasDiverse = vm.some(m=>m.stream==='diverse');
+        return (
+          <>
+            <div className="section-h" style={{marginTop:32}}>Utsalg — Vipps
+              <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
+                {hasDiverse && (
+                  <span className="chips">
+                    {[['butikk','Butikk'],['diverse','Diverse (historisk)']].map(([v,l])=>(
+                      <button key={v} className={'chip'+(vStream===v?' active':'')} onClick={()=>setVStream(v)}>{l}</button>
+                    ))}
+                  </span>
+                )}
+                <button className="btn primary sm" onClick={()=>setVImpOpen(true)}>Importer Vipps</button>
+              </span>
+            </div>
+            {vm.length === 0 ? (
+              <Tile title="utsalg" corner="vipps">
+                <div className="muted" style={{padding:24, fontSize:13, lineHeight:1.7}}>
+                  Ingen Vipps-data importert ennå. Last ned <strong>oppgjørsrapport (.csv)</strong> og <strong>salgsrapport (.xlsx)</strong> fra portal.vipps.no for hele perioden, og klikk «Importer Vipps».
+                </div>
+              </Tile>
+            ) : (
+              <>
+                <div className="grid-4">
+                  <KPI label={`Netto butikk · ${yr}`} value={fmtN(Math.round(nettoYr))} unit=" kr" delta={`${antallYr} ordre`} accent="green"/>
+                  <KPI label="Vipps-gebyr" value={fmtN(Math.round(gebyrYr))} unit=" kr" delta={`i ${yr}`} deltaClass="down" accent="coral"/>
+                  <KPI label="Snitt pr. ordre" value={antallYr ? fmtN(Math.round(nettoYr/antallYr)) : '—'} unit=" kr" accent="blue"/>
+                  <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken hele perioden" accent="amber"/>
+                </div>
+                <Tile title={`netto pr. måned · ${VIPPS_STREAM_LABEL[vStream].toLowerCase()}`} corner="vipps">
+                  {shown.length > 0 ? (
+                    <div className="okbars">
+                      {shown.map(m=>(
+                        <div key={m.month} className="okbar">
+                          <div className="okbar-v tabular">{fmtN(Math.round(m.netto/100)/10)}k</div>
+                          <div className="okbar-track"><div className="okbar-fill" style={{height:(m.netto/maxV)*100+'%'}}/></div>
+                          <div className="okbar-l" title={monthLabel(m.month)}>
+                            {MND_NO[parseInt(m.month.slice(5,7),10)-1]}
+                            {(m.month.slice(5,7)==='01' || m.month===shown[0].month) ? ' ’'+m.month.slice(2,4) : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <div className="muted" style={{padding:24}}>Ingen måneder i denne strømmen.</div>}
+                  {vStream==='diverse' && <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>«Diverse» er den gamle Valgfritt beløp-strømmen — blandet innhold (utstyr, seminar, stevnepåmelding). Butikken tok over i 2026.</div>}
+                </Tile>
+                {vp.length > 0 && (
+                  <>
+                    <div className="section-h" style={{marginTop:26}}>Hva selger<span className="meta">vippsbutikken · hele perioden · brutto</span></div>
+                    <Tile title="produkttopp" corner="salgsrapport">
+                      <HBar data={vp.slice(0,12).map(p=>({label:`${p.navn} · ${p.antall} stk`, value:p.belop}))} color="var(--accent)" height={20}/>
+                    </Tile>
+                  </>
+                )}
+              </>
+            )}
+            {vImpOpen && <VippsImportModal onClose={()=>setVImpOpen(false)} onSaved={loadVipps}/>}
+          </>
+        );
+      })()}
 
       <div className="section-h" style={{marginTop:32}}>Estimert kontingent<span className="meta">modellert fra medlemstall × pris</span></div>
       <div style={{padding:'14px 16px', borderRadius:'calc(16px * var(--rscale))', background:'var(--accent-bg)', marginBottom:20, fontSize:12, color:'var(--ink-soft)'}}>
