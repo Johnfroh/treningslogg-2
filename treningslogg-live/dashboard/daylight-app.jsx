@@ -970,6 +970,7 @@ function Okonomi({ kpis, charts }) {
   const { okonomi, okonomiActions } = useMembers();
   const [impOpen, setImpOpen] = useState(false);
   const [trendMonths, setTrendMonths] = useState(24);
+  const [samletMnd, setSamletMnd] = useState(24);
   // Vipps-utsalg (merch) — lastes separat via samme styre-skjermede rute.
   const [vipps, setVipps] = useState(null);
   const [vImpOpen, setVImpOpen] = useState(false);
@@ -989,7 +990,85 @@ function Okonomi({ kpis, charts }) {
   const maxNet = shownKeys.length ? Math.max(1, ...shownKeys.map(k=>ok.months[k].netto)) : 1;
   return (
     <div>
-      <div className="section-h">Faktiske utbetalinger<span className="meta">importert fra Spond · netto etter avgifter</span></div>
+      {(() => {
+        // Samlet inntekt: kontingent (Spond) + varesalg (Vipps butikk + diverse).
+        // Diverse regnes med i totalen — det er varesalg tilbake i tid (før butikken).
+        const vm = (vipps && vipps.months) || [];
+        const okM = (ok && ok.months) || {};
+        const byYm = {};
+        Object.keys(okM).forEach(k => { (byYm[k] = byYm[k] || { kont:0, but:0, div:0 }).kont += okM[k].netto || 0; });
+        vm.forEach(m => {
+          const b = byYm[m.month] = byYm[m.month] || { kont:0, but:0, div:0 };
+          if (m.stream === 'butikk') b.but += m.netto; else b.div += m.netto;
+        });
+        const keys = Object.keys(byYm).sort();
+        if (!keys.length) return null;
+        const shown = samletMnd === 'all' ? keys : keys.slice(-samletMnd);
+        const totOf = k => byYm[k].kont + byYm[k].but + byYm[k].div;
+        const maxT = Math.max(1, ...shown.map(totOf));
+        const yr = String(new Date().getFullYear());
+        const sumYr = f => keys.filter(k=>k.startsWith(yr)).reduce((s,k)=>s+byYm[k][f],0);
+        const kontYr = sumYr('kont'), vareYr = sumYr('but') + sumYr('div');
+        const lk = keys[keys.length-1];
+        const SEG = [
+          { f:'div',  farge:'var(--amber)',  navn:'Diverse (historisk Vipps)' },
+          { f:'but',  farge:'var(--accent)', navn:'Butikk (Vipps)' },
+          { f:'kont', farge:'var(--green)',  navn:'Kontingent (Spond)' },
+        ];
+        return (
+          <>
+            <div className="section-h">Samlet inntekt
+              <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
+                <span>kontingent + varesalg · netto</span>
+                <span className="chips">
+                  {[['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
+                    <button key={v} className={'chip'+(String(samletMnd)===v?' active':'')}
+                      onClick={()=>setSamletMnd(v==='all'?'all':Number(v))}>{l}</button>
+                  ))}
+                </span>
+              </span>
+            </div>
+            <div className="grid-4">
+              <KPI label={`Samlet · ${monthLabel(lk)}`} value={fmtN(Math.round(totOf(lk)))} unit=" kr" delta="siste måned med data" accent="green"/>
+              <KPI label={`Samlet i ${yr}`} value={fmtN(Math.round(kontYr+vareYr))} unit=" kr" delta="kontingent + varesalg" accent="amber"/>
+              <KPI label={`Kontingent i ${yr}`} value={fmtN(Math.round(kontYr))} unit=" kr" delta="Spond" accent="blue"/>
+              <KPI label={`Varesalg i ${yr}`} value={fmtN(Math.round(vareYr))} unit=" kr" delta="Vipps · butikk + diverse" accent="coral"/>
+            </div>
+            <Tile title="samlet pr. måned" corner="stablet">
+              <div className="okbars">
+                {shown.map(k=>{
+                  const b = byYm[k];
+                  const segs = SEG.filter(s=>b[s.f]>0);
+                  return (
+                    <div key={k} className="okbar">
+                      <div className="okbar-v tabular">{fmtN(Math.round(totOf(k)/100)/10)}k</div>
+                      <div className="okbar-track">
+                        {segs.map((s,i)=>(
+                          <div key={s.f} className="okbar-seg" style={{
+                            height:(b[s.f]/maxT)*100+'%', background:s.farge,
+                            borderRadius: i===0 ? '6px 6px 0 0' : 0,
+                          }} title={`${s.navn}: ${fmtN(Math.round(b[s.f]))} kr`}/>
+                        ))}
+                      </div>
+                      <div className="okbar-l" title={monthLabel(k)}>
+                        {MND_NO[parseInt(k.slice(5,7),10)-1]}
+                        {(k.slice(5,7)==='01' || k===shown[0]) ? ' ’'+k.slice(2,4) : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="oklegend">
+                {[...SEG].reverse().map(s=>(
+                  <span key={s.f}><i style={{background:s.farge}}/>{s.navn}</span>
+                ))}
+              </div>
+            </Tile>
+          </>
+        );
+      })()}
+
+      <div className="section-h" style={{marginTop:26}}>Faktiske utbetalinger<span className="meta">importert fra Spond · netto etter avgifter</span></div>
       {!ok ? <Tile title="laster">…</Tile> : (
       <>
       <div className="grid-4">
