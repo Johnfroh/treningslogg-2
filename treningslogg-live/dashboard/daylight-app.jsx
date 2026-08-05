@@ -1006,10 +1006,11 @@ function Okonomi({ kpis, charts }) {
         const shown = samletMnd === 'all' ? keys : keys.slice(-samletMnd);
         const totOf = k => byYm[k].kont + byYm[k].but + byYm[k].div;
         const maxT = Math.max(1, ...shown.map(totOf));
-        const yr = String(new Date().getFullYear());
-        const sumYr = f => keys.filter(k=>k.startsWith(yr)).reduce((s,k)=>s+byYm[k][f],0);
-        const kontYr = sumYr('kont'), vareYr = sumYr('but') + sumYr('div');
-        const lk = keys[keys.length-1];
+        // KPI-ene følger valgt periode (chips), ikke kalenderåret.
+        const sumP = f => shown.reduce((s,k)=>s+byYm[k][f],0);
+        const kontP = sumP('kont'), butP = sumP('but'), divP = sumP('div');
+        const totP = kontP + butP + divP;
+        const perLabel = samletMnd === 'all' ? 'hele perioden' : `siste ${samletMnd} mnd`;
         const SEG = [
           { f:'div',  farge:'var(--amber)',  navn:'Diverse (historisk Vipps)' },
           { f:'but',  farge:'var(--accent)', navn:'Butikk (Vipps)' },
@@ -1021,7 +1022,7 @@ function Okonomi({ kpis, charts }) {
               <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
                 <span>kontingent + varesalg · netto</span>
                 <span className="chips">
-                  {[['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
+                  {[['6','6 mnd'],['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
                     <button key={v} className={'chip'+(String(samletMnd)===v?' active':'')}
                       onClick={()=>setSamletMnd(v==='all'?'all':Number(v))}>{l}</button>
                   ))}
@@ -1029,10 +1030,10 @@ function Okonomi({ kpis, charts }) {
               </span>
             </div>
             <div className="grid-4">
-              <KPI label={`Samlet · ${monthLabel(lk)}`} value={fmtN(Math.round(totOf(lk)))} unit=" kr" delta="siste måned med data" accent="green"/>
-              <KPI label={`Samlet i ${yr}`} value={fmtN(Math.round(kontYr+vareYr))} unit=" kr" delta="kontingent + varesalg" accent="amber"/>
-              <KPI label={`Kontingent i ${yr}`} value={fmtN(Math.round(kontYr))} unit=" kr" delta="Spond" accent="blue"/>
-              <KPI label={`Varesalg i ${yr}`} value={fmtN(Math.round(vareYr))} unit=" kr" delta="Vipps · butikk + diverse" accent="coral"/>
+              <KPI label="Samlet" value={fmtN(Math.round(totP))} unit=" kr" delta={perLabel} accent="green"/>
+              <KPI label="Kontingent" value={fmtN(Math.round(kontP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="blue"/>
+              <KPI label="Varesalg" value={fmtN(Math.round(butP+divP))} unit=" kr" delta={`butikk ${fmtN(Math.round(butP))} · diverse ${fmtN(Math.round(divP))}`} accent="coral"/>
+              <KPI label="Snitt pr. måned" value={shown.length ? fmtN(Math.round(totP/shown.length)) : '—'} unit=" kr" delta={`${shown.length} mnd med data`} accent="amber"/>
             </div>
             <Tile title="samlet pr. måned" corner="stablet">
               <div className="okbars">
