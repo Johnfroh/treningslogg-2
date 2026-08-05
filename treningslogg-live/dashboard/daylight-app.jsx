@@ -975,6 +975,10 @@ function Okonomi({ kpis, charts }) {
   const [vImpOpen, setVImpOpen] = useState(false);
   const [vStream, setVStream] = useState('butikk');
   const loadVipps = React.useCallback(() => {
+    // Feature-detect: rett etter en deploy kan nettleseren sitte med en eldre
+    // cachet api.js enn jsx-ene (script-tag vs. Babel-fetch caches ulikt).
+    // Uten denne vakta krasjer hele fanen på DASH_API.fetchVipps is not a function.
+    if (typeof DASH_API.fetchVipps !== 'function') { setVipps({ months: [], products: [] }); return; }
     DASH_API.fetchVipps().then(setVipps).catch(()=>setVipps({ months: [], products: [] }));
   }, []);
   useEffect(() => { loadVipps(); }, [loadVipps]);
