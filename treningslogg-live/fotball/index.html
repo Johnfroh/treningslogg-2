@@ -281,6 +281,15 @@
   .tierbtn .tb-name{ display:block; font-family:var(--display); font-size:14px; letter-spacing:.02em; text-transform:uppercase; margin-top:3px; }
   .tierbtn .tb-prog{ display:block; font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.05em; color:var(--gold-bright); text-transform:uppercase; margin-top:5px; }
   .tierbtn.active{ background:rgba(255,210,62,.16); border-left-color:var(--green-bright); }
+
+  /* ute/inne-variant på et trinn (Fartsskolen/Motorrommet) */
+  .variantsw{ display:flex; gap:8px; margin:0 0 14px; }
+  .variantsw button{ flex:1; background:var(--field); border:1px solid var(--line); padding:9px 11px;
+    cursor:pointer; color:var(--muted); font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase; }
+  .variantsw button.active{ color:var(--green-bright); border-color:var(--green-bright);
+    background:rgba(95,224,160,.10); }
+  .variantsw button .vs-meta{ display:block; font-size:8px; color:var(--muted); letter-spacing:.06em; margin-top:3px; }
   .tierbtn.locked{ opacity:.5; cursor:not-allowed; border-left-color:var(--muted-2); }
   .tierbtn.locked .tb-kick{ color:var(--muted); }
   .tierbtn .tb-lock{ position:absolute; top:9px; right:10px; font-size:13px; opacity:.85; }
@@ -522,6 +531,7 @@
       <p class="ov-intro" id="od-intro"></p>
 
       <div id="od-tiers"></div>
+      <div id="od-variant"></div>
       <div class="seclabel">Deløvelser <span id="od-parts-sub">kryss av det du gjorde</span></div>
       <div id="od-parts"></div>
       <button class="skannbtn" id="od-skannbtn" style="display:none;">

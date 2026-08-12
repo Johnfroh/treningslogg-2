@@ -53,10 +53,59 @@ function renderOktList(){
 /* ---------- øktdetalj ---------- */
 var currentOkt=null;
 var currentTier=1;
+var currentVariant="ute";   // "ute" | "inne" — kun trinn med inne-blokk har valget
 
+function tierObj(o, tier){
+  if(o.tiers && o.tiers.length) return o.tiers[Math.min(tier, o.tiers.length)-1];
+  return null;
+}
 function partsForTier(o, tier){
-  if(o.tiers && o.tiers.length) return o.tiers[Math.min(tier, o.tiers.length)-1].parts;
+  var t=tierObj(o, tier);
+  if(t){
+    if(currentVariant==="inne" && t.inne && t.inne.parts) return t.inne.parts;
+    return t.parts;
+  }
   return o.parts;
+}
+// Effektiv rekord for valgt trinn: trinnets egen, ellers øktas.
+// «Beste»-tallet er felles per økt (trinn lagres ikke i loggen).
+function effRekord(o, tier){
+  var t=tierObj(o, tier);
+  return (t && t.rekord) ? t.rekord : o.rekord;
+}
+function updateRekordBox(o){
+  var rbox=$("od-rekordbox"); if(!rbox) return;
+  var rk=effRekord(o, currentTier);
+  if(rk){
+    rbox.style.display="block";
+    $("od-rekorddesc").textContent=rk.desc;
+    var inp=$("od-rekord"); inp.value=""; inp.placeholder=rk.placeholder||"";
+    var stats=BM.computeStats(BM.entries);
+    var best=stats.best[o.key];
+    $("od-prev").textContent = best!==undefined ? "beste: "+best : "ingen ennå";
+  } else { rbox.style.display="none"; }
+}
+function renderVariantSw(o){
+  var host=$("od-variant"); if(!host) return;
+  host.innerHTML="";
+  var t=tierObj(o, currentTier);
+  if(!(t && t.inne && t.inne.parts)){ host.style.display="none"; return; }
+  host.style.display="block";
+  var sw=document.createElement("div"); sw.className="variantsw";
+  [ {key:"ute",  label:"Ute",         meta:t.meta||""},
+    {key:"inne", label:"Inne-versjon", meta:t.inne.meta||""} ].forEach(function(v){
+    var b=document.createElement("button");
+    b.className=(currentVariant===v.key?"active":"");
+    b.innerHTML=v.label+(v.meta?'<span class="vs-meta">'+v.meta+'</span>':'');
+    b.addEventListener("click", function(){
+      if(currentVariant===v.key) return;
+      currentVariant=v.key;
+      renderVariantSw(o);
+      renderParts(partsForTier(o, currentTier));
+    });
+    sw.appendChild(b);
+  });
+  host.appendChild(sw);
 }
 function renderParts(arr){
   var parts=$("od-parts"); parts.innerHTML="";
@@ -71,13 +120,23 @@ function renderParts(arr){
 }
 function selectTier(o, tier){
   currentTier=tier;
+  currentVariant="ute";   // nytt trinn → alltid ute-versjonen først
   var sub=$("od-parts-sub");
   if(o.tiers && o.tiers.length){
     var t=o.tiers[tier-1];
     if(sub) sub.textContent="Trinn "+tier+(t.undertittel?" · "+t.undertittel:"");
+    // per-trinn intro («hvorfor»-teksten) — fall tilbake til øktas intro
+    var intro=$("od-intro");
+    if(intro) intro.textContent = t.intro || o.intro || "";
     var nav=$("od-tiers");
     if(nav) nav.querySelectorAll(".tierbtn").forEach(function(b){ b.classList.toggle("active", parseInt(b.dataset.tier,10)===tier); });
   } else if(sub){ sub.textContent="kryss av det du gjorde"; }
+  // skann-knappen kan slås av/på per trinn (t.skann overstyrer o.skann)
+  var tS=tierObj(o, tier);
+  var showSkann = (tS && tS.skann !== undefined) ? tS.skann : o.skann;
+  $("od-skannbtn").style.display = showSkann ? "flex" : "none";
+  renderVariantSw(o);
+  updateRekordBox(o);
   renderParts(partsForTier(o, tier));
 }
 // Bygger trinnvelgeren. Returnerer trinnet som skal være valgt (høyeste opplåste).
@@ -113,20 +172,12 @@ function openDetail(o){
   var stats=BM.computeStats(BM.entries);
   var defTier=renderTierNav(o, stats);
   selectTier(o, defTier);
-  $("od-skannbtn").style.display = o.skann ? "flex" : "none";
+  // skann-knappen settes av selectTier (trinn-bevisst)
   // «Husk»-kort
   var husk=$("od-husk");
   if(o.note){ husk.style.display="block"; $("od-husk-text").textContent=o.note; }
   else husk.style.display="none";
-  // rekordboks – kun når økta har rekord
-  var rbox=$("od-rekordbox");
-  if(o.rekord){
-    rbox.style.display="block";
-    $("od-rekorddesc").textContent=o.rekord.desc;
-    var inp=$("od-rekord"); inp.value=""; inp.placeholder=o.rekord.placeholder;
-    var best=stats.best[o.key];
-    $("od-prev").textContent = best!==undefined ? "beste: "+best : "ingen ennå";
-  } else { rbox.style.display="none"; }
+  // rekordboks håndteres av selectTier (per-trinn rekord via effRekord)
   $("od-date").value=BM.todayStr();
   $("od-note").value="";
   $("okt-detail").classList.add("open");
@@ -139,11 +190,12 @@ $("od-skannbtn").addEventListener("click", function(){ $("okt-detail").classList
 $("od-save").addEventListener("click", function(){
   if(!currentOkt) return;
   var o=currentOkt, D=BM.current;
-  var activeParts = (o.tiers && o.tiers.length) ? o.tiers[currentTier-1].parts : o.parts;
+  var activeParts = partsForTier(o, currentTier);   // trinn- og variant-bevisst
   var parts=activeParts.map(function(_,i){ return $("part-"+i).checked; });
   if(parts.filter(Boolean).length===0){ BM.toast("Kryss av minst én del først"); return; }
   var date=$("od-date").value||BM.todayStr();
-  var rekord=o.rekord ? $("od-rekord").value.trim() : "";
+  var rk=effRekord(o, currentTier);
+  var rekord=rk ? $("od-rekord").value.trim() : "";
   var note=$("od-note").value.trim();
 
   var before=BM.computeStats(BM.entries);
@@ -151,9 +203,10 @@ $("od-save").addEventListener("click", function(){
   var all=parts.every(Boolean);
   if(all){ xp+=D.xpRules.allParts; detail.push("Alt krysset av +"+D.xpRules.allParts); }
   var newRec=false;
-  if(o.rekord && D.xpRules.newRecord>0){
+  if(rk && D.xpRules.newRecord>0){
     var nv=BM.parseNum(rekord), prevBest=before.best[o.key];
-    newRec = nv!==null && prevBest!==undefined && BM.isBetter(o,nv,prevBest);
+    // isBetter leser retningen fra rekord-objektet — bruk trinnets
+    newRec = nv!==null && prevBest!==undefined && BM.isBetter({rekord:rk},nv,prevBest);
     if(newRec){ xp+=D.xpRules.newRecord; detail.push("Ny rekord! +"+D.xpRules.newRecord); }
   }
 
