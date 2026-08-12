@@ -152,7 +152,7 @@ function renderTierNav(o, stats){
     b.className="tierbtn"+(locked?" locked":"");
     b.dataset.tier=t.tier;
     var prog = locked
-      ? '<span class="tb-prog">'+(t.tier===ti.unlocked+1 ? (ti.toNext+" / "+ti.T+" til opplåsing") : "låst")+'</span>'
+      ? '<span class="tb-prog">'+(t.tier===ti.unlocked+1 ? (ti.inLevel+" / "+ti.T+" til opplåsing") : "låst")+'</span>'
       : '';
     b.innerHTML='<span class="tb-kick">Trinn '+t.tier+'</span>'+
       '<span class="tb-name">'+(t.undertittel||("Trinn "+t.tier))+'</span>'+prog+
