@@ -100,6 +100,21 @@ function saveActiveProgram(id){
 
 /* ---------- dato-hjelpere ---------- */
 function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+/* Google Sheets auto-tolker «okt1»/«okt2»/«okt3» som datoer (1.–3. oktober)
+   når raden skrives — cellen blir en Date, og serveren returnerer da en
+   dato-streng i stedet for økt-nøkkelen. Denne normaliserer alle kjente
+   varianter tilbake til «oktN» så historikken alltid teller:
+     «okt.1» / «okt. 1»  (tekst med punktum, slik Sheets VISER datoen)
+     «Wed Oct 01 2026 …» (Date → String på serveren)
+     «2026-10-01…»       (Date → ISO) */
+function normOktKey(k){
+  var s=String(k==null?"":k).trim();
+  var m=/^okt\.?\s?(\d{1,2})$/i.exec(s);            if(m) return "okt"+(+m[1]);
+  m=/\bOct\s0?(\d{1,2})\b/.exec(s);                  if(m) return "okt"+(+m[1]);
+  m=/^\d{4}-10-0?(\d{1,2})(?:$|T| )/.exec(s);        if(m) return "okt"+(+m[1]);
+  return s;
+}
 function parseDate(s){ var p=s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function weekKey(s){
   var d=parseDate(s); d.setDate(d.getDate()+3-((d.getDay()+6)%7));
@@ -257,6 +272,7 @@ function setProgram(id, opts){
   apiGet('bmList', { user: USER, program: reqProg }).then(function(data){
     if (mySeq !== loadSeq || !P || P.id !== reqProg) return; // utdatert svar — ignorer
     var srv = Array.isArray(data.entries) ? data.entries : null;
+    if (srv) srv.forEach(function(e){ if(e) e.okt = normOktKey(e.okt); });
     if (srv) {
       // Behold ubekreftede, optimistisk lagrede økter (client-id «bm-») som
       // serveren ennå ikke har returnert, så de ikke blinker ut.
@@ -475,4 +491,18 @@ window.BM = {
 
 /* ---------- start ---------- */
 window.BM_BOOT = function(){ setProgram(loadActiveProgram()); };
+
+/* Re-hent fra Sheets når appen får fokus igjen (PWA-er ligger ofte i
+   bakgrunnen i dagevis — uten dette synes ikke rettelser gjort direkte
+   i arket før appen drepes helt). Maks én refresh per 15. sekund. */
+var lastFocusSync = 0;
+function focusSync(){
+  if (document.hidden || !P) return;
+  var now = Date.now();
+  if (now - lastFocusSync < 15000) return;
+  lastFocusSync = now;
+  setProgram(P.id);
+}
+document.addEventListener("visibilitychange", focusSync);
+window.addEventListener("focus", focusSync);
 })();
