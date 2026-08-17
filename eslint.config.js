@@ -132,6 +132,8 @@ module.exports = [
         VIPPS_STREAM_LABEL: 'readonly',
         // attendance-import.jsx
         parseAttendanceFile: 'readonly', AttendanceImportModal: 'readonly',
+        // cleanup-modal.jsx
+        CleanupModal: 'readonly',
         // okonomi-import.jsx
         parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
         monthLabel: 'readonly', MND_NO: 'readonly',

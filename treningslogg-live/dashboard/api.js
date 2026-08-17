@@ -149,6 +149,9 @@ window.DASH_API = (function () {
     assignMember(name, memberId) { return post({ action: 'dashAssignMember', name, memberId }); },
     ignoreName(name, on) { return post({ action: 'dashIgnoreName', name, on }); },
     importWeekAttendance(events) { return post({ action: 'dashImportWeekAttendance', events }); },
+    // Opprydding etter feilimport: list økter i intervall, slett/nullstill valgte.
+    cleanupList(from, to) { return get('dashCleanupList', { from, to }); },
+    cleanupApply(deleteIds, clearIds) { return post({ action: 'dashCleanupApply', deleteIds, clearIds }); },
     fetchThemes() { return get('dashThemes'); },
     // Kalender + øktlogging (samme backend-handlinger som trener-appen).
     fetchCalendar() { return get('dashCalendar'); },

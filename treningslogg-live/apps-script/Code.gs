@@ -127,6 +127,8 @@ function handle(e, method) {
       case 'dashUnmatched':     return json({ ok: true, data: dashUnmatchedAttendance() });
       case 'dashAssignMember':  return json({ ok: true, data: dashAssignMember(body.name, body.memberId) });
       case 'dashImportWeekAttendance': return json({ ok: true, data: dashImportWeekAttendance(body.events) });
+      case 'dashCleanupList':   return json({ ok: true, data: dashCleanupList(params.from || body.from, params.to || body.to) });
+      case 'dashCleanupApply':  return json({ ok: true, data: dashCleanupApply(body.deleteIds, body.clearIds) });
       case 'dashIgnoreName':    return json({ ok: true, data: dashIgnoreName(body.name, body.on) });
       case 'dashThemes':        return json({ ok: true, data: dashThemes() });
       case 'dashCalendar':      return json({ ok: true, data: dashCalendar() });
@@ -588,6 +590,75 @@ function dashImportWeekAttendance(events) {
   const res = rows.length ? importAttendance(rows) : { count: 0, unmatched: 0 };
   dashSetMeta({ attendanceImportedAt: new Date().toISOString() });
   return { matched: matched, created: created, checkins: res.count, unmatchedMembers: res.unmatched || 0 };
+}
+
+// ─── Opprydding etter feilimportert oppmøte ────────────────────────
+// Lister øktene i et datointervall med nok kontekst til at man ser hva som
+// forsvinner før man sletter. autoCreated = opprettet av oppmøte-importen
+// (ingen trener, innhold eller tags) — trygg å slette. Økter trenerne har
+// logget skilles ut, så de ikke ryker ved et uhell.
+function dashCleanupList(from, to) {
+  const f = ymd(from), t = ymd(to);
+  if (!f || !t) throw new Error('from/to mangler (YYYY-MM-DD)');
+  const checkins = {};
+  readAttendance().forEach(a => { checkins[a.sessionId] = (checkins[a.sessionId] || 0) + 1; });
+  return readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow)
+    .filter(s => s.date >= f && s.date <= t)
+    .map(s => {
+      const tags = Array.isArray(s.tags) ? s.tags : [];
+      const hasContent = !!(String(s.content || '').trim() || tags.length || String(s.trainer || '').trim());
+      return {
+        id: s.id, date: s.date, time: s.time || '', group: s.group || '',
+        title: s.title || '', attendance: s.attendance == null ? '' : s.attendance,
+        checkins: checkins[s.id] || 0, autoCreated: !hasContent,
+      };
+    })
+    .sort((a, b) => a.date === b.date ? String(a.time).localeCompare(String(b.time)) : a.date.localeCompare(b.date));
+}
+
+// deleteIds: økter som slettes helt (inkludert oppmøte-radene deres).
+// clearIds:  økter som BEHOLDES (trenerens innhold er intakt), men som
+//            mister oppmøte-radene og oppmøtetallet sitt.
+function dashCleanupApply(deleteIds, clearIds) {
+  const del = {}, clr = {};
+  (deleteIds || []).forEach(id => { del[String(id)] = true; });
+  (clearIds || []).forEach(id => { clr[String(id)] = true; });
+  const nDel = Object.keys(del).length, nClr = Object.keys(clr).length;
+  if (!nDel && !nClr) return { sessions: 0, checkins: 0 };
+
+  // 1) Fjern oppmøte-radene for begge settene i én omskriving.
+  const ash = sheet(SHEET_NAMES.attendance);
+  const lastRow = ash.getLastRow();
+  let removed = 0;
+  if (lastRow >= 2) {
+    const existing = ash.getRange(2, 1, lastRow - 1, ATTENDANCE_COLS.length).getValues();
+    const keep = existing.filter(r => {
+      const sid = String(r[0]);
+      if (del[sid] || clr[sid]) { removed++; return false; }
+      return true;
+    });
+    ash.getRange(2, 1, lastRow - 1, ATTENDANCE_COLS.length).clearContent();
+    if (keep.length) ash.getRange(2, 1, keep.length, ATTENDANCE_COLS.length).setValues(keep);
+  }
+
+  // 2) Slett øktene — nedenfra og opp, så radindeksene holder underveis.
+  let gone = 0;
+  if (nDel) {
+    const ssh = sheet(SHEET_NAMES.sessions);
+    const last = ssh.getLastRow();
+    if (last >= 2) {
+      const ids = ssh.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = ids.length - 1; i >= 0; i--) {
+        if (del[String(ids[i][0])]) { ssh.deleteRow(i + 2); gone++; }
+      }
+    }
+  }
+
+  // 3) Nullstill oppmøtetallet på øktene som beholdes.
+  Object.keys(clr).forEach(id => {
+    try { updateSession(id, { attendance: '' }); } catch (e) { /* økta kan være slettet */ }
+  });
+  return { sessions: gone, checkins: removed };
 }
 
 // Kalenderdata for dashboardet: loggede + planlagte økter + trenere.
