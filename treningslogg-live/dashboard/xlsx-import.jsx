@@ -4,7 +4,9 @@
 
 const NOW_IMP = new Date();
 
-function serialToISOimp(n){ if(n==null||isNaN(n)) return null; return new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000).toISOString().slice(0,10); }
+// Math.floor, ikke round: en serial med klokkeslett (18:00 → .75) ville ellers
+// blitt avrundet til neste dag. Identisk for rene datoer (heltall).
+function serialToISOimp(n){ if(n==null||isNaN(n)) return null; return new Date(Date.UTC(1899,11,30)+Math.floor(n)*86400000).toISOString().slice(0,10); }
 function parseDateLoose(v){
   if(v==null||v==='') return null;
   const s=String(v).trim();
@@ -66,7 +68,10 @@ async function parseXlsxRaw(buf){
   const sheet=await get(sheetName);
   const rows=[...sheet.matchAll(/<row[^>]*>(.*?)<\/row>/gs)].map(r=>r[1]);
   const colIdx=ls=>{let n=0;for(const ch of ls)n=n*26+(ch.charCodeAt(0)-64);return n-1;};
-  function parseRow(r){const cells=[...r.matchAll(/<c r="([A-Z]+)\d+"([^>]*)>(.*?)<\/c>/gs)];const out={num:{}};for(const c of cells){const idx=colIdx(c[1]);const isStr=/t="s"/.test(c[2]);const v=(c[3].match(/<v>(.*?)<\/v>/s)||[])[1];if(v===undefined){out[idx]='';continue;}if(isStr){out[idx]=strings[parseInt(v)];}else{out[idx]=v;out.num[idx]=parseFloat(v);}}return out;}
+  // Tomme celler skrives selvlukkende: <c r="H3" s="4"/>. Uten alternativet
+  // (?:\/>|>…<\/c>) ville en slik celle matchet fram til NESTE </c> og dermed
+  // stjålet verdien til neste utfylte celle — hele raden forskjøvet.
+  function parseRow(r){const cells=[...r.matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>(.*?)<\/c>)/gs)];const out={num:{}};for(const c of cells){const idx=colIdx(c[1]);const isStr=/t="s"/.test(c[2]);const body=c[3];const v=body===undefined?undefined:(body.match(/<v>(.*?)<\/v>/s)||[])[1];if(v===undefined){out[idx]='';continue;}if(isStr){out[idx]=strings[parseInt(v)];}else{out[idx]=v;out.num[idx]=parseFloat(v);}}return out;}
   return rows.map(parseRow);
 }
 async function parseXlsx(buf){
