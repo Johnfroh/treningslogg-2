@@ -18,6 +18,19 @@ function _attLooksLikeTraining(raw){
   return !skip.some(w => s.includes(w));
 }
 
+// Spond-serialen i datoraden er dato + KLOKKESLETT (18:00 → .75). Datoen er
+// heltallsdelen: Math.round ville flyttet alt fra kl. 12 til neste dag.
+// Klokkeslettet tas vare på så økter samme dag (dagtid/kveld) kan skilles.
+function _attDateTime(serial){
+  if(serial==null || isNaN(serial)) return null;
+  const days = Math.floor(serial);
+  const ymd = new Date(Date.UTC(1899,11,30) + days*86400000).toISOString().slice(0,10);
+  let mins = Math.round((serial - days) * 1440);
+  if(mins >= 1440) mins = 1439;   // 23:59:59.9 skal ikke bli neste døgn
+  const hm = String(Math.floor(mins/60)).padStart(2,'0') + ':' + String(mins%60).padStart(2,'0');
+  return { date: ymd, time: mins > 0 ? hm : '' };
+}
+
 async function parseAttendanceFile(file){
   const buf = await file.arrayBuffer();
   const rows = await window.parseXlsxRaw(buf);
@@ -30,13 +43,13 @@ async function parseAttendanceFile(file){
     const serial = dateRow.num[c];
     const cls = classRow[c];
     if(serial==null || !cls) continue;
-    const ymd = window.serialToISOimp(serial);
-    if(!ymd) continue;
+    const dt = _attDateTime(serial);
+    if(!dt) continue;
     const rawClass = String(cls).replace(/\*+\s*$/,'').trim();
-    cols.push({ c, date: ymd, rawClass, group: _attGroup(rawClass), training: _attLooksLikeTraining(rawClass) });
+    cols.push({ c, date: dt.date, time: dt.time, rawClass, group: _attGroup(rawClass), training: _attLooksLikeTraining(rawClass) });
   }
   if(!cols.length) throw new Error('Fant ingen økt-kolonner (forventer datoer i rad 1 og klasser i rad 2).');
-  const events = cols.map(col => ({ date: col.date, group: col.group, title: col.rawClass, time: '', training: col.training, attendees: [] }));
+  const events = cols.map(col => ({ date: col.date, group: col.group, title: col.rawClass, time: col.time, training: col.training, attendees: [] }));
   for(let i=2; i<rows.length; i++){
     const r = rows[i];
     const name = String(r[0]||'').trim();
@@ -135,6 +148,15 @@ function AttendanceImportModal({ onClose }){
               <div className="ist blue"><div className="n">{selected.length}</div><div className="l">Økter</div></div>
               <div className="ist green"><div className="n">{totalCheckins}</div><div className="l">Oppmøter</div></div>
               <div className="ist"><div className="n">{dates.length? (dates[0]===dates[dates.length-1]? dates[0] : dates[0]+' → '+dates[dates.length-1]) : '—'}</div><div className="l">Periode</div></div>
+            </div>
+            <div className="ok-monthlist" style={{maxHeight:260, overflowY:'auto'}}>
+              {selected.slice().sort((a,b)=> a.date===b.date ? String(a.time).localeCompare(String(b.time)) : a.date.localeCompare(b.date)).map((e,i)=>(
+                <div key={i} className="ok-monthrow">
+                  <span><span className="tabular">{e.date}</span>{e.time && <span className="muted" style={{marginLeft:6}}>{e.time}</span>}
+                    <span style={{marginLeft:8}}>{e.title}</span></span>
+                  <span className="tabular"><span className="tag" style={{marginRight:8}}>{e.group}</span><strong>{e.attendees.length}</strong></span>
+                </div>
+              ))}
             </div>
             {skipped>0 && (
               <label className="import-note" style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>

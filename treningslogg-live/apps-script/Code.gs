@@ -529,16 +529,44 @@ function dashImportWeekAttendance(events) {
   const byKey = {};
   sessions.forEach(s => {
     const k = s.date + '|' + s.group;
-    (byKey[k] || (byKey[k] = [])).push(s);
+    (byKey[k] || (byKey[k] = [])).push({ s: s, used: false });
   });
+  // Klokkeslett → minutter, for å skille flere økter samme dag og gruppe
+  // (f.eks. «Åpen Matte Dagtid» 11:00 og «Åpen Matte Kveld» 19:00).
+  const mins = t => {
+    const m = String(t == null ? '' : t).match(/^(\d{1,2}):(\d{2})/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const SLACK = 180; // maks avvik (min) mellom logget tid og Spond-tid
   let matched = 0, created = 0;
   const rows = [];
   events.forEach((ev, i) => {
     const attendees = (ev.attendees || []).filter(Boolean);
     if (!ev.date || !ev.group) return;
     const k = ev.date + '|' + ev.group;
-    let sess = (byKey[k] && byKey[k][0]) || null;
-    if (sess) {
+    // Hver loggede økt kan bare kobles til ÉN importert økt. Uten dette
+    // smelter dagtid/kveld/junior samme dag sammen til én, og deltakerne
+    // havner på en økt de aldri var på.
+    const free = (byKey[k] || []).filter(x => !x.used);
+    const evM = mins(ev.time);
+    let pick = null;
+    if (free.length) {
+      if (evM == null) {
+        pick = free[0];
+      } else {
+        let best = null, bestD = -1;
+        free.forEach(c => {
+          const cm = mins(c.s.time);
+          const d = (cm == null) ? SLACK : Math.abs(cm - evM);
+          if (best === null || d < bestD) { best = c; bestD = d; }
+        });
+        if (best && bestD <= SLACK) pick = best;
+      }
+    }
+    let sess = null;
+    if (pick) {
+      pick.used = true;
+      sess = pick.s;
       matched++;
       // Oppdater oppmøtetallet på den loggede økta (innholdet røres ikke).
       updateSession(sess.id, { attendance: attendees.length });
@@ -549,7 +577,9 @@ function dashImportWeekAttendance(events) {
         title: ev.title || '', content: '', tags: [], attendance: attendees.length,
       });
       created++;
-      (byKey[k] || (byKey[k] = [])).push(sess);
+      // Merk som brukt med én gang — en nyopprettet økt tilhører denne
+      // importerte økta alene.
+      (byKey[k] || (byKey[k] = [])).push({ s: sess, used: true });
     } else {
       return;
     }
