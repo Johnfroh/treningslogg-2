@@ -631,6 +631,7 @@ function Avstemming() {
   const [msg, setMsg] = React.useState('');
   const [picks, setPicks] = React.useState({});
   const [importOpen, setImportOpen] = React.useState(false);
+  const [cleanupOpen, setCleanupOpen] = React.useState(false);
 
   const sortedMembers = React.useMemo(
     () => (members || []).slice().sort((a, b) => String(a.navn).localeCompare(String(b.navn), 'no')),
@@ -681,6 +682,8 @@ function Avstemming() {
           <button className="btn primary" disabled={busy} onClick={()=>setImportOpen(true)}>⤓ Importer ukesoppmøte</button>
           <button className="btn outline" disabled={busy} onClick={reconcile}>Kjør avstemming</button>
           <button className="btn ghost" disabled={busy} onClick={load}>Vis umatchede</button>
+          <button className="btn ghost" disabled={busy} onClick={()=>setCleanupOpen(true)}
+            title="Slett økter oppmøte-importen har opprettet i et datointervall — for å rydde etter en feilimport">Rydd opp i importerte økter…</button>
         </div>
         {msg && <div className="dim" style={{fontSize:12, marginBottom:10}}>{msg}</div>}
         {unmatched && unmatched.length === 0 && <div className="dim" style={{fontSize:12}}>Ingen umatchede navn 🎉</div>}
@@ -709,6 +712,7 @@ function Avstemming() {
         )}
       </Tile>
       {importOpen && <AttendanceImportModal onClose={()=>setImportOpen(false)}/>}
+      {cleanupOpen && <CleanupModal onClose={()=>setCleanupOpen(false)} onDone={load}/>}
     </>
   );
 }
