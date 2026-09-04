@@ -793,6 +793,13 @@ function dashLiveOppmote() {
   const byMember = {};
   const kategoriWeekly = {};  // { kategori: { mandag: n } } — trend pr. gruppe
   const memberWeekly = {};    // { memberId: { mandag: n } } — trend pr. medlem
+  // Kalendermåned pr. medlem — månedsrapporten skal følge månedsskiftet, og
+  // ukebøttene over spenner over to måneder i hver månedsovergang.
+  const memberMonthly = {};   // { memberId: { 'YYYY-MM': n } }
+  // Første dato vi i det hele tatt har oppmøterader for. Rapporten skriver den
+  // i klartekst, så et lavt tall kan leses som «har ikke trent» eller «vi har
+  // ikke data så langt tilbake» — ikke forveksles.
+  let attFrom = '';
   let unmatched = 0;
   attRows.forEach(a => {
     if (!a.memberName) return;
@@ -805,7 +812,12 @@ function dashLiveOppmote() {
     }
     const rm = roster[id];
     let navn = rm ? rm.navn : a.memberName;
-    if (rm && rm.minor) navn = String(navn).split(/\s+/)[0] || 'Medlem';
+    if (rm && rm.minor) {
+      // «Fornavn E.» — som maskeringen i api.js. Bare fornavn er tvetydig når
+      // klubben har flere barn med samme navn.
+      const d = String(navn).trim().split(/\s+/);
+      navn = (d[0] || 'Medlem') + (d.length > 1 ? ' ' + d[d.length - 1].charAt(0).toUpperCase() + '.' : '');
+    }
     const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
     if (ISO_DATE.test(date) && date > e.sist) e.sist = date;
@@ -817,6 +829,10 @@ function dashLiveOppmote() {
       kw[wkm] = (kw[wkm] || 0) + 1;
       const mwk = memberWeekly[id] || (memberWeekly[id] = {});
       mwk[wkm] = (mwk[wkm] || 0) + 1;
+      const mm = memberMonthly[id] || (memberMonthly[id] = {});
+      const ym = date.slice(0, 7);
+      mm[ym] = (mm[ym] || 0) + 1;
+      if (!attFrom || date < attFrom) attFrom = date;
     }
   });
   const leaderboard = Object.keys(byMember).map(k => byMember[k])
@@ -824,7 +840,8 @@ function dashLiveOppmote() {
 
   return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched,
     kategoriWeekly: kategoriWeekly, memberWeekly: memberWeekly,
-    sessionWeekly: sessionWeekly, gruppeWeekly: gruppeWeekly };
+    sessionWeekly: sessionWeekly, gruppeWeekly: gruppeWeekly,
+    memberMonthly: memberMonthly, attFrom: attFrom };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).

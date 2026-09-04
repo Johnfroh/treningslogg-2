@@ -135,6 +135,9 @@ module.exports = [
         parseAttendanceFile: 'readonly', AttendanceImportModal: 'readonly',
         // cleanup-modal.jsx
         CleanupModal: 'readonly',
+        // manedsrapport.jsx
+        ManedsrapportKnapp: 'readonly', buildManedsrapportData: 'readonly',
+        buildManedsrapportHTML: 'readonly', mrNavn: 'readonly',
         // okonomi-import.jsx
         parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
         monthLabel: 'readonly', MND_NO: 'readonly',
