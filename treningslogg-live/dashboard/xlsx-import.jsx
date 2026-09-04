@@ -16,7 +16,20 @@ function parseDateLoose(v){
   if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
   return null;
 }
-function deriveKategoriImp(t){t=(t||'').toLowerCase();if(t.includes('kn'))return'Knøtte';if(t.includes('junior'))return'Junior';if(t.includes('student'))return'Student';if(t.includes('voksen'))return'Voksen';if(t.includes('familie'))return'Familie';if(t.includes('intro'))return'Introkurs';return'Annet';}
+// «Introduksjonskurs Voksen August» inneholder BÅDE «intro» og «voksen».
+// Intro må derfor sjekkes først — ellers havner hele introkullet i Voksen,
+// og Introkurs-skiva i sammensetningen blir nesten tom.
+function deriveKategoriImp(t){t=(t||'').toLowerCase();if(t.includes('intro'))return'Introkurs';if(t.includes('kn'))return'Knøtte';if(t.includes('junior'))return'Junior';if(t.includes('student'))return'Student';if(t.includes('voksen'))return'Voksen';if(t.includes('familie'))return'Familie';return'Annet';}
+// «Ikke aktiv» er en parkert medlemskapstype i Spond: personen ligger fortsatt
+// i eksporten, men trener ikke og skal ikke telle som aktivt medlem.
+function isInactiveTypeImp(t){return /ikke\s*aktiv/i.test(t||'');}
+// Alder regnet ut ved import blir stående til neste import. Der fødselsdato
+// finnes regner vi den om på visningstidspunktet i stedet.
+function alderNaImp(m){
+  const f=m&&m.fodselsdato;
+  if(f){ const d=new Date(f); if(!isNaN(d.getTime())) return Math.floor((Date.now()-d.getTime())/(365.25*86400000)); }
+  return m&&m.alder!=null? m.alder : null;
+}
 function priceFromTypeImp(t){t=t||'';const m=t.match(/(\d[\d\s]{1,5})/);if(!m)return 0;let n=parseInt(m[1].replace(/\s/g,''));if(/halv|semester/i.test(t))n=Math.round(n/6);return n;}
 const slugImp = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 function ageFrom(iso){ return iso? Math.floor((NOW_IMP-new Date(iso))/(365.25*86400000)) : null; }
@@ -146,4 +159,5 @@ async function parseMemberFile(file){
   return parseCsv(new TextDecoder().decode(b));
 }
 
-Object.assign(window, { parseMemberFile, parseXlsxRaw, serialToISOimp });
+Object.assign(window, { parseMemberFile, parseXlsxRaw, serialToISOimp,
+  deriveKategoriImp, isInactiveTypeImp, alderNaImp });

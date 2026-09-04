@@ -41,6 +41,19 @@ const TABS = [
 
 const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 
+// Inneværende år. Var hardkodet til '2026' på fire steder, som ville begynt å
+// vise «+0 i 2026» så snart kalenderen rullet videre.
+const AAR_NA = String(new Date().getFullYear());
+// Årsaksene i vekst-grafen: fra første år vi har tall for, til i dag.
+function aarSerie(kpis){
+  const ys = Object.keys({ ...(kpis.signupsPerYear||{}), ...(kpis.deactPerYear||{}) })
+    .filter(y => /^\d{4}$/.test(y)).map(Number);
+  const slutt = Number(AAR_NA);
+  const start = ys.length ? Math.max(Math.min(...ys), slutt-6) : slutt-6;
+  const out=[]; for(let y=start; y<=slutt; y++) out.push(String(y));
+  return out;
+}
+
 function fmtDateTime(v){
   if(!v) return '—';
   const d = new Date(v);
@@ -49,19 +62,53 @@ function fmtDateTime(v){
     + ', ' + d.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
 }
 
-// Ferskhet: nyeste av alle importer + siste loggede økt. Avgjør om brukeren
-// ser på live eller utdaterte tall. Grønn ≤7 dager, gul 8–21, rød >21.
-function freshnessInfo(meta, live, kpis){
-  const cands = [];
-  if(meta){ ['rosterImportedAt','okonomiImportedAt','attendanceImportedAt'].forEach(k=>{ if(meta[k]) cands.push(meta[k]); }); }
-  if(live && live.maxDate) cands.push(live.maxDate);
-  if(kpis && kpis.generated) cands.push(kpis.generated);
-  const times = cands.map(v=>new Date(v).getTime()).filter(t=>!isNaN(t));
-  if(!times.length) return { ts:null, days:null, level:'old' };
-  const ts = Math.max(...times);
-  const days = Math.floor((Date.now()-ts)/86400000);
-  const level = days<=7 ? 'fresh' : days<=21 ? 'stale' : 'old';
-  return { ts, days, level };
+// Ferskhet pr. datakilde. Tidligere ble NYESTE av alle importer brukt, slik at
+// en fersk økonomiimport gjorde merket grønt selv om medlemslista var måneder
+// gammel — altså akkurat den situasjonen merket skal advare om. Nå styrer den
+// ELDSTE kilden fargen, og hver kilde vises for seg.
+// Grønn ≤7 dager, gul 8–21, rød >21.
+const FRESH_KILDER = [
+  { key:'rosterImportedAt',     navn:'Medlemmer' },
+  { key:'attendanceImportedAt', navn:'Oppmøte'   },
+  { key:'okonomiImportedAt',    navn:'Økonomi', styre:true },
+  { key:'vippsImportedAt',      navn:'Vipps',   styre:true },
+];
+function freshLevel(days){ return days==null ? 'old' : days<=7 ? 'fresh' : days<=21 ? 'stale' : 'old'; }
+function freshnessSources(meta, isStyre){
+  return FRESH_KILDER.filter(k => !k.styre || isStyre).map(k => {
+    const t = meta && meta[k.key] ? new Date(meta[k.key]).getTime() : NaN;
+    const ts = isNaN(t) ? null : t;
+    const days = ts==null ? null : Math.floor((Date.now()-ts)/86400000);
+    return { navn:k.navn, ts, days, level:freshLevel(days) };
+  });
+}
+// Eldste kilde som faktisk er importert — den avgjør fargen. En kilde som
+// aldri er importert (typisk Vipps) drar ikke merket i rødt av seg selv;
+// den står som «aldri» i tooltipen i stedet.
+function freshnessInfo(meta, live, kpis, isStyre){
+  const kilder = freshnessSources(meta, isStyre);
+  const brukt = kilder.filter(k => k.ts != null);
+  if(!brukt.length){
+    // Ingen import kjørt: fall tilbake på siste loggede økt i trener-appen.
+    const t = live && /^\d{4}-\d{2}-\d{2}$/.test(live.maxDate) ? new Date(live.maxDate).getTime() : NaN;
+    if(isNaN(t)) return { ts:null, days:null, level:'old', navn:null, kilder, nyeste:null };
+    const days = Math.floor((Date.now()-t)/86400000);
+    return { ts:t, days, level:freshLevel(days), navn:'Loggede økter', kilder, nyeste:t };
+  }
+  const eldst = brukt.reduce((a,b)=> b.ts < a.ts ? b : a);
+  const nyeste = Math.max(...brukt.map(k=>k.ts));
+  return { ts:eldst.ts, days:eldst.days, level:eldst.level, navn:eldst.navn, kilder, nyeste };
+}
+// Perioden dashboardet faktisk dekker. Var hardkodet «jan 2023 → apr 2026».
+function dataPeriode(kpis, live){
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const d = Object.keys((kpis && kpis.dailyAttendance) || {}).filter(k=>ISO.test(k)).sort();
+  const forste = d[0];
+  let siste = d[d.length-1];
+  if(live && ISO.test(live.maxDate||'') && (!siste || live.maxDate > siste)) siste = live.maxDate;
+  if(!forste || !siste) return '';
+  const lbl = s => MND_NO[parseInt(s.slice(5,7),10)-1] + ' ' + s.slice(0,4);
+  return lbl(forste) + ' → ' + lbl(siste);
 }
 function fmtDayMonth(ts){ return new Date(ts).toLocaleDateString('nb-NO',{day:'numeric',month:'numeric'}); }
 
@@ -207,17 +254,29 @@ function blendedWeeklyEntries(kpis, live){
 // medlems-aggregater regnet fra registeret. Øyeblikksbilde-feltene
 // (antall, kategori, kjønn, belte, alder, pris/MRR) overstyres med live-data
 // så de stemmer med registeret; oppmøte- og historikkfelt beholdes statiske.
+//
+// Kategori regnes om fra medlemstypen her, ikke bare ved import: da slår
+// rettelser i deriveKategoriImp inn med én gang, uten at hele medlemsfila
+// må lastes opp på nytt først.
 function mergeLiveKpis(kpis, members){
   if(!kpis) return null;
   if(!members || !members.length) return kpis;
+  // Parkerte medlemskap («Ikke aktiv») ligger med i Spond-eksporten, men skal
+  // ikke telle som aktive — verken i antall, fordelinger eller MRR.
+  const aktive = members.filter(m => !isInactiveTypeImp(m.medlemstype));
+  if(!aktive.length) return kpis;
   const byKategori={}, byKjonn={Mann:0,Kvinne:0}, byBelt={}, byAgeBucket={}, byPostnr={};
   const pricing={};
-  let mrr=0;
-  members.forEach(m=>{
-    byKategori[m.kategori||'Annet']=(byKategori[m.kategori||'Annet']||0)+1;
+  const cohort={};                 // innmeldingsår → antall som fortsatt trener
+  let mrr=0, tenureSum=0, tenureN=0, introN=0;
+  const naa=Date.now();
+  aktive.forEach(m=>{
+    const kat = m.medlemstype ? deriveKategoriImp(m.medlemstype) : (m.kategori||'Annet');
+    byKategori[kat]=(byKategori[kat]||0)+1;
+    if(kat==='Introkurs') introN++;
     const kj=m.kjonn||'Ukjent'; byKjonn[kj]=(byKjonn[kj]||0)+1;
     const belt=(m.grading&&m.grading.current.belt)||'Hvit'; byBelt[belt]=(byBelt[belt]||0)+1;
-    const a=m.alder;
+    const a=alderNaImp(m);
     const bucket = a==null?'Ukjent' : a<13?'Under 13' : a<18?'13–17' : a<30?'18–29' : a<45?'30–44' : '45+';
     byAgeBucket[bucket]=(byAgeBucket[bucket]||0)+1;
     if(m.postnr) byPostnr[m.postnr]=(byPostnr[m.postnr]||0)+1; // barn er maskert → kun voksne
@@ -225,12 +284,29 @@ function mergeLiveKpis(kpis, members){
     const p=pricing[type]||(pricing[type]={count:0, monthly:m.prisMnd||0, mrr:0});
     p.count++; if(m.prisMnd) p.monthly=m.prisMnd; p.mrr+=(m.prisMnd||0);
     mrr+=(m.prisMnd||0);
+    const innm=m.innmeldingsdato && new Date(m.innmeldingsdato);
+    if(innm && !isNaN(innm.getTime())){
+      cohort[String(m.innmeldingsdato).slice(0,4)] = (cohort[String(m.innmeldingsdato).slice(0,4)]||0)+1;
+      tenureSum += (naa-innm.getTime())/86400000; tenureN++;
+    }
   });
+  // Registeret inneholder bare NÅVÆRENDE medlemmer. Det kan derfor aldri si
+  // hvor mange som meldte seg inn et gitt år — bare hvor mange av dem som
+  // fortsatt trener (= kohorten). Der kohorten er større enn det statiske
+  // grunnlaget løfter vi innmeldingstallet opp til kohorten: det er et gulv vi
+  // vet er sant, og det retter særlig inneværende år, som grunnlaget ble
+  // frosset midt inne i. Tidligere år beholder sitt historiske tall.
+  const signups={...(kpis.signupsPerYear||{})};
+  Object.keys(cohort).forEach(y=>{ if(cohort[y] > (signups[y]||0)) signups[y]=cohort[y]; });
   return {
     ...kpis,
     byKategori, byKjonn, byBelt, byAgeBucket, byPostnr,
     pricingBreakdown: pricing,
-    totals: { ...kpis.totals, activeMembers: members.length, mrr, arr: mrr*12 },
+    cohortByYear: cohort,
+    signupsPerYear: signups,
+    conversion: { ...(kpis.conversion||{}), introTotal: introN },
+    totals: { ...kpis.totals, activeMembers: aktive.length, mrr, arr: mrr*12,
+      avgTenureDaysActive: tenureN ? Math.round(tenureSum/tenureN) : kpis.totals.avgTenureDaysActive },
   };
 }
 
@@ -241,7 +317,11 @@ function App() {
   const { members, meta, access, okonomi, live } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
   const charts = deriveCharts(kpis);
-  const lastUpdated = (() => { const f = freshnessInfo(meta, live, kpis); return f.ts != null ? f.ts : ((meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || (kpis && kpis.generated)); })();
+  const isStyre = !!(access && access.isStyre);
+  // «oppdatert» i overskriften = sist noe faktisk kom inn (nyeste kilde).
+  // Ferskhets-merket bruker den ELDSTE — det er to ulike spørsmål.
+  const lastUpdated = (() => { const f = freshnessInfo(meta, live, kpis, isStyre); return f.nyeste != null ? f.nyeste : (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || null; })();
+  const periode = dataPeriode(kpis, live);
 
   useEffect(() => {
     const r = document.documentElement.style;
@@ -254,7 +334,6 @@ function App() {
   }, [tw]);
 
   if (!kpis) return <div style={{padding:40, color:'#9290A6'}}>Laster…</div>;
-  const isStyre = !!(access && access.isStyre);
   // Identitetsbro: umatchede oppmøter er én rot bak feil i leaderboard, oppmøte
   // OG konvertering. Gjør den til en tydelig inngang, ikke en boks nederst.
   const unmatched = (live && live.unmatched) ? live.unmatched : 0;
@@ -285,12 +364,25 @@ function App() {
         </div>
         <div className="live">
           <span className="pulse"/><strong>{kpis.totals.activeMembers}</strong> aktive medlemmer
-          {meta && meta.rosterImportedAt
-            ? <div style={{marginTop:8, fontSize:11, lineHeight:1.5}}>
-                <div>Medlemsimport: {fmtDateTime(meta.rosterImportedAt)}{meta.rosterCount?` · ${meta.rosterCount} medl.`:''}</div>
-                {isStyre && meta.okonomiImportedAt && <div>Økonomiimport: {fmtDateTime(meta.okonomiImportedAt)}{meta.okonomiMonths?` · ${meta.okonomiMonths} mnd`:''}</div>}
+          {/* Alle fire kildene listes, også de som aldri er importert — det er
+              nettopp de som gjør at tall i dashboardet står stille. */}
+          {(() => {
+            const kilder = freshnessSources(meta, isStyre);
+            if(!kilder.some(k => k.ts != null))
+              return <div className="muted" style={{marginTop:8, fontSize:11}}>Ingen import kjørt ennå</div>;
+            const ekstra = { Medlemmer: meta.rosterCount && `${meta.rosterCount} medl.`,
+                             Økonomi: meta.okonomiMonths && `${meta.okonomiMonths} mnd` };
+            return (
+              <div style={{marginTop:8, fontSize:11, lineHeight:1.5}}>
+                {kilder.map(k => (
+                  <div key={k.navn} style={k.level==='old' ? {color:'var(--coral)'} : null}>
+                    {k.navn}: {k.ts==null ? 'aldri' : fmtDateTime(k.ts)}
+                    {k.ts!=null && ekstra[k.navn] ? ` · ${ekstra[k.navn]}` : ''}
+                  </div>
+                ))}
               </div>
-            : <div className="muted" style={{marginTop:8, fontSize:11}}>Ingen import kjørt ennå</div>}
+            );
+          })()}
         </div>
       </aside>
       <main className="main">
@@ -308,21 +400,22 @@ function App() {
               </button>
             )}
             {(() => {
-              const f = freshnessInfo(meta, live, kpis);
+              const f = freshnessInfo(meta, live, kpis, isStyre);
               const color = f.level==='fresh' ? 'var(--green)' : f.level==='stale' ? 'var(--amber)' : 'var(--coral)';
               const txt = f.ts==null
                 ? 'Ingen import ennå'
-                : `Siste import: ${fmtDayMonth(f.ts)} · ${f.days} ${f.days===1?'dag':'dager'} siden`;
+                : `Eldste: ${f.navn} · ${f.days} ${f.days===1?'dag':'dager'} siden`;
               const weight = f.level==='old' ? 700 : 600;
+              const tip = 'Ferskhet pr. datakilde — merket følger den eldste. Grønn ≤7 dager, gul 8–21, rød >21.\n'
+                + f.kilder.map(k => `${k.navn}: ${k.ts==null ? 'aldri importert' : fmtDayMonth(k.ts)+' · '+k.days+' dager siden'}`).join('\n');
               return (
-                <span className="pill" title="Ferskhet på data — grønn ≤7 dager, gul 8–21, rød >21 dager"
-                  style={{borderColor:color, color, fontWeight:weight}}>
+                <span className="pill" title={tip} style={{borderColor:color, color, fontWeight:weight}}>
                   <span className="sw" style={{background:color}}/>{txt}
                 </span>
               );
             })()}
             <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
-            <span className="pill"><span className="sw" style={{background:'var(--accent)'}}/>jan 2023 → apr 2026</span>
+            {periode && <span className="pill" title="Perioden oppmøtedataene dekker"><span className="sw" style={{background:'var(--accent)'}}/>{periode}</span>}
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
             <button className="btn outline sm" title="Åpne grafisk årsrapport — skriv ut eller lagre som PDF derfra"
               onClick={()=>openAarsrapport(kpis, members, okonomi, isStyre, live)}>
@@ -339,7 +432,7 @@ function App() {
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile}/>}
-        {effTab!=='register' && effTab!=='idag' && <DataFooter kpis={kpis} />}
+        {effTab!=='register' && effTab!=='idag' && <DataFooter kpis={kpis} live={live} />}
       </main>
       <TweaksPanel>
         <TweakSection label="Typografi" />
@@ -358,12 +451,13 @@ function App() {
   );
 }
 
-function DataFooter({ kpis }) {
+function DataFooter({ kpis, live }) {
+  const periode = dataPeriode(kpis, live);
   return (
     <footer className="datafoot">
       <div className="ribbon">
         <span className="lbl">Datagrunnlag · oppmote_konsolidert.xlsx</span>
-        <span className="muted">Konsolidert oppmøtefil · 6 Spond-eksporter · {fmtN(kpis.totals.totalCheckins)} check-ins · {fmtN(kpis.totals.sessionsTracked)} unike events (jan 2023 → apr 2026)</span>
+        <span className="muted">Konsolidert oppmøtefil · 6 Spond-eksporter · {fmtN(kpis.totals.totalCheckins)} check-ins · {fmtN(kpis.totals.sessionsTracked)} unike events{periode?` (${periode})`:''}</span>
       </div>
       <div className="grid">
         <div>
@@ -474,10 +568,10 @@ function Oversikt({ kpis, charts, isStyre, live }) {
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Aktive medlemmer" value={t.activeMembers} delta={`+${kpis.signupsPerYear['2026']||0} i 2026`} deltaClass="up" accent="amber"/>
+        <KPI label="Aktive medlemmer" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
         {isStyre
           ? <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta={`ARR ≈ ${fmtN(t.arr)} kr`} deltaClass="amber" accent="green"/>
-          : <KPI label="Nye i 2026" value={kpis.signupsPerYear['2026']||0} delta="nye medlemskap" accent="green"/>}
+          : <KPI label={`Nye i ${AAR_NA}`} value={kpis.signupsPerYear[AAR_NA]||0} delta="nye medlemskap" accent="green"/>}
         <KPI label="Snitt medlemstid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" delta="aktive medlemmer" accent="blue"/>
         <KPI label="Total check-ins" value={fmtN(t.totalCheckins + liveAdd)} delta={liveAdd>0 ? `historisk + ${fmtN(liveAdd)} live` : `${t.sessionsTracked} events`} accent="coral"/>
       </div>
@@ -554,7 +648,7 @@ function Medlemmer({ kpis, charts }) {
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Aktive" value={t.activeMembers} delta={`+${kpis.signupsPerYear['2026']||0} i 2026`} deltaClass="up" accent="amber"/>
+        <KPI label="Aktive" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
         <KPI label="Junior + Knøtte" value={kpis.byKategori['Junior']||0} delta="9–14 år" accent="green"/>
         <KPI label="Voksen + Student" value={(kpis.byKategori['Voksen']||0)+(kpis.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
         <KPI label="Kvinneandel" value={fmtPct(kpis.byKjonn.Kvinne/(kpis.byKjonn.Mann+kpis.byKjonn.Kvinne))} delta={`${kpis.byKjonn.Kvinne} av ${kpis.byKjonn.Mann+kpis.byKjonn.Kvinne}`} accent="coral"/>
@@ -563,35 +657,48 @@ function Medlemmer({ kpis, charts }) {
       <div className="section-h">Beltefordeling<span className="meta">graderingsstatus</span></div>
       <div className="grid-2-1">
         <Tile title="Belter — fordeling" corner="grading">
-          <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
-            {[
+          {(() => {
+            // Skalaen var hardkodet til 93, og teksten under påsto «93 %» uansett
+            // hva tallene sa. Begge regnes nå ut av den faktiske fordelingen.
+            const rader = [
               {n:'Hvit', c:kpis.byBelt['Hvit']||0, color:'#EFEDF8'},
               {n:'Grå/Hvit', c:kpis.byBelt['Grå/Hvit']||0, color:'#9290A6'},
               {n:'Blå', c:(kpis.byBelt['Blå']||0)+(kpis.byBelt['Blått']||0), color:'#4F9BEA'},
               {n:'Lilla', c:kpis.byBelt['Lilla']||0, color:'#B06FD6'},
               {n:'Brun', c:kpis.byBelt['Brun']||0, color:'#B07A4A'},
               {n:'Sort', c:kpis.byBelt['Sort']||0, color:'#2B2A3C'},
-            ].map((b,i)=>{
-              const max = 93;
-              return (
-                <div key={i} className="bar-row">
-                  <div className="name">
-                    <span style={{width:10,height:10,background:b.color, border:'1px solid var(--border-strong)'}}/>
-                    <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.14em'}}>{b.n}</span>
-                    <div className="meter"><div style={{width:(b.c/max)*100+'%', background:b.color}}/></div>
-                  </div>
-                  <span className="tabular" style={{textAlign:'right'}}>{b.c}</span>
+            ];
+            const max = Math.max(1, ...rader.map(b=>b.c));
+            const sum = Object.values(kpis.byBelt||{}).reduce((a,b)=>a+b,0);
+            const hvit = kpis.byBelt['Hvit']||0;
+            const farget = sum - hvit;
+            return (
+              <>
+                <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
+                  {rader.map((b,i)=>(
+                    <div key={i} className="bar-row">
+                      <div className="name">
+                        <span style={{width:10,height:10,background:b.color, border:'1px solid var(--border-strong)'}}/>
+                        <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.14em'}}>{b.n}</span>
+                        <div className="meter"><div style={{width:(b.c/max)*100+'%', background:b.color}}/></div>
+                      </div>
+                      <span className="tabular" style={{textAlign:'right'}}>{b.c}</span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-          <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
-            93% er fortsatt på hvitt belte. En relativt ung medlemsbase — men en synlig pyramide av blå/lilla/sort som gir teknisk dybde til klubben.
-          </div>
+                <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
+                  {sum
+                    ? <>{fmtPct(hvit/sum)} av {sum} graderte medlemmer står fortsatt på hvitt belte
+                        — {farget} har farget belte.</>
+                    : 'Ingen graderinger registrert ennå.'}
+                </div>
+              </>
+            );
+          })()}
         </Tile>
         <Tile title="Vekst over år" corner="trend">
           <div style={{display:'flex', alignItems:'flex-end', gap:6, height: 180, padding: '8px 0'}}>
-            {['2020','2021','2022','2023','2024','2025','2026'].map(y=>{
+            {aarSerie(kpis).map(y=>{
               const s = kpis.signupsPerYear[y]||0;
               const c = kpis.deactPerYear[y]||0;
               const max = Math.max(...Object.values(kpis.signupsPerYear));
@@ -614,7 +721,7 @@ function Medlemmer({ kpis, charts }) {
         </Tile>
       </div>
 
-      <div className="section-h">Geografi<span className="meta">topp 12 postnummer i Bodø</span></div>
+      <div className="section-h">Geografi<span className="meta">{Object.keys(kpis.byPostnr||{}).length} postnummer · kun voksne (barn er maskert)</span></div>
       <Tile title="postnumre" corner="map">
         <HBar data={Object.entries(kpis.byPostnr).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k+' · Bodø', value:v}))} color="#5A8DB0" height={14}/>
       </Tile>
@@ -923,7 +1030,7 @@ function Oppmote({ kpis, charts, live, isStyre, members }) {
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + ls.total)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : 'jan 2023 → apr 2026'} accent="amber"/>
+        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + ls.total)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : (dataPeriode(kpis, live) || 'historisk grunnlag')} accent="amber"/>
         <KPI label="Økter holdt" value={fmtN(t.sessionsTracked)} delta="historisk grunnlag" accent="green"/>
         <KPI label="Snitt pr. økt" value={t.sessionsTracked ? (t.totalCheckins/t.sessionsTracked).toFixed(1) : '—'} delta="deltagere" accent="blue"/>
         <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt`} deltaClass="amber" accent="coral"/>
@@ -1270,7 +1377,18 @@ function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
           <span><span style={{display:'inline-block',width:8,height:8,background:'rgba(242,130,95,.35)',marginRight:6}}/>sluttet</span>
         </div>
         <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
-          Av {kpis.signupsPerYear['2021']||0} personer som meldte seg inn i 2021 trener {kpis.cohortByYear['2021']||0} fortsatt — det er {fmtPct((kpis.cohortByYear['2021']||0)/Math.max(1, kpis.signupsPerYear['2021']||0))} 5-års-retention. Av {kpis.signupsPerYear['2025']||0} fra 2025 er {kpis.cohortByYear['2025']||0} fortsatt aktive ({fmtPct((kpis.cohortByYear['2025']||0)/Math.max(1, kpis.signupsPerYear['2025']||0))}).
+          {(() => {
+            // Var låst til 2021 og 2025. Plukker nå eldste og fjorårets kohort
+            // fra serien, så teksten følger med når årene ruller videre.
+            const cs = charts.cohorts.filter(c => c.signups > 0);
+            if(!cs.length) return 'Ingen innmeldingsår i grunnlaget ennå.';
+            const eldst = cs[0], ifjor = cs.length > 1 ? cs[cs.length-2] : cs[cs.length-1];
+            const aar = Number(AAR_NA) - Number(eldst.year);
+            return <>Av {eldst.signups} personer som meldte seg inn i {eldst.year} trener {eldst.stillActive} fortsatt
+              — det er {fmtPct(eldst.retention)} {aar>0 ? `${aar}-års-retention` : 'retention'}.
+              {ifjor.year !== eldst.year && <> Av {ifjor.signups} fra {ifjor.year} er {ifjor.stillActive} fortsatt aktive ({fmtPct(ifjor.retention)}).</>}</>;
+          })()}
+          {' '}Registeret viser bare dem som fortsatt trener, så inneværende år kan aldri få under 100 % her.
         </div>
       </Tile>
 
