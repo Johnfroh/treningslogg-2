@@ -448,6 +448,8 @@ function App() {
             <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
             {periode && <span className="pill" title="Perioden oppmøtedataene dekker"><span className="sw" style={{background:'var(--accent)'}}/>{periode}</span>}
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
+            <ManedsrapportKnapp members={members} live={live} departed={departed}
+              terskler={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>
             <button className="btn outline sm" title="Åpne grafisk årsrapport — skriv ut eller lagre som PDF derfra"
               onClick={()=>openAarsrapport(kpis, members, okonomi, isStyre, live)}>
               ⤓ Årsrapport

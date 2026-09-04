@@ -84,15 +84,24 @@ window.DASH_API = (function () {
       || m.kategori === 'Junior' || m.kategori === 'Knøtte'
       || (m.alder != null && m.alder < 16);
   }
+  // Etternavnets forbokstav. «Emil» alene er tvetydig når klubben har flere —
+  // «Emil A.» lar treneren vite hvem det gjelder uten å oppgi fullt navn.
+  function initialOf(m) {
+    const e = String(m.etternavn || '').trim()
+      || String(m.navn || '').trim().split(/\s+/).slice(1).join(' ');
+    return e ? e.charAt(0).toUpperCase() + '.' : '';
+  }
   function maskMember(m) {
-    if (!isMinor(m)) return { ...m, minor: false };
+    if (!isMinor(m)) return { ...m, minor: false, initial: initialOf(m) };
     const fornavn = m.fornavn || String(m.navn || '').split(/\s+/)[0] || 'Medlem';
+    const initial = initialOf(m);
     return {
       ...m,
       minor: true,
       fornavn,
+      initial,
       etternavn: '',
-      navn: fornavn,
+      navn: (fornavn + ' ' + initial).trim(),
       epost: '',
       mobil: '',
       adresse: '',

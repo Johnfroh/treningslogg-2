@@ -21,11 +21,9 @@ function tdRelSince(iso){
   if(d < 60) return Math.round(d/7) + ' uker siden';
   return Math.round(d/30.4) + ' mnd siden';
 }
-// Barnemaskering: mindreårige vises kun med fornavn.
-function tdName(m){
-  if(m.minor) return m.fornavn || String(m.navn||'').split(/\s+/)[0] || 'Medlem';
-  return m.navn;
-}
+// Navnet er allerede maskert i api.js (barn → «Fornavn E.»), så bruk det som
+// er. Egen maskering her ga «Emil» ett sted og «Emil A.» et annet.
+function tdName(m){ return m.navn || m.fornavn || 'Medlem'; }
 
 function TodayList({ title, hint, accent, rows, meta, empty, onOpen }){
   return (
