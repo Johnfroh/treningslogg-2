@@ -69,15 +69,23 @@ function mrMnd(live, id, ym){
   const mm=(live && live.memberMonthly && live.memberMonthly[id]) || null;
   return mm ? (mm[ym]||0) : 0;
 }
-// Oppmøter for ett medlem fra og med en dato. Oppløsningen er kalendermåned,
-// så måneden graderingen skjedde i tas med i sin helhet — å utelate den ville
-// underrapportert systematisk for alle som ble gradert tidlig i en måned.
-function mrOkterSiden(live, id, fraISO){
+// Oppmøter for ett medlem fra og med en dato, til og med rapportmåneden.
+// Oppløsningen er kalendermåned, så måneden graderingen skjedde i tas med i sin
+// helhet — å utelate den ville underrapportert systematisk for alle som ble
+// gradert tidlig i en måned.
+//
+// Øvre grense er viktig: uten den talte en augustrapport også september, og en
+// rapport for en gammel måned fikk med alt fram til i dag.
+function mrOkterSiden(live, id, fraISO, tilYm){
   const mm=(live && live.memberMonthly && live.memberMonthly[id]) || null;
   if(!mm) return 0;
   const fraYm = MR_ISO.test(fraISO||'') ? fraISO.slice(0,7) : '';
   let n=0;
-  Object.keys(mm).forEach(ym=>{ if(!fraYm || ym>=fraYm) n+=mm[ym]; });
+  Object.keys(mm).forEach(ym=>{
+    if(fraYm && ym<fraYm) return;
+    if(tilYm && ym>tilYm) return;
+    n+=mm[ym];
+  });
   return n;
 }
 
@@ -152,15 +160,22 @@ function buildManedsrapportData(ym, members, sessions, live, departed, terskler)
 
   // Aktivitet siden sist gradering + tre siste måneder som trend.
   const trendMnd=[mrForrige(ym,2), mrForrige(ym,1), ym];
+  const attFrom=(live && live.attFrom) || '';
+  const attFromYm=MR_ISO.test(attFrom) ? attFrom.slice(0,7) : '';
   const aktivitet=list.map(m=>{
     const sist=mrSistGradert(m);
     const sortBelte=((m.grading && m.grading.current && m.grading.current.belt)||'')==='Sort';
+    // Ble de gradert før oppmøtedataene starter, er tallet et GULV, ikke en
+    // fasit: vi teller bare fra der dataene begynner. Uten dette merket ser
+    // «95» ut som 95 økter siden gradering, når det egentlig er 95 økter
+    // siden registeret begynte å føre oppmøte.
+    const avkortet=!!(attFromYm && (!sist || sist.slice(0,7) < attFromYm));
     return {
       id:m.id, navn:mrNavn(m), kategori:m.kategori, belte:mrBelteTekst(m),
       sistGradert:sist, sidenTekst: sist? mrSiden(sist) : 'aldri gradert',
-      okterSiden: mrOkterSiden(live, m.id, sist),
+      okterSiden: mrOkterSiden(live, m.id, sist, ym),
       trend: trendMnd.map(t => mrMnd(live, m.id, t)),
-      sortBelte,
+      sortBelte, avkortet,
     };
   }).filter(r => r.okterSiden>0 && !r.sortBelte)
     .sort((a,b)=> b.okterSiden - a.okterSiden);
@@ -237,7 +252,7 @@ function buildManedsrapportHTML(d){
     }
     aktRader+=`<tr><td><strong>${e(r.navn)}</strong></td><td class="dim">${e(r.kategori||'')}</td>` +
       `<td>${e(r.belte)}</td><td class="dim">${e(r.sidenTekst)}</td>` +
-      `<td class="num">${nf(r.okterSiden)}</td>` +
+      `<td class="num">${r.avkortet?'<span class="gulv" title="Gradert før oppmøtedataene starter — minst så mange">≥</span> ':''}${nf(r.okterSiden)}</td>` +
       r.trend.map(v=>`<td class="num dim">${v||'–'}</td>`).join('') + '</tr>';
   });
 
@@ -266,6 +281,7 @@ function buildManedsrapportHTML(d){
   th{ text-align:left; font-size:10px; color:var(--mut); text-transform:uppercase; letter-spacing:.1em; padding:6px 8px; border-bottom:1px solid var(--rule); }
   td{ padding:6px 8px; border-bottom:1px solid var(--rule); } .num{ text-align:right; font-weight:700; } .dim{ color:var(--mut); font-weight:400; }
   tr.mangler td{ background:#FFF8F4; } .mangel{ color:var(--coral); font-weight:700; font-size:11px; }
+  .gulv{ color:var(--accent); font-weight:800; }
   tr.terskel td{ background:#F7F6FD; color:var(--accent); font-size:10.5px; font-weight:700; text-align:center; letter-spacing:.04em; padding:7px; }
   .note{ font-size:11px; color:var(--mut); line-height:1.65; margin-top:10px; }
   .varsel{ border:1px solid #F2C9B5; background:#FFF8F4; border-radius:10px; padding:12px 14px; font-size:11.5px; line-height:1.7; margin-top:14px; }
@@ -332,12 +348,12 @@ function buildManedsrapportHTML(d){
 <div class="sec">
   <h2>Aktivitet siden sist gradering <small>sortert på flest økter</small></h2>
   ${aktRader
-    ? `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte nå</th><th>Sist gradert</th><th class="num">Økter siden</th>${trendHead}</tr></thead><tbody>${aktRader}</tbody></table>`
+    ? `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte nå</th><th>Sist gradert</th><th class="num">Økter siden${d.attFrom? ' (tidligst '+e(MR_MND_K[parseInt(d.attFrom.slice(5,7),10)-1]+' '+d.attFrom.slice(0,4))+')':''}</th>${trendHead}</tr></thead><tbody>${aktRader}</tbody></table>`
     : '<div class="tom">Ingen oppmøtedata å vise ennå.</div>'}
   ${aktRest>0? `<div class="note">Viser de ${aktVis} mest aktive. ${aktRest} medlemmer med færre økter er utelatt.</div>`:''}
   <div class="note">
     De tre siste kolonnene er oppmøte pr. måned — trenden bak totalen. 60 økter med kurven opp er noe annet enn 60 med kurven ned.
-    ${d.attFrom? `Oppmøtedataene går tilbake til ${e(mrDagMnd(d.attFrom))} ${e(d.attFrom.slice(0,4))}; for medlemmer gradert før det viser «Økter siden» færre økter enn de faktisk har trent.` : ''}
+    ${d.attFrom? `Oppmøtedataene starter ${e(mrDagMnd(d.attFrom))} ${e(d.attFrom.slice(0,4))}. Rader merket <strong>≥</strong> ble gradert før det: tallet er alt vi har data for, ikke alt de har trent — det ekte tallet er høyere.` : ''}
     Sortbelter er utelatt. Rapporten tar ingen stilling til hvem som bør graderes — det er trenernes vurdering.
   </div>
 </div>
