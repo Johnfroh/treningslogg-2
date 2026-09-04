@@ -46,7 +46,14 @@ function deriveCharts(kpis) {
   // Cohort retention: people from year X still active
   const signups = kpis.signupsPerYear;
   const stillActive = kpis.cohortByYear;
-  const cohortYears = ['2020','2021','2022','2023','2024','2025','2026'];
+  // Årsrekka var hardkodet t.o.m. 2026 — den følger nå dataene og dagens år,
+  // slik at kohortgrafen ikke stopper opp ved et årsskifte.
+  const naa = new Date().getFullYear();
+  const kjenteAar = Object.keys({ ...signups, ...stillActive, ...(kpis.deactPerYear||{}) })
+    .filter(y => /^\d{4}$/.test(y)).map(Number);
+  const forsteAar = kjenteAar.length ? Math.max(Math.min(...kjenteAar), naa-6) : naa-6;
+  const cohortYears = [];
+  for (let y = forsteAar; y <= naa; y++) cohortYears.push(String(y));
   const cohorts = cohortYears.map(y => ({
     year: y,
     signups: signups[y] || 0,

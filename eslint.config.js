@@ -126,6 +126,7 @@ module.exports = [
         // xlsx-import.jsx / import-ui.jsx
         parseMemberFile: 'readonly', ImportModal: 'readonly',
         parseXlsxRaw: 'readonly', serialToISOimp: 'readonly', parseCSVtext: 'readonly',
+        deriveKategoriImp: 'readonly', isInactiveTypeImp: 'readonly', alderNaImp: 'readonly',
         // vipps-import.jsx
         VippsImportModal: 'readonly', parseVippsOppgjor: 'readonly',
         parseVippsSalgsrapport: 'readonly', parseVippsFile: 'readonly',
