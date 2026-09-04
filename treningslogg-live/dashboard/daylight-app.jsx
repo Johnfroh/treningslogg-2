@@ -242,6 +242,28 @@ function liveSince(kpis, live){
   Object.keys(live.weekly).forEach(wk => { if(wk > cut){ weekly[wk] = live.weekly[wk]; total += live.weekly[wk]; } });
   return { total, weekly };
 }
+// Økter logget ETTER det historiske grunnlaget. Samme kutt som liveSince, men
+// på øktnivå: uten dette sto «Økter holdt» fast på 994 uansett hvor mye som
+// ble logget eller importert i etterkant.
+function liveSessionsSince(kpis, live){
+  if(!live || !live.sessionWeekly) return 0;
+  const cut = histMaxWeek(kpis);
+  return Object.keys(live.sessionWeekly).reduce((s,wk)=> wk > cut ? s + live.sessionWeekly[wk] : s, 0);
+}
+// Snitt deltagere pr. økt pr. gruppe, kun for uker etter det historiske
+// grunnlaget. Holdes adskilt fra den historiske klassepopulariteten: Spond-
+// eksporten er gruppert på klassenavn, trener-appen på gruppe — å slå dem
+// sammen ville gitt tall som ikke betyr det samme.
+function liveGruppeStats(kpis, live){
+  if(!live || !live.gruppeWeekly) return [];
+  const cut = histMaxWeek(kpis);
+  return Object.keys(live.gruppeWeekly).map(grp => {
+    const uker = live.gruppeWeekly[grp];
+    let okter=0, oppmote=0;
+    Object.keys(uker).forEach(wk => { if(wk > cut){ okter += uker[wk].okter; oppmote += uker[wk].oppmote; } });
+    return { navn: grp, okter, oppmote, snitt: okter ? oppmote/okter : 0 };
+  }).filter(g => g.okter > 0).sort((a,b) => b.snitt - a.snitt);
+}
 // Historisk ukestrend + live-uker, sortert — for «Klubbens puls».
 function blendedWeeklyEntries(kpis, live){
   const out = { ...((kpis && kpis.weeklyAttendance) || {}) };
@@ -258,7 +280,7 @@ function blendedWeeklyEntries(kpis, live){
 // Kategori regnes om fra medlemstypen her, ikke bare ved import: da slår
 // rettelser i deriveKategoriImp inn med én gang, uten at hele medlemsfila
 // må lastes opp på nytt først.
-function mergeLiveKpis(kpis, members){
+function mergeLiveKpis(kpis, members, departed){
   if(!kpis) return null;
   if(!members || !members.length) return kpis;
   // Parkerte medlemskap («Ikke aktiv») ligger med i Spond-eksporten, men skal
@@ -298,6 +320,13 @@ function mergeLiveKpis(kpis, members){
   // frosset midt inne i. Tidligere år beholder sitt historiske tall.
   const signups={...(kpis.signupsPerYear||{})};
   Object.keys(cohort).forEach(y=>{ if(cohort[y] > (signups[y]||0)) signups[y]=cohort[y]; });
+  // Avgang: det statiske grunnlaget stopper der kpis.json ble laget. Alt som er
+  // registrert i dash_departed etter det legges oppå. Radene er nøklet på
+  // medlems-id, så en ny import teller ikke de samme personene på nytt.
+  const deact={...(kpis.deactPerYear||{})};
+  const dPer=(departed && departed.perYear) || {};
+  Object.keys(dPer).forEach(y=>{ deact[y]=(deact[y]||0)+dPer[y]; });
+  const deaktivertTot=(kpis.totals.deactivated||0)+((departed && departed.total)||0);
   return {
     ...kpis,
     byKategori, byKjonn, byBelt, byAgeBucket, byPostnr,
@@ -305,7 +334,9 @@ function mergeLiveKpis(kpis, members){
     cohortByYear: cohort,
     signupsPerYear: signups,
     conversion: { ...(kpis.conversion||{}), introTotal: introN },
+    deactPerYear: deact,
     totals: { ...kpis.totals, activeMembers: aktive.length, mrr, arr: mrr*12,
+      deactivated: deaktivertTot,
       avgTenureDaysActive: tenureN ? Math.round(tenureSum/tenureN) : kpis.totals.avgTenureDaysActive },
   };
 }
@@ -314,8 +345,8 @@ function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState('idag');
   const staticKpis = useKpis();
-  const { members, meta, access, okonomi, live } = useMembers();
-  const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members), [staticKpis, members]);
+  const { members, meta, access, okonomi, live, departed } = useMembers();
+  const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members, departed), [staticKpis, members, departed]);
   const charts = deriveCharts(kpis);
   const isStyre = !!(access && access.isStyre);
   // «oppdatert» i overskriften = sist noe faktisk kom inn (nyeste kilde).
@@ -417,6 +448,8 @@ function App() {
             <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
             {periode && <span className="pill" title="Perioden oppmøtedataene dekker"><span className="sw" style={{background:'var(--accent)'}}/>{periode}</span>}
             <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
+            <ManedsrapportKnapp members={members} live={live} departed={departed}
+              terskler={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>
             <button className="btn outline sm" title="Åpne grafisk årsrapport — skriv ut eller lagre som PDF derfra"
               onClick={()=>openAarsrapport(kpis, members, okonomi, isStyre, live)}>
               ⤓ Årsrapport
@@ -431,7 +464,7 @@ function App() {
         {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
-        {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile}/>}
+        {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile} departed={departed}/>}
         {effTab!=='register' && effTab!=='idag' && <DataFooter kpis={kpis} live={live} />}
       </main>
       <TweaksPanel>
@@ -1027,13 +1060,22 @@ function TrendPerMedlem({ live, members }){
 function Oppmote({ kpis, charts, live, isStyre, members }) {
   const t = kpis.totals;
   const ls = liveSince(kpis, live);
+  // «Økter holdt» og «Snitt pr. økt» sto fast på det historiske grunnlaget og
+  // rørte seg ikke uansett hvor mye som ble logget eller importert etterpå.
+  const lsOkter = liveSessionsSince(kpis, live);
+  const okterTot = t.sessionsTracked + lsOkter;
+  const checkinsTot = t.totalCheckins + ls.total;
+  const gruppeLive = liveGruppeStats(kpis, live);
+  const populaer = gruppeLive.length ? gruppeLive[0] : null;
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + ls.total)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : (dataPeriode(kpis, live) || 'historisk grunnlag')} accent="amber"/>
-        <KPI label="Økter holdt" value={fmtN(t.sessionsTracked)} delta="historisk grunnlag" accent="green"/>
-        <KPI label="Snitt pr. økt" value={t.sessionsTracked ? (t.totalCheckins/t.sessionsTracked).toFixed(1) : '—'} delta="deltagere" accent="blue"/>
-        <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt`} deltaClass="amber" accent="coral"/>
+        <KPI label="Total check-ins" value={fmtN(checkinsTot)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : (dataPeriode(kpis, live) || 'historisk grunnlag')} accent="amber"/>
+        <KPI label="Økter holdt" value={fmtN(okterTot)} delta={lsOkter>0 ? `historisk + ${fmtN(lsOkter)} live` : 'historisk grunnlag'} accent="green"/>
+        <KPI label="Snitt pr. økt" value={okterTot ? (checkinsTot/okterTot).toFixed(1) : '—'} delta="deltagere" accent="blue"/>
+        {populaer
+          ? <KPI label="Mest populære" value={populaer.navn} delta={`${populaer.snitt.toFixed(1)} snitt · live`} deltaClass="amber" accent="coral"/>
+          : <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt · historisk`} deltaClass="amber" accent="coral"/>}
       </div>
 
       {live && live.sessions > 0 && (
@@ -1061,9 +1103,21 @@ function Oppmote({ kpis, charts, live, isStyre, members }) {
           unmatchedHint="Koble dem i avstemmingen nederst."/>
       </Tile>
 
-      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · snitt deltagere pr. økt</span></div>
+      {gruppeLive.length > 0 && (
+        <>
+        <div className="section-h">Populære grupper<span className="meta">live · loggede og importerte økter etter {histMaxWeek(kpis)}</span></div>
+        <Tile title="snitt pr. økt" corner="live">
+          <HBar data={gruppeLive.map(g=>({label:g.navn+' ('+g.okter+' økter)', value:Math.round(g.snitt*10)/10}))} color="var(--green)" height={20}/>
+        </Tile>
+        </>
+      )}
+
+      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · frosset grunnlag</span></div>
       <Tile title="ranking" corner="popularity">
         <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
+        <div className="dim" style={{fontSize:11, marginTop:12}}>
+          Spond-eksporten er gruppert på klassenavn, trener-appen på gruppe. De vises hver for seg fordi tallene ikke betyr det samme.
+        </div>
       </Tile>
 
       <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
@@ -1353,7 +1407,7 @@ function Okonomi({ kpis, charts }) {
   );
 }
 
-function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
+function Churn({ kpis, charts, live, isStyre, onGotoReconcile, departed }) {
   const t = kpis.totals;
   const conv = kpis.conversion || {};
   // 0 konverterte av N intro er nesten sikkert join-svikt, ikke virkelighet.
@@ -1363,7 +1417,7 @@ function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Totalt deaktiverte" value={t.deactivated} delta="siden 2023" deltaClass="down" accent="coral"/>
+        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
         <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
         <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
         <KPI label="Konv. intro→fast" value={convUnreliable ? '—' : fmtPct(conv.rate)} delta={convUnreliable ? 'ikke beregnet — kjør identitetsbro' : `${conv.converted} / ${conv.introTotal}`} accent="blue"/>
@@ -1395,6 +1449,11 @@ function Churn({ kpis, charts, live, isStyre, onGotoReconcile }) {
       <div className="section-h">Deaktiveringer pr. år</div>
       <Tile title="churn" corner="annual">
         <HBar data={Object.entries(kpis.deactPerYear).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({label:k, value:v}))} color="#C45838" height={22}/>
+        <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>
+          {departed && departed.fra
+            ? <>Fra {fmtDate(departed.fra)} registreres avgang automatisk: hver medlemsimport noterer hvem som er falt ut siden forrige gang. Årene før det kommer fra det historiske grunnlaget.</>
+            : <>Avgang før i dag kommer fra det historiske grunnlaget. Fra nå av noterer hver medlemsimport hvem som er falt ut siden forrige import — tallene for inneværende år fylles ut etter hvert.</>}
+        </div>
       </Tile>
 
       <div className="section-h">Konverteringsfunnel<span className="meta">intro-kurs → fast medlemskap</span></div>

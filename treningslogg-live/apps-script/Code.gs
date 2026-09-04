@@ -41,6 +41,10 @@ const SHEET_NAMES = {
   // Vipps-utsalg (merch): månedstall pr. strøm + produkttopp fra salgsrapport.
   dashVipps: 'dash_vipps',
   dashVippsProd: 'dash_vipps_produkter',
+  // Medlemmer som har forsvunnet ut av en medlemsimport. Registeret
+  // overskrives ved hver import, så uten dette arket finnes det ingen
+  // historikk over hvem som har sluttet — og churn kan ikke regnes.
+  dashDeparted: 'dash_departed',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -75,6 +79,9 @@ const DASH_VIPPS_COLS = ['month','stream','brutto','gebyr','netto','antall','upd
 const DASH_VIPPS_PROD_COLS = ['navn','antall','belop','updatedAt'];
 // dash_meta: nøkkel/verdi for import-metadata (sist importert, antall …).
 const DASH_META_COLS = ['key','value'];
+// dash_departed: én rad per medlem som har falt ut av registeret. 'sluttet' er
+// datoen importen først savnet dem — ikke nødvendigvis datoen de faktisk sluttet.
+const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt'];
 
 function bmProgram(p){ var s = String(p || '').trim().toLowerCase(); return s || 'ungdom'; }
 
@@ -492,7 +499,8 @@ function _setupAttendanceMemberId() {
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
 
 function dashList() {
-  return { members: dashReadMembers(), meta: dashGetMeta(), live: dashLiveOppmote() };
+  return { members: dashReadMembers(), meta: dashGetMeta(), live: dashLiveOppmote(),
+    departed: dashDepartedStats() };
 }
 
 // Per-medlem deltagelse fra attendance↔sessions, nøklet på memberId.
@@ -745,6 +753,11 @@ function dashLiveOppmote() {
   attRows.forEach(a => { (namesBySession[a.sessionId] || (namesBySession[a.sessionId] = [])).push(a.memberName); });
 
   const weekly = {};
+  // Økter (ikke oppmøter) pr. uke, og pr. gruppe pr. uke. Uke-nøkkelen gjør at
+  // frontend kan kutte mot slutten av det historiske grunnlaget og slippe å
+  // dobbelttelle — samme knep som allerede brukes for check-ins.
+  const sessionWeekly = {};
+  const gruppeWeekly = {};   // { gruppe: { mandag: { okter: n, oppmote: n } } }
   let total = 0;
   let sessCount = 0;
   let maxDate = '';
@@ -758,7 +771,14 @@ function dashLiveOppmote() {
     if (cnt > 0) sessCount++;
     total += cnt;
     const wk = dashMonday(s.date);
-    if (wk) weekly[wk] = (weekly[wk] || 0) + cnt;
+    if (wk) {
+      weekly[wk] = (weekly[wk] || 0) + cnt;
+      sessionWeekly[wk] = (sessionWeekly[wk] || 0) + 1;
+      const grp = String(s.group || '').trim() || 'ukjent';
+      const gw = gruppeWeekly[grp] || (gruppeWeekly[grp] = {});
+      const cell = gw[wk] || (gw[wk] = { okter: 0, oppmote: 0 });
+      cell.okter++; cell.oppmote += cnt;
+    }
     if (ISO_DATE.test(s.date) && s.date > maxDate) maxDate = s.date;
   });
 
@@ -773,6 +793,13 @@ function dashLiveOppmote() {
   const byMember = {};
   const kategoriWeekly = {};  // { kategori: { mandag: n } } — trend pr. gruppe
   const memberWeekly = {};    // { memberId: { mandag: n } } — trend pr. medlem
+  // Kalendermåned pr. medlem — månedsrapporten skal følge månedsskiftet, og
+  // ukebøttene over spenner over to måneder i hver månedsovergang.
+  const memberMonthly = {};   // { memberId: { 'YYYY-MM': n } }
+  // Første dato vi i det hele tatt har oppmøterader for. Rapporten skriver den
+  // i klartekst, så et lavt tall kan leses som «har ikke trent» eller «vi har
+  // ikke data så langt tilbake» — ikke forveksles.
+  let attFrom = '';
   let unmatched = 0;
   attRows.forEach(a => {
     if (!a.memberName) return;
@@ -785,7 +812,12 @@ function dashLiveOppmote() {
     }
     const rm = roster[id];
     let navn = rm ? rm.navn : a.memberName;
-    if (rm && rm.minor) navn = String(navn).split(/\s+/)[0] || 'Medlem';
+    if (rm && rm.minor) {
+      // «Fornavn E.» — som maskeringen i api.js. Bare fornavn er tvetydig når
+      // klubben har flere barn med samme navn.
+      const d = String(navn).trim().split(/\s+/);
+      navn = (d[0] || 'Medlem') + (d.length > 1 ? ' ' + d[d.length - 1].charAt(0).toUpperCase() + '.' : '');
+    }
     const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
     if (ISO_DATE.test(date) && date > e.sist) e.sist = date;
@@ -797,13 +829,19 @@ function dashLiveOppmote() {
       kw[wkm] = (kw[wkm] || 0) + 1;
       const mwk = memberWeekly[id] || (memberWeekly[id] = {});
       mwk[wkm] = (mwk[wkm] || 0) + 1;
+      const mm = memberMonthly[id] || (memberMonthly[id] = {});
+      const ym = date.slice(0, 7);
+      mm[ym] = (mm[ym] || 0) + 1;
+      if (!attFrom || date < attFrom) attFrom = date;
     }
   });
   const leaderboard = Object.keys(byMember).map(k => byMember[k])
     .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
 
   return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched,
-    kategoriWeekly: kategoriWeekly, memberWeekly: memberWeekly };
+    kategoriWeekly: kategoriWeekly, memberWeekly: memberWeekly,
+    sessionWeekly: sessionWeekly, gruppeWeekly: gruppeWeekly,
+    memberMonthly: memberMonthly, attFrom: attFrom };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).
@@ -960,6 +998,9 @@ function dashUpdateCurrent(id, cur) {
 // liste (klienten har gjort diff/merge og bevart historikk for matchede).
 function dashImportRoster(members) {
   if (!Array.isArray(members)) throw new Error('members må være array');
+  // Før registeret overskrives: noter hvem som forsvant, og fjern dem som er
+  // tilbake. Dette er eneste sted vi kan se det — etterpå er de borte.
+  const avgang = dashTrackDepartures(members);
   dashClear(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS);
   dashClear(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
   const now = new Date().toISOString();
@@ -991,7 +1032,72 @@ function dashImportRoster(members) {
   if (mRows.length) sheet(SHEET_NAMES.dashMembers).getRange(2, 1, mRows.length, DASH_MEMBER_COLS.length).setValues(mRows);
   if (gRows.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gRows.length, DASH_GRADING_COLS.length).setValues(gRows);
   dashSetMeta({ rosterImportedAt: now, rosterCount: members.length });
-  return { total: members.length, gradingEvents: gRows.length };
+  return { total: members.length, gradingEvents: gRows.length,
+    sluttet: avgang.sluttet, gjeninnmeldt: avgang.gjeninnmeldt };
+}
+
+// Sammenlign forrige register med det som nå importeres:
+//   · id som fantes før, men ikke nå  → føres inn i dash_departed
+//   · id som står i dash_departed og er tilbake → fjernes derfra igjen
+// «sluttet» er datoen importen først savnet dem. Er registeret gammelt, blir
+// hele etterslepet datert til denne importen — det er så presist vi kan komme
+// når Spond-eksporten bare inneholder nåværende medlemmer.
+// Må kalles FØR dash_members tømmes.
+function dashTrackDepartures(members) {
+  const naa = new Set();
+  members.forEach(m => { if (m && m.id) naa.add(String(m.id)); });
+
+  const forrige = dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
+    .filter(r => r.id)
+    .map(r => ({ id: String(r.id), navn: String(r.navn || ''), kategori: String(r.kategori || ''),
+      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '' }));
+  // Første import noensinne: ingenting å sammenligne med, og et tomt register
+  // betyr ikke at alle har sluttet.
+  if (!forrige.length) return { sluttet: 0, gjeninnmeldt: 0 };
+
+  const tidligere = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
+  const beholdt = [];
+  let gjeninnmeldt = 0;
+  tidligere.forEach(r => {
+    if (naa.has(String(r.id))) gjeninnmeldt++;   // meldt seg inn igjen
+    else beholdt.push([String(r.id), String(r.navn || ''), String(r.kategori || ''),
+      r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', ymd(r.sluttet) || '',
+      r.updatedAt ? String(r.updatedAt) : '']);
+  });
+
+  const alleredeFort = {};
+  beholdt.forEach(r => { alleredeFort[r[0]] = true; });
+  const now = new Date().toISOString();
+  const idag = now.slice(0, 10);
+  let sluttet = 0;
+  forrige.forEach(m => {
+    if (naa.has(m.id) || alleredeFort[m.id]) return;
+    beholdt.push([m.id, m.navn, m.kategori, m.innmeldingsdato, idag, now]);
+    sluttet++;
+  });
+
+  dashClear(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS);
+  if (beholdt.length) {
+    sheet(SHEET_NAMES.dashDeparted)
+      .getRange(2, 1, beholdt.length, DASH_DEPARTED_COLS.length).setValues(beholdt);
+  }
+  return { sluttet: sluttet, gjeninnmeldt: gjeninnmeldt };
+}
+
+// Avgang pr. år, samlet fra dash_departed. Frontend legger dette oppå det
+// historiske grunnlaget i kpis.json, som stopper der den fila ble laget.
+function dashDepartedStats() {
+  const rows = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
+  const perYear = {};
+  let fra = '';
+  rows.forEach(r => {
+    const d = ymd(r.sluttet);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    const y = d.slice(0, 4);
+    perYear[y] = (perYear[y] || 0) + 1;
+    if (!fra || d < fra) fra = d;
+  });
+  return { perYear: perYear, total: rows.length, fra: fra };
 }
 
 // Legg til graderingshendelser (klienten har resolvert belte/striper pr. medlem).
@@ -1143,6 +1249,7 @@ function sheet(name) {
               : name === SHEET_NAMES.dashVipps   ? DASH_VIPPS_COLS
               : name === SHEET_NAMES.dashVippsProd ? DASH_VIPPS_PROD_COLS
               : name === SHEET_NAMES.dashMeta    ? DASH_META_COLS
+              : name === SHEET_NAMES.dashDeparted ? DASH_DEPARTED_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }
