@@ -26,7 +26,12 @@ async function loadWorkbook(buf){
   const relMap={}; for(const m of rels.matchAll(/<Relationship[^>]*Id="([^"]*)"[^>]*Target="([^"]*)"/g)) relMap[m[1]]=m[2];
   const sheetNames=[]; for(const m of wb.matchAll(/<sheet [^>]*name="([^"]*)"[^>]*r:id="([^"]*)"/g)){ let t=relMap[m[2]]||''; if(t&&!t.startsWith('xl/')) t='xl/'+t.replace(/^\//,''); sheetNames.push({name:m[1], file:t}); }
   const colIdx=ls=>{let n=0;for(const ch of ls)n=n*26+(ch.charCodeAt(0)-64);return n-1;};
-  async function rowsOf(file){ const sheet=await get(file); const rows=[...sheet.matchAll(/<row[^>]*>(.*?)<\/row>/gs)].map(r=>r[1]); return rows.map(r=>{const cells=[...r.matchAll(/<c r="([A-Z]+)\d+"([^>]*)>(.*?)<\/c>/gs)];const out=[];for(const c of cells){const idx=colIdx(c[1]);const isStr=/t="s"/.test(c[2]);const v=(c[3].match(/<v>(.*?)<\/v>/s)||[])[1];out[idx]=v===undefined?'':(isStr?ss[parseInt(v)]:v);}return out;}); }
+  // Tomme celler skrives selvlukkende: <c r="L5" s="4"/>. Uten alternativet
+  // (?:\/>|>…<\/c>) matcher en slik celle fram til NESTE </c> og stjeler verdien
+  // til cella etter — resten av raden forskyves. Spond-eksporten har det:
+  // «Betaler» og «Betaling opprettet av» står tomme i drøyt 100 rader.
+  // (Samme feil som ble rettet i medlemsimporten i PR #58.)
+  async function rowsOf(file){ const sheet=await get(file); const rows=[...sheet.matchAll(/<row[^>]*>(.*?)<\/row>/gs)].map(r=>r[1]); return rows.map(r=>{const cells=[...r.matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>(.*?)<\/c>)/gs)];const out=[];for(const c of cells){const idx=colIdx(c[1]);const isStr=/t="s"/.test(c[2]);const body=c[3];const v=body===undefined?undefined:(body.match(/<v>(.*?)<\/v>/s)||[])[1];out[idx]=v===undefined?'':(isStr?ss[parseInt(v)]:v);}return out;}); }
   return { sheetNames, rowsOf };
 }
 
