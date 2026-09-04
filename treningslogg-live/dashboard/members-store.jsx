@@ -50,6 +50,10 @@ function MembersProvider({ children }) {
   const [okonomi, setOkonomi] = React.useState(null);
   const [meta, setMeta] = React.useState({});
   const [live, setLive] = React.useState(null);
+  // Avgangshistorikk fra dash_departed — grunnlaget for churn etter at det
+  // statiske kpis.json slutter. Eldre backend uten feltet gir null, og da
+  // faller dashboardet tilbake på de statiske tallene alene.
+  const [departed, setDeparted] = React.useState(null);
   const [access, setAccess] = React.useState({ email: null, isStyre: false, configured: false });
   const [loading, setLoading] = React.useState(false);
 
@@ -69,6 +73,7 @@ function MembersProvider({ children }) {
         setMembers(dash.members);
         setMeta(dash.meta || {});
         setLive(dash.live || null);
+        setDeparted(dash.departed || null);
         setOkonomi({ months, keys: Object.keys(months).sort() });
       });
     })
@@ -172,7 +177,7 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, access, loading } }, children);
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, departed, access, loading } }, children);
 }
 
 function useMembers() { return useContext(MembersCtx); }
