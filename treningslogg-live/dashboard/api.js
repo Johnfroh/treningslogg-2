@@ -115,6 +115,9 @@ window.DASH_API = (function () {
         members: maskMembers(d.members),
         meta: d.meta || {},
         live: d.live || null,
+        // Avgangshistorikk (dash_departed). Eldre backend uten feltet gir null,
+        // og da faller churn-tallene tilbake på det statiske grunnlaget.
+        departed: d.departed || null,
       }));
     },
     // Innlogget identitet + om e-posten er på styre-lista. Robust: feiler den
