@@ -80,9 +80,10 @@ function mrBelteTekst(m){
   const st=Number(c.stripes||0);
   return (c.belt||'Hvit') + (st>0 ? ' ' + '●'.repeat(Math.min(st,4)) : '');
 }
-// Klubbregel: striper gis til hvitt belte og til junior-beltene. Fargede
-// voksenbelter (blå og oppover) får ikke striper i Bodø JJ, så de ville bare
-// stått som «0 striper, aldri» og druknet lista.
+// Klubbregel i Bodø JJ: striper gis til hvitt belte og til samtlige barn
+// (junior-beltene, der stripene er hele progresjonen). Fargede voksenbelter —
+// blå og oppover — får ikke striper her, og ville bare stått som «0 striper,
+// aldri» og druknet lista.
 function mrFaarStriper(belt){
   if(!belt || belt==='Hvit') return true;
   return isJuniorBelt(belt);
@@ -472,7 +473,7 @@ const MR_RENDER = {
       `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte</th><th>Striper</th>` +
       `<th>Sist stripe</th><th class="num">Siden da</th><th class="num">Økter siden</th></tr></thead><tbody>${rader}</tbody></table>` +
       `<div class="note">
-        Klubbregelen er lagt til grunn: striper gis til <strong>hvitt belte</strong> og til <strong>junior-beltene</strong>.
+        Klubbregelen er lagt til grunn: striper gis til <strong>hvitt belte</strong> og til <strong>samtlige barn</strong>.
         ${d.utenStriper>0? `${d.utenStriper} medlemmer på blått belte eller høyere er utelatt — de får ikke striper her.`:''}
         Rader merket «belte» eller «innmeldt» har ikke fått stripe ennå; da er ventetiden regnet fra den datoen i stedet.
         ${d.attFrom? `Oppmøtedataene starter ${mrEsc(mrDagMnd(d.attFrom))} ${mrEsc(d.attFrom.slice(0,4))}, så «Økter siden» merket <strong>≥</strong> er et minimum.`:''}
