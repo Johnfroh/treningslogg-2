@@ -156,13 +156,19 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
   const naaSeksjoner=synlige.filter(s => !s.periode);
   const antValgt=synlige.filter(s => valgt.has(s.key)).length;
 
-  function lag(){
-    const d=buildRapportData(p.fra, p.til, {
+  function byggData(){
+    return buildRapportData(p.fra, p.til, {
       members, sessions: sessions||[], live, departed, okonomi, vipps, kpis, terskler,
     });
-    const pre=RAPPORT_PRESETS.find(x=>x.key===preset);
-    openRapport(d, [...valgt], pre? pre.navn : 'Rapport');
   }
+  function tittel(){
+    const pre=RAPPORT_PRESETS.find(x=>x.key===preset);
+    return pre? pre.navn : 'Rapport';
+  }
+  function lag(){ openRapport(byggData(), [...valgt], tittel()); }
+  // Samme utvalg, samme periode — men som regneark. Nyttig når tallene skal
+  // sorteres eller regnes videre på, ikke leses.
+  function lagCSV(){ lastNedRapportCSV(byggData(), [...valgt], tittel()); }
 
   const rute=(s)=>(
     <label key={s.key} style={{display:'flex', alignItems:'flex-start', gap:8, padding:'5px 0', fontSize:12.5, cursor:'pointer'}}>
@@ -223,9 +229,15 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
         <span className="dim" style={{fontSize:11}}>
           {sessions===null ? 'Henter økter …' : `${antValgt} ${antValgt===1?'seksjon':'seksjoner'} valgt`}
         </span>
-        <button className="btn primary" disabled={!gyldig || !antValgt || sessions===null} onClick={lag}>
-          Åpne rapport
-        </button>
+        <span style={{display:'flex', gap:8}}>
+          <button className="btn outline" disabled={!gyldig || !antValgt || sessions===null} onClick={lagCSV}
+            title="Last ned de valgte seksjonene som regneark (semikolon, UTF-8 — åpner rett i Excel)">
+            ⤓ Regneark (CSV)
+          </button>
+          <button className="btn primary" disabled={!gyldig || !antValgt || sessions===null} onClick={lag}>
+            Åpne rapport
+          </button>
+        </span>
       </div>
     </div>
   );
