@@ -532,6 +532,152 @@ const MR_RENDER = {
   },
 };
 
+/* ---------- CSV / Excel ----------
+   Norsk Excel bruker semikolon som listeskille og komma som desimaltegn. En
+   komma-separert fil havner i én eneste kolonne her, så vi bruker semikolon
+   og BOM.
+
+   CSV-en er MASKINVENNLIG, ikke en kopi av den trykte teksten: ISO-datoer,
+   alder i hele dager som tall, og ingen ●-tegn. Poenget med et regneark er å
+   kunne sortere og filtrere — «7 mnd siden» kan man ikke regne på. */
+const MR_CSV_SEP = ';';
+function mrCsvVerdi(v){
+  if(v==null) return '';
+  if(typeof v==='number') return isFinite(v)? String(v).replace('.', ',') : '';
+  return String(v);
+}
+function mrCsvLinje(felt){
+  return felt.map(v=>{
+    const t=mrCsvVerdi(v);
+    return /[";\r\n]/.test(t) ? '"'+t.replace(/"/g,'""')+'"' : t;
+  }).join(MR_CSV_SEP);
+}
+const mrRund1 = n => Math.round((Number(n)||0)*10)/10;
+const mrDato  = v => MR_ISO.test(v||'') ? v : '';
+const mrSistSett = m => (m && m.oppmote && m.oppmote.sisteOppmote) || '';
+
+// Én tabelldefinisjon pr. seksjon: kolonner + rader med rå verdier.
+const MR_TABELL = {
+  tall: d => ({
+    kolonner:['Nøkkeltall','Perioden','Forrige periode'],
+    rader:[
+      ['Økter holdt', d.okter.length, d.okterForrige],
+      ['Oppmøter', d.oppmoterTot, d.oppmoterForrige],
+      ['Snitt pr. økt', mrRund1(d.snitt), mrRund1(d.snittForrige)],
+      ['Innom matta', d.unike, d.unikeForrige],
+      ['Økter uten ført oppmøte', d.utenTall, ''],
+      ['Umatchede oppmøter', d.umatchede, ''],
+    ],
+  }),
+  grupper: d => ({
+    kolonner:['Gruppe','Økter','Oppmøter','Snitt pr. økt'],
+    rader:d.gruppeListe.map(g=>[g.gruppe, g.okter, g.oppmoter, mrRund1(g.snitt)]),
+  }),
+  okter: d => ({
+    kolonner:['Dato','Tid','Gruppe','Økt','Trener','Oppmøte'],
+    rader:d.okter.map(o=>[mrDato(o.date), o.time||'', o.group||'', o.title||'', o.trainer||'',
+      (o.attendance==null||o.attendance==='')? '' : Number(o.attendance)]),
+  }),
+  gradert: d => ({
+    kolonner:['Dato','Navn','Kategori','Til belte','Striper','Type','Gradert av'],
+    rader:d.gradert.map(g=>[mrDato(g.dato), g.navn, g.kategori||'', g.belt||'', g.stripes,
+      g.kind==='belte'?'nytt belte':'stripe', g.by||'']),
+  }),
+  aktivitet: d => ({
+    kolonner:['Navn','Kategori','Belte','Striper','Sist gradert','Dager siden gradering',
+      'Økter siden','Er minimum'].concat(d.trendMnd.map(t=>'Økter '+t)),
+    rader:d.aktivitet.map(r=>[r.navn, r.kategori||'', (r.belte||'').replace(/[●○]/g,'').trim(),
+      (String(r.belte||'').match(/●/g)||[]).length, mrDato(r.sistGradert),
+      mrDagerSiden(r.sistGradert), r.okterSiden, r.avkortet?'ja':'nei'].concat(r.trend)),
+  }),
+  sluttet: d => ({
+    kolonner:['Registrert sluttet','Navn','Kategori','Innmeldt','Dager som medlem'],
+    rader:d.sluttet.map(r=>{
+      const inn=mrDato(r.innmeldingsdato), ut=mrDato(r.sluttet);
+      const dager=(inn && ut)? Math.round((new Date(ut)-new Date(inn))/86400000) : '';
+      return [ut, mrNavn(r), r.kategori||'', inn, dager];
+    }),
+  }),
+  okonomi: d => ({
+    kolonner:['Måned','Kontingent','Butikk','Diverse','Sum'],
+    rader:d.okRader.map(r=>[r.ym, Math.round(r.kont), Math.round(r.but), Math.round(r.div), Math.round(r.sum)])
+      .concat([['Sum', Math.round(d.okSum.kont), Math.round(d.okSum.but), Math.round(d.okSum.div), Math.round(d.okSum.sum)]]),
+  }),
+  intro: d => ({
+    kolonner:['Navn','Kategori','Sist sett','Dager siden sist sett'],
+    rader:d.intro.map(m=>[mrNavn(m), m.kategori||'', mrDato(mrSistSett(m)), mrDagerSiden(mrSistSett(m))]),
+  }),
+  stille: d => ({
+    kolonner:['Navn','Kategori','Belte','Sist sett','Dager siden sist sett'],
+    rader:d.stille.map(m=>[mrNavn(m), m.kategori||'',
+      (m.grading && m.grading.current && m.grading.current.belt) || '',
+      mrDato(mrSistSett(m)), mrDagerSiden(mrSistSett(m))]),
+  }),
+  striper: d => ({
+    kolonner:['Navn','Kategori','Belte','Striper','Sist stripe','Målt fra','Dager siden',
+      'Økter siden','Er minimum'],
+    rader:d.striper.map(r=>[r.navn, r.kategori||'', r.belte, r.antall, mrDato(r.sisteStripe),
+      r.grunn, r.dager, r.okterSiden, r.avkortet?'ja':'nei']),
+  }),
+  sammens: d => {
+    const k=d.kpis||{};
+    const rader=[];
+    Object.entries(k.byKategori||{}).sort((a,b)=>b[1]-a[1]).forEach(([n,v])=>rader.push(['Medlemstype',n,v]));
+    Object.entries(k.byAgeBucket||{}).sort((a,b)=>b[1]-a[1]).forEach(([n,v])=>rader.push(['Alder',n,v]));
+    Object.entries(k.byKjonn||{}).forEach(([n,v])=>rader.push(['Kjønn',n,v]));
+    return { kolonner:['Fordeling','Verdi','Antall'], rader };
+  },
+  belter: d => ({
+    kolonner:['Belte','Antall'],
+    rader:Object.entries((d.kpis||{}).byBelt||{}).sort((a,b)=>b[1]-a[1]),
+  }),
+  geografi: d => ({
+    kolonner:['Postnummer','Antall'],
+    rader:Object.entries((d.kpis||{}).byPostnr||{}).sort((a,b)=>b[1]-a[1]),
+  }),
+  pris: d => {
+    const k=d.kpis||{}, t=k.totals||{};
+    const rader=Object.entries(k.pricingBreakdown||{}).map(([typ,i])=>[typ, i.count, i.monthly, i.mrr])
+      .sort((a,b)=>b[3]-a[3]);
+    rader.push(['Sum (MRR)', t.activeMembers||0, '', t.mrr||0]);
+    return { kolonner:['Medlemstype','Antall','Pris pr. mnd','Sum pr. mnd'], rader };
+  },
+};
+
+// Én seksjon → ren tabell, klar for sortering i Excel. Flere seksjoner →
+// blokker med tittelrad og blank linje imellom, siden en CSV bare rommer én
+// tabellform om gangen.
+function buildRapportCSV(d, valgte, tittel){
+  const valgt=new Set(valgte||[]);
+  const seksjoner=RAPPORT_SEKSJONER.filter(s => valgt.has(s.key) && MR_TABELL[s.key]);
+  if(!seksjoner.length) return '';
+  const flere=seksjoner.length>1;
+  const linjer=[];
+  if(flere){
+    linjer.push(mrCsvLinje([(tittel||'Rapport')+' — '+d.periodeNavn]));
+    linjer.push('');
+  }
+  seksjoner.forEach((s,i)=>{
+    const t=MR_TABELL[s.key](d);
+    if(flere){
+      if(i>0) linjer.push('');
+      linjer.push(mrCsvLinje([s.navn]));
+    }
+    linjer.push(mrCsvLinje(t.kolonner));
+    t.rader.forEach(r => linjer.push(mrCsvLinje(r)));
+  });
+  return '\ufeff' + linjer.join('\r\n') + '\r\n';
+}
+
+function lastNedRapportCSV(d, valgte, tittel){
+  const csv=buildRapportCSV(d, valgte, tittel);
+  if(!csv){ alert('Ingen seksjoner å eksportere.'); return; }
+  const slug=String(tittel||'rapport').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const per=(d.fra===d.til) ? d.fra : d.fra+'_'+d.til;
+  downloadText('bodojj_'+slug+'_'+per+'.csv', csv);
+}
+
 function buildRapportHTML(d, valgte, tittel){
   const valgt=new Set(valgte||[]);
   const kropp=RAPPORT_SEKSJONER
@@ -601,4 +747,5 @@ function openRapport(d, valgte, tittel){
 }
 
 Object.assign(window, { buildRapportData, buildRapportHTML, openRapport, mrNavn,
+  buildRapportCSV, lastNedRapportCSV, MR_TABELL,
   RAPPORT_SEKSJONER, RAPPORT_PRESETS, mrPeriode, mrMndNavn, mrMndKort, mrSkyv, mrMndListe, useMr });

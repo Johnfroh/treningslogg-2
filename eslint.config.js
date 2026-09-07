@@ -140,6 +140,7 @@ module.exports = [
         mrNavn: 'readonly', RAPPORT_SEKSJONER: 'readonly', RAPPORT_PRESETS: 'readonly',
         mrPeriode: 'readonly', mrMndNavn: 'readonly', mrMndKort: 'readonly',
         mrSkyv: 'readonly', mrMndListe: 'readonly',
+        buildRapportCSV: 'readonly', lastNedRapportCSV: 'readonly', MR_TABELL: 'readonly',
         // data-panel.jsx
         DataKnapp: 'readonly', DataPanel: 'readonly', Rapportbygger: 'readonly',
         ImportOversikt: 'readonly',
