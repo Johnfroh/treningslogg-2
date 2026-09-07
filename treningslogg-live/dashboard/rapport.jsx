@@ -80,6 +80,34 @@ function mrBelteTekst(m){
   const st=Number(c.stripes||0);
   return (c.belt||'Hvit') + (st>0 ? ' ' + '●'.repeat(Math.min(st,4)) : '');
 }
+// Klubbregel i Bodø JJ: striper gis til hvitt belte og til samtlige barn
+// (junior-beltene, der stripene er hele progresjonen). Fargede voksenbelter —
+// blå og oppover — får ikke striper her, og ville bare stått som «0 striper,
+// aldri» og druknet lista.
+function mrFaarStriper(belt){
+  if(!belt || belt==='Hvit') return true;
+  return isJuniorBelt(belt);
+}
+// Siste stripe og siste beltegradering hver for seg. Har man ingen striper
+// ennå, er det beltedatoen som er «siden»-punktet — ikke innmeldingen, med
+// mindre vi mangler beltedato også.
+function mrStripeInfo(m){
+  const h=(m.grading && m.grading.history) || [];
+  const sortert=h.filter(e=>MR_ISO.test(e.date||''))
+    .slice().sort((a,b)=> a.date===b.date ? (a._seq||0)-(b._seq||0) : a.date.localeCompare(b.date));
+  let sisteStripe='', sisteBelte='', innmeldt='';
+  sortert.forEach(e=>{
+    if(e.kind==='stripe') sisteStripe=e.date;
+    else if(e.kind==='belte') sisteBelte=e.date;
+    else if(e.kind==='innmelding' && !innmeldt) innmeldt=e.date;
+  });
+  const cur=(m.grading && m.grading.current) || {};
+  const fra = sisteStripe || sisteBelte || innmeldt || (MR_ISO.test(cur.since||'')? cur.since : '');
+  return {
+    sisteStripe, sisteBelte, innmeldt, fra,
+    grunn: sisteStripe? 'stripe' : (sisteBelte? 'belte' : (innmeldt? 'innmelding' : 'ukjent')),
+  };
+}
 function mrMnd(live, id, ym){
   const mm=(live && live.memberMonthly && live.memberMonthly[id]) || null;
   return mm ? (mm[ym]||0) : 0;
@@ -117,6 +145,7 @@ const RAPPORT_SEKSJONER = [
   { key:'okonomi',  gruppe:'Økonomi',    navn:'Inntekt pr. måned',             periode:true,  styre:true },
   { key:'intro',    gruppe:'Oppfølging', navn:'Intro-oppfølging',              periode:false },
   { key:'stille',   gruppe:'Oppfølging', navn:'Stille medlemmer',              periode:false },
+  { key:'striper',  gruppe:'Gradering',  navn:'Striper — komplett liste',      periode:false },
   { key:'sammens',  gruppe:'Medlemmer',  navn:'Sammensetning, alder og kjønn', periode:false },
   { key:'belter',   gruppe:'Medlemmer',  navn:'Beltefordeling',                periode:false },
   { key:'geografi', gruppe:'Medlemmer',  navn:'Geografi',                      periode:false },
@@ -130,6 +159,9 @@ const RAPPORT_PRESETS = [
   { key:'aar', navn:'Årsrapport', periode:'iaar',
     hint:'Hittil i år · medlemmer, aktivitet og økonomi',
     seksjoner:['tall','grupper','sammens','belter','geografi','gradert','okonomi','pris'] },
+  { key:'striper', navn:'Stripeliste', periode:'denne',
+    hint:'Alle som får striper · antall og tid siden forrige',
+    seksjoner:['striper'] },
 ];
 // Periodevalg → {fra, til} i 'YYYY-MM'.
 function mrPeriode(valg, egenFra, egenTil){
@@ -250,6 +282,25 @@ function buildRapportData(fra, til, ctx){
   const overTerskel=aktivitet.filter(r =>
     r.okterSiden>=gradMinOppmote && mrDagerSiden(r.sistGradert)!=null && mrDagerSiden(r.sistGradert)>=gradMinMnd*30).length;
 
+  // --- Striper: komplett liste over alle som får striper etter klubbregelen ---
+  let utenStriper=0;
+  const striper=list.map(m=>{
+    const belt=(m.grading && m.grading.current && m.grading.current.belt) || 'Hvit';
+    if(!mrFaarStriper(belt)){ utenStriper++; return null; }
+    const info=mrStripeInfo(m);
+    const ant=Number((m.grading && m.grading.current && m.grading.current.stripes) || 0);
+    return {
+      id:m.id, navn:mrNavn(m), kategori:m.kategori, belte:belt, antall:ant,
+      sisteStripe:info.sisteStripe, fra:info.fra, grunn:info.grunn,
+      dager: mrDagerSiden(info.fra),
+      sidenTekst: info.fra? mrSiden(info.fra) : 'ukjent',
+      okterSiden: mrOkterSiden(live, m.id, info.fra, til),
+      avkortet: !!(attFromYm && (!info.fra || info.fra.slice(0,7) < attFromYm)),
+    };
+  }).filter(Boolean)
+    // Lengst ventetid først — det er den rekkefølgen som er til å handle på.
+    .sort((a,b)=> (b.dager==null?-1:b.dager) - (a.dager==null?-1:a.dager));
+
   // --- Økonomi pr. måned i perioden (kontingent + varesalg) ---
   const okM=(c.okonomi && c.okonomi.months) || {};
   const vipps=(c.vipps && c.vipps.months) || [];
@@ -271,6 +322,7 @@ function buildRapportData(fra, til, ctx){
     okterForrige: okterF.length, oppmoterForrige: oppmoterF,
     snittForrige: medTallF.length ? oppmoterF/medTallF.length : 0,
     intro, stille, sluttet, sluttetFra,
+    striper, utenStriper,
     gradert, aktivitet, overTerskel, trendMnd,
     gradMinOppmote, gradMinMnd, stilleUker, introUker,
     attFrom, umatchede: (live && live.unmatched) || 0,
@@ -404,6 +456,30 @@ const MR_RENDER = {
         ${d.attFrom? `Oppmøtedataene starter ${mrEsc(mrDagMnd(d.attFrom))} ${mrEsc(d.attFrom.slice(0,4))}. Rader merket <strong>≥</strong> ble gradert før det: tallet er alt vi har data for, ikke alt de har trent — det ekte tallet er høyere.`:''}
         Sortbelter er utelatt. Rapporten tar ingen stilling til hvem som bør graderes — det er trenernes vurdering.</div>`);
   },
+  striper(d){
+    if(!d.striper.length) return mrSeksjon('Striper','komplett liste',mrTom('Ingen medlemmer får striper etter klubbregelen.'), true);
+    const rader=d.striper.map(r=>{
+      const prikker='●'.repeat(r.antall) + '○'.repeat(Math.max(0,4-r.antall));
+      const siden = r.grunn==='stripe' ? mrEsc(r.sidenTekst)
+        : `<span title="Har ikke fått stripe ennå — regnet fra ${r.grunn==='belte'?'beltegraderingen':'innmeldingen'}">${mrEsc(r.sidenTekst)} <span class="fra">(${r.grunn==='belte'?'belte':'innmeldt'})</span></span>`;
+      return `<tr><td><strong>${mrEsc(r.navn)}</strong></td><td class="dim">${mrEsc(r.kategori||'')}</td>` +
+        `<td class="dim">${mrEsc(r.belte)}</td>` +
+        `<td class="prikk">${prikker}<span class="dim" style="margin-left:8px">${r.antall}/4</span></td>` +
+        `<td class="dim">${r.sisteStripe? mrEsc(mrDagMnd(r.sisteStripe)+' '+r.sisteStripe.slice(0,4)) : '—'}</td>` +
+        `<td class="num dim">${siden}</td>` +
+        `<td class="num">${r.avkortet?'<span class="gulv" title="Referansedatoen er eldre enn oppmøtedataene — minst så mange">≥</span> ':''}${mrNf(r.okterSiden)}</td></tr>`;
+    }).join('');
+    return mrSeksjon('Striper', `komplett liste · ${d.striper.length} medlemmer · lengst siden først`,
+      `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte</th><th>Striper</th>` +
+      `<th>Sist stripe</th><th class="num">Siden da</th><th class="num">Økter siden</th></tr></thead><tbody>${rader}</tbody></table>` +
+      `<div class="note">
+        Klubbregelen er lagt til grunn: striper gis til <strong>hvitt belte</strong> og til <strong>samtlige barn</strong>.
+        ${d.utenStriper>0? `${d.utenStriper} medlemmer på blått belte eller høyere er utelatt — de får ikke striper her.`:''}
+        Rader merket «belte» eller «innmeldt» har ikke fått stripe ennå; da er ventetiden regnet fra den datoen i stedet.
+        ${d.attFrom? `Oppmøtedataene starter ${mrEsc(mrDagMnd(d.attFrom))} ${mrEsc(d.attFrom.slice(0,4))}, så «Økter siden» merket <strong>≥</strong> er et minimum.`:''}
+        Lista tar ingen stilling til hvem som bør få stripe — det er trenernes vurdering.
+      </div>`, true);
+  },
   sammens(d){
     const k=d.kpis; if(!k) return '';
     const kj=k.byKjonn||{};
@@ -463,8 +539,12 @@ function buildRapportHTML(d, valgte, tittel){
     .map(s => MR_RENDER[s.key](d))
     .join('');
   const navn=tittel||'Rapport';
+  // Er alt som er valgt øyeblikksbilder, er perioden meningsløs i overskriften:
+  // en stripeliste er ikke «september 2026», den er «per i dag».
+  const harPeriode=RAPPORT_SEKSJONER.some(s => valgt.has(s.key) && s.periode);
+  const undertittel=harPeriode ? d.periodeNavn : 'per ' + new Date().toLocaleDateString('nb-NO');
   return `<!DOCTYPE html><html lang="nb"><head><meta charset="utf-8">
-<title>${mrEsc(navn)} ${mrEsc(d.periodeNavn)} — Bodø Jiu Jitsu</title>
+<title>${mrEsc(navn)} ${mrEsc(undertittel)} — Bodø Jiu Jitsu</title>
 <style>
   :root{ --accent:#7B6EF6; --green:#34B98C; --coral:#F2825F; --blue:#4F9BEA; --ink:#232136; --mut:#8A86A0; --rule:#ECEAF4; }
   *{ margin:0; padding:0; box-sizing:border-box; }
@@ -488,6 +568,8 @@ function buildRapportHTML(d, valgte, tittel){
   tr.mangler td{ background:#FFF8F4; } .mangel{ color:var(--coral); font-weight:700; font-size:11px; }
   tr.terskel td{ background:#F7F6FD; color:var(--accent); font-size:10.5px; font-weight:700; text-align:center; letter-spacing:.04em; padding:7px; }
   .gulv{ color:var(--accent); font-weight:800; }
+  .prikk{ letter-spacing:2px; font-size:13px; }
+  .fra{ font-size:10px; }
   .brow{ display:flex; align-items:center; gap:10px; margin:7px 0; font-size:12.5px; }
   .bl{ width:140px; } .bv{ width:46px; text-align:right; font-weight:700; }
   .bt{ flex:1; height:14px; background:#F4F3FB; border-radius:7px; overflow:hidden; }
@@ -503,11 +585,11 @@ function buildRapportHTML(d, valgte, tittel){
 </style></head><body>
 <button class="printbtn" onclick="window.print()">Skriv ut / lagre PDF</button>
 <header>
-  <h1><small>${mrEsc(navn)}</small>${mrEsc(d.periodeNavn)}</h1>
+  <h1><small>${mrEsc(navn)}</small>${mrEsc(undertittel)}</h1>
   <div class="gen">Bodø Jiu Jitsu<br>Generert ${new Date().toLocaleDateString('nb-NO')}<br>løft.app/dashboard</div>
 </header>
 ${kropp || '<div class="sec"><div class="tom">Ingen seksjoner valgt.</div></div>'}
-<footer><span>Bodø Jiu Jitsu · ${mrEsc(navn.toLowerCase())} · ${mrEsc(d.periodeNavn)}</span><span>Navn forkortes til fornavn og forbokstav</span></footer>
+<footer><span>Bodø Jiu Jitsu · ${mrEsc(navn.toLowerCase())} · ${mrEsc(undertittel)}</span><span>Navn forkortes til fornavn og forbokstav</span></footer>
 </body></html>`;
 }
 
