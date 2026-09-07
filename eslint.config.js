@@ -135,9 +135,14 @@ module.exports = [
         parseAttendanceFile: 'readonly', AttendanceImportModal: 'readonly',
         // cleanup-modal.jsx
         CleanupModal: 'readonly',
-        // manedsrapport.jsx
-        ManedsrapportKnapp: 'readonly', buildManedsrapportData: 'readonly',
-        buildManedsrapportHTML: 'readonly', mrNavn: 'readonly',
+        // rapport.jsx
+        buildRapportData: 'readonly', buildRapportHTML: 'readonly', openRapport: 'readonly',
+        mrNavn: 'readonly', RAPPORT_SEKSJONER: 'readonly', RAPPORT_PRESETS: 'readonly',
+        mrPeriode: 'readonly', mrMndNavn: 'readonly', mrMndKort: 'readonly',
+        mrSkyv: 'readonly', mrMndListe: 'readonly',
+        // data-panel.jsx
+        DataKnapp: 'readonly', DataPanel: 'readonly', Rapportbygger: 'readonly',
+        ImportOversikt: 'readonly',
         // okonomi-import.jsx
         parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
         monthLabel: 'readonly', MND_NO: 'readonly',
