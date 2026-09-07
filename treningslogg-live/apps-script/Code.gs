@@ -1090,14 +1090,23 @@ function dashDepartedStats() {
   const rows = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
   const perYear = {};
   let fra = '';
+  // Radene sendes med, ikke bare summene: rapporten skal kunne liste HVEM som
+  // sluttet i en valgt periode, ikke bare hvor mange. Mindreårige maskeres av
+  // api.js på lesesiden, som ellers.
+  const liste = [];
   rows.forEach(r => {
     const d = ymd(r.sluttet);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
     const y = d.slice(0, 4);
     perYear[y] = (perYear[y] || 0) + 1;
     if (!fra || d < fra) fra = d;
+    liste.push({
+      id: String(r.id), navn: String(r.navn || ''), kategori: String(r.kategori || ''),
+      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: d,
+    });
   });
-  return { perYear: perYear, total: rows.length, fra: fra };
+  liste.sort(function (a, b) { return b.sluttet.localeCompare(a.sluttet); });
+  return { perYear: perYear, total: rows.length, fra: fra, rows: liste.slice(0, 500) };
 }
 
 // Legg til graderingshendelser (klienten har resolvert belte/striper pr. medlem).
