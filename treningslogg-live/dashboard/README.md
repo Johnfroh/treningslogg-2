@@ -64,6 +64,44 @@ senere kan løftes til en egen Cloudflare Access-app (slik `/fotball` er i dag).
   «Notat» lar den stå. Hva som skjules regnes i frontend; arket er en ren
   logg, og historikken vises i medlemsprofilens tidslinje.
 
+**Fase 6 (struktur):** Fanene er delt etter BRUK, ikke etter datadomene —
+sju i stedet for ni:
+
+| Fane | Innhold |
+|---|---|
+| I dag | Fire arbeidslister med oppfølging |
+| Trender | Kontrollstripe (periode · sammenlign · gruppe), KPI-kort, puls, semester-overlay, grupper, topplister, kohort, funnel |
+| Medlemmer | Sammenfoldbare «Fordelinger» + registeret |
+| Kalender | Planlagte og loggede økter |
+| Innhold | Tema- og gruppebalanse |
+| Økonomi | Styre |
+| Data | Innstillinger, import, avstemming, «Om dataene» |
+
+- Oversikt + Oppmøte + Kohort & Churn er slått sammen til **Trender**;
+  Medlemsstatistikk er blitt `<details>Fordelinger</details>` over registeret.
+  Gamle hasher omdirigeres (`#oversikt`/`#oppmote`/`#churn` → `#trender`,
+  `#statistikk` → `#register`).
+- **Parametre i hashen:** `#trender?p=semester&c=ifjor&g=gi`. En visning kan
+  deles som lenke og gjenskapes nøyaktig.
+- **Semester:** vår = 1. jan–30. jun, høst = 1. aug–31. des (`SEM_VAR` /
+  `SEM_HOST` i `trends-app.jsx`). Juli hører ikke til noe semester.
+- **Aktive medlemmer bakover i tid** hentes fra `dash_snapshots`. Mangler
+  snapshot for sammenligningsdatoen, viser kortet «—» med forklaring —
+  aldri 0. `null` betyr «vet ikke», 0 betyr «ingen medlemmer».
+- **Gruppefilter** finnes bare for økter i Sheets (`live.gruppeWeekly`).
+  Spond-historikken er gruppert på klassenavn, ikke gruppe, så den historiske
+  klassepopulariteten ligger under «Om dataene» i Data — ikke i Trender.
+- **Snitt pr. økt** regnes med teller og nevner fra samme kilde, ellers deles
+  Spond-historikk på Sheets-økter.
+- **Mobil under 760 px:** sidefeltet byttes ut med bunnmeny (I dag · Trender ·
+  Medlemmer · Kalender · Mer), KPI-ene går i to kolonner, kontrollstripa blir
+  nedtrekk, og tabeller får egen vannrett scroll så siden aldri scroller
+  sidelengs. Brekkpunktet er `SMAL_PX` i `dashboard-shared.jsx` og samme tall
+  i media queryen i `index.html`.
+- **Grupper** har én kilde på dashboard-siden: `DASH_GRUPPER` /
+  `DASH_GRUPPE_LABEL` i `dashboard-shared.jsx` (speiler `M_GROUP` i
+  `app/shared.js`, som dashboardet ikke laster).
+
 Gjenstår:
 
 - **Oppmøte-samkjøring** — slå sammen dashboardets historiske Spond-aggregat
@@ -124,6 +162,8 @@ dashboardet enten utilgjengelig eller utilstrekkelig beskyttet.
 | `register-profile.jsx` | Medlemsprofil, graderingsdialog, tidslinje |
 | `xlsx-import.jsx` / `import-ui.jsx` | Månedlig medlemsimport (Spond) |
 | `okonomi-import.jsx` | Månedlig økonomiimport (Spond-betalinger) |
-| `settings-modal.jsx` | ⚙ Innstillinger: terskler, snapshots, hendelser |
+| `trends-app.jsx` | Trender: kontrollstripe, KPI-kort, semester-overlay |
+| `data-tab.jsx` | Data-fanen: innstillinger, import, om dataene |
+| `settings-panels.jsx` | Terskler, snapshots og hendelser (seksjoner i Data) |
 | `tweaks-panel.jsx` | Tema-justering (font/farge/avrunding) |
 | `data/*.json` | Anonymiserte demo-data (Fase 1) |
