@@ -41,6 +41,15 @@ const TABS = [
 
 const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 
+// Fanen ligger i location.hash (#idag, #oversikt …), så en lenke eller en
+// oppfriskning lander på samme fane — og tilbake/frem i nettleseren bytter
+// fane i stedet for å forlate dashboardet. Ukjent hash → «I dag».
+const TAB_IDS = TABS.map(t => t.id);
+function tabFromHash(){
+  const h = String(location.hash || '').replace(/^#/, '').toLowerCase();
+  return TAB_IDS.indexOf(h) >= 0 ? h : 'idag';
+}
+
 // Inneværende år. Var hardkodet til '2026' på fire steder, som ville begynt å
 // vise «+0 i 2026» så snart kalenderen rullet videre.
 const AAR_NA = String(new Date().getFullYear());
@@ -109,6 +118,20 @@ function dataPeriode(kpis, live){
   if(!forste || !siste) return '';
   const lbl = s => MND_NO[parseInt(s.slice(5,7),10)-1] + ' ' + s.slice(0,4);
   return lbl(forste) + ' → ' + lbl(siste);
+}
+// ISO-ukenummer for en mandagsdato — brukes i graf-etikettene.
+function isoUkenr(d){
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const nyttaar = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - nyttaar) / 86400000 + 1) / 7);
+}
+// «uke 12 · mar 24» — kort nok for x-aksen, presis nok i tooltipen.
+function ukeEtikett(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return String(iso);
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d.getTime())) return String(iso);
+  return 'uke ' + isoUkenr(d) + ' · ' + MND_NO[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
 }
 function fmtDayMonth(ts){ return new Date(ts).toLocaleDateString('nb-NO',{day:'numeric',month:'numeric'}); }
 
@@ -228,7 +251,10 @@ function mergeLiveKpis(kpis, members, departed){
 
 function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [tab, setTab] = useState('idag');
+  const [tab, setTab] = useState(tabFromHash);
+  // Medlemsprofilen bodde i «I dag»-fanen. Nå ligger den her, slik at ethvert
+  // medlemsnavn i dashboardet kan åpne den samme profilen (se MemberOpenCtx).
+  const [profilId, setProfilId] = useState(null);
   const staticKpis = useKpis();
   const { members, meta, access, okonomi, live, departed } = useMembers();
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members, departed), [staticKpis, members, departed]);
@@ -238,6 +264,13 @@ function App() {
   // Ferskhets-merket bruker den ELDSTE — det er to ulike spørsmål.
   const lastUpdated = (() => { const f = freshnessInfo(meta, live, kpis, isStyre); return f.nyeste != null ? f.nyeste : (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || null; })();
   const periode = dataPeriode(kpis, live);
+
+  // Tilbake/frem i nettleseren bytter fane.
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     const r = document.documentElement.style;
@@ -249,12 +282,20 @@ function App() {
     r.setProperty('--rscale', tw.radius);
   }, [tw]);
 
+  const byIdMedlem = {}; (members || []).forEach(m => { byIdMedlem[m.id] = m; });
+  const memberOpen = {
+    open: (id) => { if (byIdMedlem[id]) setProfilId(id); },
+    kan: (id) => !!byIdMedlem[id],
+  };
+  const profilMedlem = profilId ? byIdMedlem[profilId] : null;
+  const velgFane = (id) => { setTab(id); if (tabFromHash() !== id) location.hash = '#' + id; };
+
   if (!kpis) return <div style={{padding:40, color:'#9290A6'}}>Laster…</div>;
   // Identitetsbro: umatchede oppmøter er én rot bak feil i leaderboard, oppmøte
   // OG konvertering. Gjør den til en tydelig inngang, ikke en boks nederst.
   const unmatched = (live && live.unmatched) ? live.unmatched : 0;
   const gotoReconcile = () => {
-    setTab('oppmote');
+    velgFane('oppmote');
     setTimeout(() => { const el = document.getElementById('avstemming'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
   };
   const visibleTabs = TABS.filter(x => x.id !== 'okonomi' || isStyre);
@@ -262,6 +303,7 @@ function App() {
   const effTab = (tab === 'okonomi' && !isStyre) ? 'oversikt' : tab;
   const tabLabel = (TABS.find(x=>x.id===effTab) || TABS[0]).label;
   return (
+    <MemberOpenCtx.Provider value={memberOpen}>
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
@@ -273,7 +315,7 @@ function App() {
         </div>
         <div className="nav">
           {visibleTabs.map(x => (
-            <button key={x.id} className={effTab===x.id?'active':''} onClick={()=>setTab(x.id)}>
+            <button key={x.id} className={effTab===x.id?'active':''} onClick={()=>velgFane(x.id)}>
               <span className="dot"/>{x.label}
             </button>
           ))}
@@ -322,17 +364,18 @@ function App() {
                 ? 'Ingen import ennå'
                 : `Eldste: ${f.navn} · ${f.days} ${f.days===1?'dag':'dager'} siden`;
               const weight = f.level==='old' ? 700 : 600;
+              // Periode og check-ins sto som egne merker i topplinja. De sier noe
+              // om det samme datagrunnlaget, så de bor i denne tooltipen nå.
               const tip = 'Ferskhet pr. datakilde — merket følger den eldste. Grønn ≤7 dager, gul 8–21, rød >21.\n'
-                + f.kilder.map(k => `${k.navn}: ${k.ts==null ? 'aldri importert' : fmtDayMonth(k.ts)+' · '+k.days+' dager siden'}`).join('\n');
+                + f.kilder.map(k => `${k.navn}: ${k.ts==null ? 'aldri importert' : fmtDayMonth(k.ts)+' · '+k.days+' dager siden'}`).join('\n')
+                + (periode ? `\n\nPeriode: ${periode}` : '')
+                + `\nCheck-ins: ${fmtN(kpis.totals.totalCheckins)}`;
               return (
                 <span className="pill" title={tip} style={{borderColor:color, color, fontWeight:weight}}>
                   <span className="sw" style={{background:color}}/>{txt}
                 </span>
               );
             })()}
-            <span className="pill" title="Data er kvalitetssikret (konsolidert oppmøtefil) — sier ikke noe om hvor ferske tallene er. Se ferskhets-indikatoren."><span className="sw" style={{background:'var(--green)'}}/>verifisert</span>
-            {periode && <span className="pill" title="Perioden oppmøtedataene dekker"><span className="sw" style={{background:'var(--accent)'}}/>{periode}</span>}
-            <span className="pill"><span className="sw" style={{background:'var(--blue)'}}/>{fmtN(kpis.totals.totalCheckins)} check-ins</span>
             {/* Én inngang for alt: årsrapport og månedsrapport er nå
                 forhåndsvalg i rapportbyggeren, ikke to faste knapper. */}
             <DataKnapp members={members} live={live} departed={departed} meta={meta}
@@ -340,16 +383,15 @@ function App() {
               terskler={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>
           </div>
         </div>
-        {effTab==='idag' && <Today members={members} thresholds={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>}
+        {effTab==='idag' && <Today members={members} live={live} thresholds={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>}
         {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
         {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members} meta={meta}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile} departed={departed}/>}
-        {effTab!=='register' && effTab!=='idag' && <DataFooter kpis={kpis} live={live} />}
       </main>
       <TweaksPanel>
         <TweakSection label="Typografi" />
@@ -364,58 +406,9 @@ function App() {
         <TweakSlider label="Graderingsklar — måneder" value={tw.gradMinMnd} min={1} max={24} step={1} unit=" mnd" onChange={v=>setTweak('gradMinMnd', v)} />
         <TweakSlider label="Intro-oppfølging etter" value={tw.introUker} min={1} max={8} step={1} unit=" uker" onChange={v=>setTweak('introUker', v)} />
       </TweaksPanel>
+      {profilMedlem && <MemberProfile member={profilMedlem} onClose={()=>setProfilId(null)}/>}
     </div>
-  );
-}
-
-function DataFooter({ kpis, live }) {
-  const periode = dataPeriode(kpis, live);
-  return (
-    <footer className="datafoot">
-      <div className="ribbon">
-        <span className="lbl">Datagrunnlag · oppmote_konsolidert.xlsx</span>
-        <span className="muted">Konsolidert oppmøtefil · 6 Spond-eksporter · {fmtN(kpis.totals.totalCheckins)} check-ins · {fmtN(kpis.totals.sessionsTracked)} unike events{periode?` (${periode})`:''}</span>
-      </div>
-      <div className="grid">
-        <div>
-          <div className="h">Kildedata (Spond)</div>
-          <ul>
-            <li>download__39_.xlsx — søk: nogi</li>
-            <li>download__40_.xlsx — søk: basics</li>
-            <li>download__44_.xlsx — søk: erfaren</li>
-            <li>download__45_.xlsx — søk: viderekommende</li>
-            <li>download__46_.xlsx — søk: grunnleggende</li>
-            <li>download__47_.xlsx — søk: åpen matte</li>
-          </ul>
-        </div>
-        <div>
-          <div className="h">Events pr. nivå</div>
-          <ul>
-            <li>Åpen matte — 499 events</li>
-            <li>Erfaren / Videre — 232 events</li>
-            <li>Grunnleggende — 216 events</li>
-            <li>Sparring — 37 events</li>
-            <li>NoGi (uspes.) — 10 events</li>
-          </ul>
-        </div>
-        <div>
-          <div className="h">Nivå-mapping</div>
-          <ul>
-            <li>Erfaren = Erfaren / Viderekommende / Intermediate</li>
-            <li>Grunnleggende = Basics / Grunnleggende</li>
-            <li>NoGi (uspes.) = NoGi-titler uten nivå</li>
-          </ul>
-        </div>
-        <div>
-          <div className="h">Forbehold</div>
-          <ul>
-            <li>Hver event talt nøyaktig én gang</li>
-            <li>Klokkeslett estimert fra klassetype</li>
-            <li>"Invitert"-tall er approksimasjon (Spond aggregerer pr. fil)</li>
-          </ul>
-        </div>
-      </div>
-    </footer>
+    </MemberOpenCtx.Provider>
   );
 }
 
@@ -456,7 +449,7 @@ function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHin
               <tr key={m.id || m.navn}>
                 <td className="dim tabular">{String(i + 1).padStart(2, '0')}</td>
                 <td>
-                  <strong>{m.navn}</strong>
+                  <MemberLink id={m.id}><strong>{m.navn}</strong></MemberLink>
                   {i === 0 && <span className="tag amber" style={{marginLeft:8}}>leder</span>}
                   {medals && i === 1 && <span className="tag green" style={{marginLeft:8}}>2.</span>}
                   {medals && i === 2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}
@@ -498,11 +491,9 @@ function Oversikt({ kpis, charts, isStyre, live }) {
         <Spark
           data={blendedWeeklyEntries(kpis, live)}
           accessor={d => d[1]} height={140}
+          labelAccessor={d => ukeEtikett(d[0])} showAxis
           color="var(--accent)" fill="var(--accent-soft)"
         />
-        <div style={{display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-dim)', letterSpacing:'.12em', textTransform:'uppercase', marginTop:8}}>
-          <span>2021</span><span>2026</span>
-        </div>
       </Tile>
 
       <div className="section-h">Sammensetning</div>
@@ -638,10 +629,6 @@ function Medlemmer({ kpis, charts }) {
         </Tile>
       </div>
 
-      <div className="section-h">Geografi<span className="meta">{Object.keys(kpis.byPostnr||{}).length} postnummer · kun voksne (barn er maskert)</span></div>
-      <Tile title="postnumre" corner="map">
-        <HBar data={Object.entries(kpis.byPostnr).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k+' · Bodø', value:v}))} color="#5A8DB0" height={14}/>
-      </Tile>
     </div>
   );
 }
@@ -833,18 +820,8 @@ function Innhold(){
 
 // ── Trend-hjelpere: uke-serier fra live.kategoriWeekly / live.memberWeekly ──
 const KAT_COLORS = { 'Junior':'#B06FD6', 'Voksen':'#7B6EF6', 'Student':'#4F9BEA', 'Knøtte':'#F2825F', 'Familie':'#34B98C', 'Introkurs':'#E0B03A' };
-function lastMondays(n){
-  const t = new Date();
-  const d = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-  d.setDate(d.getDate() - ((d.getDay()+6)%7)); // denne ukas mandag (lokal tid)
-  const out = [];
-  for(let i=n-1;i>=0;i--){
-    const w = new Date(d); w.setDate(w.getDate()-7*i);
-    out.push(`${w.getFullYear()}-${String(w.getMonth()+1).padStart(2,'0')}-${String(w.getDate()).padStart(2,'0')}`);
-  }
-  return out;
-}
-const sum4 = (arr, endOffset) => arr.slice(arr.length-endOffset-4, arr.length-endOffset).reduce((s,v)=>s+v,0);
+// lastMondays(), sum4() og memberTrendRows() ligger i dashboard-shared.jsx —
+// «I dag»-fanen regner fallende oppmøte med nøyaktig samme funksjon.
 function TrendDelta({ now, prev }){
   const d = now - prev;
   const col = d>0?'var(--green)':d<0?'var(--coral)':'var(--muted)';
@@ -877,7 +854,8 @@ function TrendPerGruppe({ live }){
               <span className="dim">siste 4 uker: <strong style={{color:'var(--ink)'}}>{g.last4}</strong> · før: {g.prev4}</span>
               <TrendDelta now={g.last4} prev={g.prev4}/>
             </div>
-            <Spark data={g.series} height={64} color={c} fill={hexA(c, 0.12)}/>
+            <Spark data={g.series} height={64} color={c} fill={hexA(c, 0.12)}
+              labelAccessor={(d,i)=>ukeEtikett(weeks[i])}/>
           </Tile>
         );
       })}
@@ -887,18 +865,8 @@ function TrendPerGruppe({ live }){
 
 // Trend pr. medlem: velg medlem → ukesserie, pluss størst endring opp/ned.
 function TrendPerMedlem({ live, members }){
-  const mw = live && live.memberWeekly;
   const weeks = React.useMemo(()=>lastMondays(26), []);
-  const byId = React.useMemo(()=>{ const m={}; (members||[]).forEach(x=>{ m[x.id]=x; }); return m; }, [members]);
-  const rows = React.useMemo(()=>{
-    if(!mw) return [];
-    return Object.keys(mw).map(id=>{
-      const series = weeks.map(w=>mw[id][w]||0);
-      const m = byId[id];
-      return { id, navn: m ? m.navn : '(ukjent)', kategori: m ? m.kategori : '', series,
-        total: series.reduce((s,v)=>s+v,0), last4: sum4(series,0), prev4: sum4(series,4) };
-    }).filter(r=>r.total>0).sort((a,b)=>b.total-a.total);
-  }, [mw, weeks, byId]);
+  const rows = React.useMemo(()=>memberTrendRows(live, members, weeks), [live, members, weeks]);
   const [selId, setSelId] = useState('');
   if(!rows.length) return (
     <Tile title="trend pr. medlem" corner="live">
@@ -911,7 +879,7 @@ function TrendPerMedlem({ live, members }){
   const moverRow = (r) => (
     <div key={r.id} style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)', fontSize:12.5, cursor:'pointer'}}
       onClick={()=>setSelId(r.id)} title="Vis trend for medlemmet">
-      <span><strong>{r.navn}</strong>{r.kategori && <span className="dim" style={{marginLeft:6, fontSize:11}}>{r.kategori}</span>}</span>
+      <span><MemberLink id={r.id}><strong>{r.navn}</strong></MemberLink>{r.kategori && <span className="dim" style={{marginLeft:6, fontSize:11}}>{r.kategori}</span>}</span>
       <span style={{whiteSpace:'nowrap'}}><span className="dim" style={{marginRight:8}}>{r.prev4} → {r.last4}</span><TrendDelta now={r.last4} prev={r.prev4}/></span>
     </div>
   );
@@ -923,10 +891,12 @@ function TrendPerMedlem({ live, members }){
             style={{padding:'8px 12px', borderRadius:10, border:'1px solid var(--border)', background:'var(--card)', color:'var(--ink)', font:'inherit', fontSize:13}}>
             {rows.map(r=><option key={r.id} value={r.id}>{r.navn} · {r.total} oppmøter</option>)}
           </select>
+          <MemberLink id={sel.id} style={{fontSize:12.5, fontWeight:700}}>{sel.navn}</MemberLink>
           <span className="dim" style={{fontSize:12}}>siste 4 uker: <strong style={{color:'var(--ink)'}}>{sel.last4}</strong> · før: {sel.prev4}</span>
           <TrendDelta now={sel.last4} prev={sel.prev4}/>
         </div>
-        <Spark data={sel.series} height={90} color="var(--accent)" fill="var(--accent-soft)"/>
+        <Spark data={sel.series} height={90} color="var(--accent)" fill="var(--accent-soft)"
+          labelAccessor={(d,i)=>ukeEtikett(weeks[i])} showAxis/>
       </Tile>
       {(opp.length>0 || ned.length>0) && (
         <div className="grid-2" style={{marginTop:16}}>
@@ -942,7 +912,49 @@ function TrendPerMedlem({ live, members }){
   );
 }
 
-function Oppmote({ kpis, charts, live, isStyre, members }) {
+// «Om dataene» — erstatter den gamle datafoten som sto under hver fane med
+// faste filnavn og eventtall fra en engangsopptelling. Her vises bare verdier
+// som faktisk regnes ut av dataene, ett sted, sammenfoldet.
+function OmDataene({ kpis, live, meta, isStyre, checkins, okter }) {
+  const periode = dataPeriode(kpis, live);
+  const kilder = freshnessSources(meta, isStyre);
+  return (
+    <details className="omdata">
+      <summary>Om dataene</summary>
+      <div className="omdata-body">
+        <div>
+          <div className="h">Grunnlag</div>
+          <ul>
+            <li>Periode: {periode || 'ingen datoer i grunnlaget ennå'}</li>
+            <li>Check-ins: {fmtN(checkins)}</li>
+            <li>Økter: {fmtN(okter)}</li>
+            <li>Snitt pr. økt: {okter ? (checkins/okter).toFixed(1) : '—'} deltagere</li>
+          </ul>
+        </div>
+        <div>
+          <div className="h">Ferskhet pr. kilde</div>
+          <ul>
+            {kilder.map(k => (
+              <li key={k.navn} style={k.ts!=null && k.level==='old' ? {color:'var(--coral)'} : null}>
+                {k.navn}: {k.ts==null ? 'aldri importert' : `${fmtDateTime(k.ts)} · ${k.days} ${k.days===1?'dag':'dager'} siden`}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="h">Forbehold</div>
+          <ul>
+            <li>Historisk oppmøte er gruppert på klassenavn (Spond), live på gruppe — de vises hver for seg.</li>
+            <li>Live-tall telles først etter det historiske grunnlaget{histMaxWeek(kpis) ? ` (uke fra ${histMaxWeek(kpis)})` : ''}, så ingenting telles to ganger.</li>
+            {live && live.unmatched>0 && <li>{fmtN(live.unmatched)} oppmøter er ikke koblet til registeret — per-medlem-tall kan være ufullstendige.</li>}
+          </ul>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function Oppmote({ kpis, charts, live, isStyre, members, meta }) {
   const t = kpis.totals;
   const ls = liveSince(kpis, live);
   // «Økter holdt» og «Snitt pr. økt» sto fast på det historiske grunnlaget og
@@ -1007,10 +1019,14 @@ function Oppmote({ kpis, charts, live, isStyre, members }) {
 
       <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
       <Tile title="weekly attendance" corner="long-range">
-        <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140} color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
+        <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140}
+          labelAccessor={d=>ukeEtikett(d[0])} showAxis color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
       </Tile>
 
       {isStyre && <Avstemming/>}
+
+      <OmDataene kpis={kpis} live={live} meta={meta} isStyre={isStyre}
+        checkins={checkinsTot} okter={okterTot}/>
     </div>
   );
 }

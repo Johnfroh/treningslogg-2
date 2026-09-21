@@ -196,15 +196,22 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 /* heatmap cells -> rounded */
 .main [style*="aspect-ratio"] { border-radius: 7px; }
 
-/* data footer */
-.datafoot { margin-top: 56px; background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 26px 28px; }
-.datafoot .ribbon { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
-.datafoot .ribbon .lbl { font-size: 13px; font-weight: 700; color: var(--accent); }
-.datafoot .ribbon .muted { font-size: 12px; color: var(--muted); }
-.datafoot .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; }
-.datafoot .h { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.datafoot ul { margin: 0; padding-left: 16px; font-size: 12px; color: var(--ink-soft); line-height: 1.75; }
-.datafoot ul li { padding: 1px 0; }
+/* klikkbart medlemsnavn — åpner medlemsprofilen */
+.mlink { cursor: pointer; }
+.mlink:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* «Om dataene» — sammenfoldet datagrunnlag nederst i Oppmøte */
+.omdata { margin-top: 48px; background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 14px 18px; }
+.omdata > summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--ink-soft); list-style: none; }
+.omdata > summary::-webkit-details-marker { display: none; }
+.omdata > summary::before { content: '▸ '; color: var(--muted); }
+.omdata[open] > summary::before { content: '▾ '; }
+.omdata[open] > summary { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.omdata-body { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.omdata-body .h { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.omdata-body ul { margin: 0; padding-left: 16px; font-size: 12px; color: var(--ink-soft); line-height: 1.75; }
+.omdata-body ul li { padding: 1px 0; }
+@media (max-width: 900px) { .omdata-body { grid-template-columns: 1fr; } }
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 11px; height: 11px; }
