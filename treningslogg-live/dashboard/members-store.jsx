@@ -45,6 +45,16 @@ function diffRoster(current, incoming) {
   return { matched, added, removed };
 }
 
+// Vakt mot cache-skjevhet mellom api.js (script-tag) og jsx-ene (Babel-fetch):
+// rett etter en deploy kan nettleseren ha den nye jsx-en og den gamle api.js.
+// Da finnes ikke de nye DASH_API-metodene, og brukeren skal få vite at det
+// holder å laste siden på nytt.
+function krevApi(navn) {
+  if (typeof DASH_API[navn] === 'function') return Promise.resolve();
+  return Promise.reject(new Error(
+    'nettleseren kjører en gammel versjon av dashboardet — last siden på nytt (Cmd/Ctrl+Shift+R)'));
+}
+
 function MembersProvider({ children }) {
   const [members, setMembers] = React.useState(null);
   const [okonomi, setOkonomi] = React.useState(null);
@@ -183,23 +193,32 @@ function MembersProvider({ children }) {
     fetchThemes() { return DASH_API.fetchThemes(); },
 
     // ---- innstillinger, snapshots, hendelser, oppfølging ----
+    // Alle sjekker at metoden finnes før de kaller den: rett etter en deploy
+    // kan nettleseren sitte med en eldre cachet api.js enn jsx-ene
+    // (script-tag og Babel-fetch caches ulikt). Uten dette blir feilen en
+    // rå «is not a function» midt i en klikk-handler i stedet for en beskjed
+    // brukeren kan gjøre noe med.
     saveSettings(values) {
-      return DASH_API.saveSettings(values, access.email || '').then(s => { setSettings(s); return s; });
+      return krevApi('saveSettings')
+        .then(() => DASH_API.saveSettings(values, access.email || ''))
+        .then(s => { setSettings(s); return s; });
     },
-    snapshotNow() { return DASH_API.snapshotNow(); },
-    fetchSnapshots() { return DASH_API.fetchSnapshots(); },
+    snapshotNow() { return krevApi('snapshotNow').then(() => DASH_API.snapshotNow()); },
+    fetchSnapshots() { return krevApi('fetchSnapshots').then(() => DASH_API.fetchSnapshots()); },
     addEvent(ev) {
-      return DASH_API.addEvent(ev).then(rad => {
+      return krevApi('addEvent').then(() => DASH_API.addEvent(ev)).then(rad => {
         setEvents(list => [...(list || []), rad].sort((a, b) => String(a.dato).localeCompare(String(b.dato))));
         return rad;
       });
     },
     deleteEvent(id) {
-      return DASH_API.deleteEvent(id).then(r => { setEvents(list => (list || []).filter(e => e.id !== id)); return r; });
+      return krevApi('deleteEvent').then(() => DASH_API.deleteEvent(id))
+        .then(r => { setEvents(list => (list || []).filter(e => e.id !== id)); return r; });
     },
     // Oppfølging er en logg: hver handling legges til, ingenting overskrives.
     addFollowup(row) {
-      return DASH_API.addFollowup({ ...row, av: access.email || '' }).then(rad => {
+      return krevApi('addFollowup')
+        .then(() => DASH_API.addFollowup({ ...row, av: access.email || '' })).then(rad => {
         setFollowup(list => [...(list || []), rad]);
         return rad;
       });

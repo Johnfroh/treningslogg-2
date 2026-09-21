@@ -14,6 +14,20 @@
    Bruker globale useMembers, HENDELSE_TYPER, HENDELSE_FARGE, fmtN, fmtDate. */
 const { useState: useSt, useEffect: useStEffect } = React;
 
+// Siste skanse hvis verken Sheets eller api.js svarer. Speiler
+// SETTING_DEFAULTS i api.js og DASH_SETTING_DEFAULTS i Code.gs.
+const TERSKEL_STANDARD = {
+  stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
+};
+function tersklerFra(v) {
+  const u = {};
+  TERSKEL_FELT.forEach(f => {
+    const n = Number((v || {})[f.key]);
+    u[f.key] = isNaN(n) || !n ? TERSKEL_STANDARD[f.key] : n;
+  });
+  return u;
+}
+
 // Felt-etikettene. Rekkefølgen her er rekkefølgen i skjemaet.
 const TERSKEL_FELT = [
   { key: 'stilleUker', label: 'Stille etter', unit: 'uker',
@@ -55,19 +69,18 @@ function Innstillinger({ onClose, isStyre, settings, brukerStandard }) {
 }
 
 function TerskelSkjema({ isStyre, settings, brukerStandard, actions }) {
-  const [utkast, setUtkast] = useSt(() => {
-    const u = {}; TERSKEL_FELT.forEach(f => { u[f.key] = settings[f.key]; }); return u;
-  });
+  // settings kan mangle helt hvis nettleseren sitter med en gammel cachet
+  // api.js (script-tag og Babel-fetch caches ulikt). Da skal skjemaet vise
+  // standardverdier, ikke krasje på første felt.
+  const verdier = settings || {};
+  const [utkast, setUtkast] = useSt(() => tersklerFra(verdier));
   const [lagrer, setLagrer] = useSt(false);
   const [msg, setMsg] = useSt('');
   // Rekker noen å åpne ⚙ før Sheets har svart, står utkastet med
   // standardverdier. Synk det når tersklene faktisk kommer inn (og etter
   // lagring, som også gir et nytt settings-objekt).
-  useStEffect(() => {
-    const u = {}; TERSKEL_FELT.forEach(f => { u[f.key] = settings[f.key]; });
-    setUtkast(u);
-  }, [settings]);
-  const endret = TERSKEL_FELT.some(f => Number(utkast[f.key]) !== Number(settings[f.key]));
+  useStEffect(() => { setUtkast(tersklerFra(verdier)); }, [settings]);
+  const endret = TERSKEL_FELT.some(f => Number(utkast[f.key]) !== Number(tersklerFra(verdier)[f.key]));
 
   function lagre() {
     setLagrer(true); setMsg('');

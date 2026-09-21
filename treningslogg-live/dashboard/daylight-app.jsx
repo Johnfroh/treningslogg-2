@@ -40,6 +40,15 @@ const TABS = [
 
 const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 
+// Fallback-terskler. Hentes fra api.js når den er fersk, men rett etter en
+// deploy kan nettleseren sitte med en eldre cachet api.js enn jsx-ene
+// (script-tag og Babel-fetch caches ulikt — samme felle som loadVipps i
+// Økonomi-fanen har en vakt mot). Uten tallene her ble terskler undefined og
+// Innstillinger krasjet på første felt. Verdiene speiler SETTING_DEFAULTS i
+// api.js og DASH_SETTING_DEFAULTS i Code.gs.
+const TERSKEL_FALLBACK = (typeof DASH_API !== 'undefined' && DASH_API.SETTING_DEFAULTS)
+  || { stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3 };
+
 // Fanen ligger i location.hash (#idag, #oversikt …), så en lenke eller en
 // oppfriskning lander på samme fane — og tilbake/frem i nettleseren bytter
 // fane i stedet for å forlate dashboardet. Ukjent hash → «I dag».
@@ -260,7 +269,7 @@ function App() {
   // Tersklene kommer fra dash_settings. Svarer ikke Sheets (gammel backend,
   // manglende ark, nettfeil) faller vi tilbake på standardverdiene og sier
   // fra i topplinja — tallene i «I dag» skal aldri være et mysterium.
-  const terskler = (settings && settings.values) || DASH_API.SETTING_DEFAULTS;
+  const terskler = (settings && settings.values) || TERSKEL_FALLBACK;
   const standardTerskler = !(settings && settings.values);
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members, departed), [staticKpis, members, departed]);
   const charts = deriveCharts(kpis);
