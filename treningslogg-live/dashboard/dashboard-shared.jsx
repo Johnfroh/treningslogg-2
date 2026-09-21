@@ -167,11 +167,25 @@ function HBar({ data, valueKey='value', labelKey='label', max, color, showValue=
   );
 }
 
+// Farge pr. hendelsestype (dash_events). Brukes av Spark-markørene og av
+// hendelseslista i Innstillinger, så en ferie har samme farge begge steder.
+const HENDELSE_FARGE = {
+  gradering: '#7B6EF6', arrangement: '#F2825F', ferie: '#4F9BEA',
+  introkurs: '#34B98C', annet: '#A6A3BD',
+};
+const HENDELSE_TYPER = ['gradering', 'arrangement', 'ferie', 'introkurs', 'annet'];
+
 // Sparkline / line chart
 // Valgfritt (bakoverkompatibelt): labelAccessor(d, i) gir x-etiketten for et
 // punkt — brukes både på x-aksen og i tooltipen. showAxis slår på x-aksen med
 // 3–5 etiketter avledet av dataene. Uten dem oppfører grafen seg som før.
-function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, labelAccessor=null }) {
+//
+// markers=[{dato, type, tittel}] tegner tynne loddrette linjer der noe
+// skjedde (ferie, gradering, arrangement). Markørene må kunne plasseres på
+// tidsaksen, så de krever dateAccessor(d, i) — datoen punktet dekker. Uten
+// den ignoreres de, slik at grafer uten tidsakse ikke prøver å tegne dem.
+function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, labelAccessor=null,
+  markers=null, dateAccessor=null }) {
   const ref = useRef(null);
   const [w, setW] = useState(400);
   const [hoverI, setHoverI] = useState(null);
@@ -219,6 +233,21 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
     }
   }
 
+  // Hver markør festes til punktet den hører hjemme i: siste punkt med dato
+  // <= hendelsesdatoen. Hendelser utenfor serien tegnes ikke.
+  const markorer = [];
+  if (markers && markers.length && dateAccessor && rows.length) {
+    const datoer = rows.map((d, i) => String(dateAccessor(d, i) || ''));
+    markers.forEach(mk => {
+      const dato = String((mk && mk.dato) || '');
+      if (!dato || dato < datoer[0]) return;
+      let i = 0;
+      for (let k = 0; k < datoer.length; k++) { if (datoer[k] <= dato) i = k; else break; }
+      markorer.push({ i, dato, type: mk.type || 'annet', tittel: mk.tittel || '' });
+    });
+  }
+  const markorerFor = (i) => markorer.filter(mk => mk.i === i);
+
   if (!rows.length) return <div ref={ref} style={{ width:'100%', height: h }} />;
 
   const hx = hoverI != null ? points[hoverI][0] : 0;
@@ -228,6 +257,20 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
       <svg width={w} height={h} style={{ display:'block', overflow:'visible', touchAction:'pan-y' }}
         onPointerDown={pek} onPointerMove={pek}
         onPointerLeave={slipp} onPointerCancel={avbryt}>
+        {markorer.map((mk, k) => {
+          const x = mk.i * stepX;
+          const f = HENDELSE_FARGE[mk.type] || HENDELSE_FARGE.annet;
+          return (
+            <g key={k}>
+              <line x1={x} y1={0} x2={x} y2={h} stroke={f} strokeWidth={1} opacity={.7} />
+              <circle cx={x} cy={0} r={2.5} fill={f} />
+              {/* Bred, usynlig treffsone — en 1px-strek er umulig å treffe. */}
+              <rect x={x - 5} y={0} width={10} height={h} fill="transparent">
+                <title>{mk.tittel ? `${mk.tittel} (${mk.type})` : mk.type}</title>
+              </rect>
+            </g>
+          );
+        })}
         {fill && <path d={fillD} fill={fill} />}
         <path d={pathD} fill="none" stroke={color || 'currentColor'} strokeWidth={1.2} />
         {hoverI != null && (
@@ -259,6 +302,13 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
         }}>
           <div style={{ opacity:.75 }}>{etikett(hoverI)}</div>
           <div style={{ fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{fmtN(values[hoverI])}</div>
+          {markorerFor(hoverI).map((mk, k) => (
+            <div key={k} style={{ opacity:.85, marginTop: 2 }}>
+              <span style={{ display:'inline-block', width:6, height:6, borderRadius:'50%',
+                background: HENDELSE_FARGE[mk.type] || HENDELSE_FARGE.annet, marginRight: 5 }}/>
+              {mk.tittel || mk.type}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -335,6 +385,8 @@ window.fmtN = fmtN;
 window.fmtKr = fmtKr;
 window.fmtPct = fmtPct;
 window.WD = WD;
+window.HENDELSE_FARGE = HENDELSE_FARGE;
+window.HENDELSE_TYPER = HENDELSE_TYPER;
 window.MemberOpenCtx = MemberOpenCtx;
 window.useMemberOpen = useMemberOpen;
 window.MemberLink = MemberLink;

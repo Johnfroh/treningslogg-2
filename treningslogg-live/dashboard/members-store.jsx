@@ -55,6 +55,11 @@ function MembersProvider({ children }) {
   // faller dashboardet tilbake på de statiske tallene alene.
   const [departed, setDeparted] = React.useState(null);
   const [access, setAccess] = React.useState({ email: null, isStyre: false, configured: false });
+  // Driftsterskler fra dash_settings. null = ikke lastet ennå / Sheets svarte
+  // ikke — da brukes DASH_API.SETTING_DEFAULTS og dashboardet sier fra.
+  const [settings, setSettings] = React.useState(null);
+  const [events, setEvents] = React.useState(null);
+  const [followup, setFollowup] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
 
   const reload = React.useCallback(() => {
@@ -66,15 +71,27 @@ function MembersProvider({ children }) {
       (DASH_API.fetchWhoami ? DASH_API.fetchWhoami() : { email: null, isStyre: false }));
     return whoamiP.then(who => {
       setAccess(who);
+      // De fire nye handlingene finnes ikke i eldre Code.gs-deployer. Et kall
+      // som feiler skal ikke ta med seg resten av dashboardet i fallet, så de
+      // får hver sin fallback-verdi.
+      const valgfri = (fn, ellers) => Promise.resolve()
+        .then(() => (typeof fn === 'function' ? fn() : ellers))
+        .catch(() => ellers);
       return Promise.all([
         DASH_API.fetchDash(),
         who.isStyre && DASH_API.fetchOkonomi ? DASH_API.fetchOkonomi().catch(() => ({})) : Promise.resolve({}),
-      ]).then(([dash, months]) => {
+        valgfri(DASH_API.fetchSettings, null),
+        valgfri(DASH_API.fetchEvents, []),
+        valgfri(DASH_API.fetchFollowup, []),
+      ]).then(([dash, months, innst, hendelser, oppfolging]) => {
         setMembers(dash.members);
         setMeta(dash.meta || {});
         setLive(dash.live || null);
         setDeparted(dash.departed || null);
         setOkonomi({ months, keys: Object.keys(months).sort() });
+        setSettings(innst);
+        setEvents(hendelser || []);
+        setFollowup(oppfolging || []);
       });
     })
       .catch(e => {
@@ -164,6 +181,29 @@ function MembersProvider({ children }) {
     ignoreName(name, on) { return DASH_API.ignoreName(name, on).then(r => reload().then(() => r)); },
     importWeekAttendance(events) { return DASH_API.importWeekAttendance(events).then(r => reload().then(() => r)); },
     fetchThemes() { return DASH_API.fetchThemes(); },
+
+    // ---- innstillinger, snapshots, hendelser, oppfølging ----
+    saveSettings(values) {
+      return DASH_API.saveSettings(values, access.email || '').then(s => { setSettings(s); return s; });
+    },
+    snapshotNow() { return DASH_API.snapshotNow(); },
+    fetchSnapshots() { return DASH_API.fetchSnapshots(); },
+    addEvent(ev) {
+      return DASH_API.addEvent(ev).then(rad => {
+        setEvents(list => [...(list || []), rad].sort((a, b) => String(a.dato).localeCompare(String(b.dato))));
+        return rad;
+      });
+    },
+    deleteEvent(id) {
+      return DASH_API.deleteEvent(id).then(r => { setEvents(list => (list || []).filter(e => e.id !== id)); return r; });
+    },
+    // Oppfølging er en logg: hver handling legges til, ingenting overskrives.
+    addFollowup(row) {
+      return DASH_API.addFollowup({ ...row, av: access.email || '' }).then(rad => {
+        setFollowup(list => [...(list || []), rad]);
+        return rad;
+      });
+    },
   };
 
   const okonomiActions = {
@@ -177,7 +217,8 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, departed, access, loading } }, children);
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, departed, access, loading,
+      settings, events, followup } }, children);
 }
 
 function useMembers() { return useContext(MembersCtx); }

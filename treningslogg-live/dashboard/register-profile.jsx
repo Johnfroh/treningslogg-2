@@ -127,11 +127,40 @@ function Stepper({ value, onChange, min=0, max=4 }){
 }
 
 /* ---------- Timeline ---------- */
-function Timeline({ history }){
-  const items = [...history].reverse();
+// Tidslinja viser graderinger og oppfølging om hverandre, sortert på dato.
+// Oppfølgingsradene (dash_followup) har ingen belte, så de tegnes med en
+// nøytral prikk i stedet for beltegrafikk.
+const FU_ETIKETT = { kontaktet:'Kontaktet', utsatt:'Utsatt', notat:'Notat' };
+const FU_FARGE = { kontaktet:'#34B98C', utsatt:'#E0B03A', notat:'#A6A3BD' };
+const FU_LISTE = { stille:'stille medlemmer', intro:'intro-oppfølging',
+  grad:'graderingsklare', fallende:'fallende oppmøte' };
+
+function Timeline({ history, followup }){
+  const grad = (history || []).map(e => ({ ...e, _fu: false }));
+  const fu = (followup || []).map(f => ({ ...f, _fu: true, id: f.id, date: f.dato }));
+  const items = [...grad, ...fu]
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)))
+    .reverse();
   return (
     <div className="timeline">
       {items.map((e,i)=>{
+        if(e._fu) return (
+          <div className="tl-item" key={e.id||('fu'+i)}>
+            <div className="tl-dot" style={{background: FU_FARGE[e.status] || FU_FARGE.notat, boxShadow:'inset 0 0 0 1px rgba(0,0,0,.15)'}}/>
+            <div className="tl-body">
+              <div className="tl-top">
+                <strong>{FU_ETIKETT[e.status] || 'Oppfølging'}</strong>
+                <span className="tl-date">{fmtDate(e.date)}</span>
+              </div>
+              <div className="tl-sub">
+                <span>{FU_LISTE[e.liste] || e.liste}</span>
+                {e.status==='utsatt' && e.utsattTil && <span>· til {fmtDate(e.utsattTil)}</span>}
+                {e.av && <span className="tl-by">· {e.av}</span>}
+              </div>
+              {e.notat && <div className="tl-note">"{e.notat}"</div>}
+            </div>
+          </div>
+        );
         const m = beltMeta(e.belt);
         const label = e.kind==='innmelding' ? 'Innmeldt i klubben'
           : e.kind==='belte' ? `Gradert til ${e.belt}`
@@ -160,7 +189,9 @@ function Timeline({ history }){
 
 /* ---------- Profile slide-over ---------- */
 function MemberProfile({ member, onClose }){
-  const { actions } = useMembers();
+  const { actions, followup } = useMembers();
+  // Oppfølgingshistorikken for dette medlemmet — logges fra «I dag».
+  const fuMine = (followup || []).filter(f => f.memberId === member.id);
   const [dlg, setDlg] = useStateP(null); // 'stripe'|'belte'
   const g = member.grading;
   const minor = !!member.minor; // barn: kun fornavn + belte/oppmøte, ingen bakgrunnsdata
@@ -206,8 +237,11 @@ function MemberProfile({ member, onClose }){
             <button className="btn outline sm" onClick={()=>setDlg('belte')}>Gi nytt belte</button>
             <button className="btn ghost sm" onClick={()=>actions.undoLast(member.id)} disabled={g.history.length<=1}>Angre siste</button>
           </div>
-          <div className="so-card-h" style={{marginTop:20,marginBottom:10}}><span>Graderingshistorikk</span></div>
-          <Timeline history={g.history}/>
+          <div className="so-card-h" style={{marginTop:20,marginBottom:10}}>
+            <span>Historikk</span>
+            {fuMine.length>0 && <span className="muted" style={{fontSize:11}}>gradering + oppfølging</span>}
+          </div>
+          <Timeline history={g.history} followup={fuMine}/>
         </div>
 
         {/* Membership / payment — skjult for mindreårige */}

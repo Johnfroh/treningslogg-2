@@ -117,6 +117,7 @@ module.exports = [
         CohortBar: 'readonly',
         MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
         lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly',
+        HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
         // belt-system.jsx
         BELT_META: 'readonly', ADULT_BELTS: 'readonly', JUNIOR_BELTS: 'readonly',
         ALL_BELTS: 'readonly', maxStripes: 'readonly', beltMeta: 'readonly',
@@ -163,7 +164,9 @@ module.exports = [
         // calendar-app.jsx
         Kalender: 'readonly', LogSessionModal: 'readonly',
         // today-app.jsx
-        Today: 'readonly',
+        Today: 'readonly', tdSkjulteIder: 'readonly',
+        // settings-modal.jsx
+        Innstillinger: 'readonly', TERSKEL_FELT: 'readonly',
         // daylight-app.jsx (window.KPI / window.Tile)
         KPI: 'readonly', Tile: 'readonly',
       },
@@ -190,6 +193,7 @@ module.exports = [
       sourceType: 'script',
       globals: {
         SpreadsheetApp: 'readonly',
+        ScriptApp: 'readonly',
         ContentService: 'readonly',
         Logger: 'readonly',
         Utilities: 'readonly',

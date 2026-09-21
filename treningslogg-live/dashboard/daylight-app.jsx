@@ -10,15 +10,14 @@ const FONTS = {
 const ACCENTS = ['#7B6EF6', '#F2825F', '#4F9BEA', '#34B98C', '#B06FD6'];
 const BG_TONES = { 'Lavendel': '#F4F3FB', 'Krem': '#F8F5F0', 'Kjølig': '#EFF3F8' };
 
+// Tweaks-panelet styrer bare TEMA nå. «I dag»-tersklene bodde her, altså i
+// hver enkelt nettleser — de ligger i dash_settings (Sheets) og redigeres i
+// Innstillinger (⚙ i topplinja).
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "font": "Plus Jakarta Sans",
   "accent": "#7B6EF6",
   "bgTone": "Lavendel",
-  "radius": 1,
-  "stilleUker": 3,
-  "gradMinOppmote": 30,
-  "gradMinMnd": 6,
-  "introUker": 2
+  "radius": 1
 }/*EDITMODE-END*/;
 
 function hexA(hex, a) {
@@ -255,8 +254,14 @@ function App() {
   // Medlemsprofilen bodde i «I dag»-fanen. Nå ligger den her, slik at ethvert
   // medlemsnavn i dashboardet kan åpne den samme profilen (se MemberOpenCtx).
   const [profilId, setProfilId] = useState(null);
+  const [innstAapen, setInnstAapen] = useState(false);
   const staticKpis = useKpis();
-  const { members, meta, access, okonomi, live, departed } = useMembers();
+  const { members, meta, access, okonomi, live, departed, settings, events } = useMembers();
+  // Tersklene kommer fra dash_settings. Svarer ikke Sheets (gammel backend,
+  // manglende ark, nettfeil) faller vi tilbake på standardverdiene og sier
+  // fra i topplinja — tallene i «I dag» skal aldri være et mysterium.
+  const terskler = (settings && settings.values) || DASH_API.SETTING_DEFAULTS;
+  const standardTerskler = !(settings && settings.values);
   const kpis = React.useMemo(() => mergeLiveKpis(staticKpis, members, departed), [staticKpis, members, departed]);
   const charts = deriveCharts(kpis);
   const isStyre = !!(access && access.isStyre);
@@ -376,19 +381,26 @@ function App() {
                 </span>
               );
             })()}
+            {standardTerskler && (
+              <span className="pill" style={{color:'var(--muted)'}}
+                title="Fikk ikke lest tersklene fra Sheets (dash_settings). «I dag»-listene bruker standardverdiene så lenge.">
+                <span className="sw" style={{background:'var(--muted)'}}/>bruker standardterskler
+              </span>
+            )}
             {/* Én inngang for alt: årsrapport og månedsrapport er nå
                 forhåndsvalg i rapportbyggeren, ikke to faste knapper. */}
             <DataKnapp members={members} live={live} departed={departed} meta={meta}
-              okonomi={okonomi} kpis={kpis} isStyre={isStyre}
-              terskler={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>
+              okonomi={okonomi} kpis={kpis} isStyre={isStyre} terskler={terskler}/>
+            <button className="btn ghost sm" onClick={()=>setInnstAapen(true)}
+              title="Innstillinger — terskler for «I dag» og hendelser i grafene">⚙</button>
           </div>
         </div>
-        {effTab==='idag' && <Today members={members} live={live} thresholds={{stilleUker:tw.stilleUker, gradMinOppmote:tw.gradMinOppmote, gradMinMnd:tw.gradMinMnd, introUker:tw.introUker}}/>}
-        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live}/>}
+        {effTab==='idag' && <Today members={members} live={live} thresholds={terskler}/>}
+        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live} events={events}/>}
         {effTab==='kalender' && <Kalender/>}
         {effTab==='register' && <Register/>}
         {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members} meta={meta}/>}
+        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members} meta={meta} events={events}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile} departed={departed}/>}
@@ -400,15 +412,31 @@ function App() {
         <TweakColor label="Aksentfarge" value={tw.accent} options={ACCENTS} onChange={v=>setTweak('accent', v)} />
         <TweakRadio label="Bakgrunn" value={tw.bgTone} options={Object.keys(BG_TONES)} onChange={v=>setTweak('bgTone', v)} />
         <TweakSlider label="Avrunding" value={tw.radius} min={0.5} max={1.5} step={0.1} onChange={v=>setTweak('radius', v)} />
-        <TweakSection label="«I dag»-terskler" />
-        <TweakSlider label="Stille etter" value={tw.stilleUker} min={1} max={12} step={1} unit=" uker" onChange={v=>setTweak('stilleUker', v)} />
-        <TweakSlider label="Graderingsklar — oppmøter" value={tw.gradMinOppmote} min={5} max={150} step={5} onChange={v=>setTweak('gradMinOppmote', v)} />
-        <TweakSlider label="Graderingsklar — måneder" value={tw.gradMinMnd} min={1} max={24} step={1} unit=" mnd" onChange={v=>setTweak('gradMinMnd', v)} />
-        <TweakSlider label="Intro-oppfølging etter" value={tw.introUker} min={1} max={8} step={1} unit=" uker" onChange={v=>setTweak('introUker', v)} />
       </TweaksPanel>
       {profilMedlem && <MemberProfile member={profilMedlem} onClose={()=>setProfilId(null)}/>}
+      {innstAapen && <Innstillinger onClose={()=>setInnstAapen(false)} isStyre={isStyre}
+        settings={terskler} brukerStandard={standardTerskler}/>}
     </div>
     </MemberOpenCtx.Provider>
+  );
+}
+
+// Tegnforklaring for hendelsesmarkørene. Vises bare når det faktisk ligger
+// hendelser i grafen — en tom forklaring er bare støy.
+function HendelseTegnforklaring({ events }) {
+  const typer = [];
+  (events || []).forEach(e => { if (typer.indexOf(e.type) === -1) typer.push(e.type); });
+  if (!typer.length) return null;
+  return (
+    <div style={{display:'flex', gap:12, flexWrap:'wrap', marginTop:10, fontSize:10,
+      color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.1em'}}>
+      {typer.map(t => (
+        <span key={t}>
+          <span style={{display:'inline-block', width:2, height:9, marginRight:5,
+            verticalAlign:'-1px', background: HENDELSE_FARGE[t] || HENDELSE_FARGE.annet}}/>{t}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -472,7 +500,7 @@ function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHin
   );
 }
 
-function Oversikt({ kpis, charts, isStyre, live }) {
+function Oversikt({ kpis, charts, isStyre, live, events }) {
   const t = kpis.totals;
   const liveAdd = liveSince(kpis, live).total;
   return (
@@ -492,8 +520,10 @@ function Oversikt({ kpis, charts, isStyre, live }) {
           data={blendedWeeklyEntries(kpis, live)}
           accessor={d => d[1]} height={140}
           labelAccessor={d => ukeEtikett(d[0])} showAxis
+          markers={events} dateAccessor={d => d[0]}
           color="var(--accent)" fill="var(--accent-soft)"
         />
+        <HendelseTegnforklaring events={events}/>
       </Tile>
 
       <div className="section-h">Sammensetning</div>
@@ -954,7 +984,7 @@ function OmDataene({ kpis, live, meta, isStyre, checkins, okter }) {
   );
 }
 
-function Oppmote({ kpis, charts, live, isStyre, members, meta }) {
+function Oppmote({ kpis, charts, live, isStyre, members, meta, events }) {
   const t = kpis.totals;
   const ls = liveSince(kpis, live);
   // «Økter holdt» og «Snitt pr. økt» sto fast på det historiske grunnlaget og
@@ -1020,7 +1050,9 @@ function Oppmote({ kpis, charts, live, isStyre, members, meta }) {
       <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
       <Tile title="weekly attendance" corner="long-range">
         <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140}
-          labelAccessor={d=>ukeEtikett(d[0])} showAxis color="#4D9A6B" fill="rgba(52,185,140,.15)"/>
+          labelAccessor={d=>ukeEtikett(d[0])} showAxis color="#4D9A6B" fill="rgba(52,185,140,.15)"
+          markers={events} dateAccessor={d=>d[0]}/>
+        <HendelseTegnforklaring events={events}/>
       </Tile>
 
       {isStyre && <Avstemming/>}
