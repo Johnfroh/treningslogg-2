@@ -45,6 +45,15 @@ const SHEET_NAMES = {
   // overskrives ved hver import, så uten dette arket finnes det ingen
   // historikk over hvem som har sluttet — og churn kan ikke regnes.
   dashDeparted: 'dash_departed',
+  // Driftsinnstillinger («I dag»-terskler) — lå tidligere i hver nettleser.
+  dashSettings: 'dash_settings',
+  // Ukentlige aggregater. Registeret overskrives ved hver import, så uten
+  // disse radene finnes ingen historikk over hvordan klubben så ut før.
+  dashSnapshots: 'dash_snapshots',
+  // Hendelser som forklarer grafene (ferie, gradering, arrangement …).
+  dashEvents: 'dash_events',
+  // Oppfølgingslogg for radene i «I dag» (kontaktet / utsatt / notat).
+  dashFollowup: 'dash_followup',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -82,6 +91,16 @@ const DASH_META_COLS = ['key','value'];
 // dash_departed: én rad per medlem som har falt ut av registeret. 'sluttet' er
 // datoen importen først savnet dem — ikke nødvendigvis datoen de faktisk sluttet.
 const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt'];
+// dash_settings: nøkkel/verdi for driftsterskler + hvem som endret sist.
+const DASH_SETTINGS_COLS = ['key','value','oppdatert','av'];
+// dash_snapshots: én rad pr. ISO-uke. Kun aggregater — ingen navn, ingen
+// id-er, og ingen økonomital (økonomi har sin egen skjermede rute).
+const DASH_SNAPSHOT_COLS = ['uke','tatt','aktive','per_kategori','per_belte','intro_aktive',
+  'checkins_4u','okter_4u','stille','graderingsklare','fallende'];
+// dash_events: hendelser som gir kontekst til grafene.
+const DASH_EVENT_COLS = ['id','dato','type','tittel','notat'];
+// dash_followup: én rad pr. oppfølgingshandling i «I dag».
+const DASH_FOLLOWUP_COLS = ['id','memberId','liste','status','dato','utsattTil','notat','av'];
 
 function bmProgram(p){ var s = String(p || '').trim().toLowerCase(); return s || 'ungdom'; }
 
@@ -142,6 +161,16 @@ function handle(e, method) {
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
+      // Innstillinger, snapshots, hendelser og oppfølging (/dashboard)
+      case 'dashSettingsGet':   return json({ ok: true, data: dashSettingsGet() });
+      case 'dashSettingsSet':   return json({ ok: true, data: dashSettingsSet(body.values, body.av) });
+      case 'dashSnapshotsList': return json({ ok: true, data: dashSnapshotsList() });
+      case 'dashSnapshotNow':   return json({ ok: true, data: dashSnapshotNow() });
+      case 'dashEventsList':    return json({ ok: true, data: dashEventsList() });
+      case 'dashEventAdd':      return json({ ok: true, data: dashEventAdd(body.event) });
+      case 'dashEventDelete':   return json({ ok: true, data: dashEventDelete(body.id) });
+      case 'dashFollowupList':  return json({ ok: true, data: dashFollowupList() });
+      case 'dashFollowupAdd':   return json({ ok: true, data: dashFollowupAdd(body.row) });
       case 'dashVippsList':     return json({ ok: true, data: dashVippsList() });
       case 'dashVippsImport':   return json({ ok: true, data: dashVippsImport(body) });
 
@@ -1242,10 +1271,326 @@ function dashImportOkonomi(months) {
 }
 
 // Kjør én gang fra editoren for å opprette dashboard-arkene.
+// ─── Dashboard: innstillinger (dash_settings) ───────────────────────
+// Driftstersklene for «I dag»-listene lå i Tweaks-panelet, altså i hver
+// enkelt nettleser: to trenere så to forskjellige lister. Her ligger de i
+// Sheets. Standardverdiene under speiles i DASH_SETTING_DEFAULTS i
+// dashboard/api.js, som er det frontend faller tilbake på når Sheets ikke
+// svarer — endrer du dem her, endre dem der også.
+const DASH_SETTING_DEFAULTS = {
+  stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
+};
+// Grenser. En terskel på 0 eller 9999 gir lister som ikke er til å jobbe i,
+// og en tastefeil i et tallfelt skal ikke kunne tømme «I dag».
+const DASH_SETTING_LIMITS = {
+  stilleUker: [1, 26], gradMinOppmote: [1, 300], gradMinMnd: [1, 36],
+  introUker: [1, 26], fallendeMinPrev4: [1, 40],
+};
+
+function dashClampSetting_(key, n) {
+  const lim = DASH_SETTING_LIMITS[key];
+  if (!lim) return Math.round(n);
+  return Math.min(lim[1], Math.max(lim[0], Math.round(n)));
+}
+
+function dashSettingsGet() {
+  const values = {};
+  Object.keys(DASH_SETTING_DEFAULTS).forEach(k => { values[k] = DASH_SETTING_DEFAULTS[k]; });
+  const meta = {};
+  dashRows(SHEET_NAMES.dashSettings, DASH_SETTINGS_COLS).forEach(r => {
+    const k = String(r.key || '');
+    if (!Object.prototype.hasOwnProperty.call(DASH_SETTING_DEFAULTS, k)) return; // ukjente nøkler ignoreres
+    const n = Number(r.value);
+    if (r.value !== '' && !isNaN(n)) values[k] = dashClampSetting_(k, n);
+    meta[k] = { oppdatert: safeIso(r.oppdatert), av: String(r.av || '') };
+  });
+  return { values: values, meta: meta };
+}
+
+// Skriver bare nøkler som finnes i DASH_SETTING_DEFAULTS.
+// Tilgangsstyringen er frontend-side i denne omgangen: bare styre ser
+// lagre-knappen. Apps Script kjenner ikke den innloggede Access-brukeren
+// (headere når ikke fram gjennom proxyen), så «av» er det klienten oppgir
+// og kan ikke brukes som bevis på hvem som endret hva.
+function dashSettingsSet(values, av) {
+  if (!values || typeof values !== 'object') throw new Error('values må være objekt');
+  const cur = dashSettingsGet();
+  const naa = new Date().toISOString();
+  Object.keys(values).forEach(k => {
+    if (!Object.prototype.hasOwnProperty.call(DASH_SETTING_DEFAULTS, k)) return;
+    const n = Number(values[k]);
+    if (values[k] === '' || isNaN(n)) return;
+    cur.values[k] = dashClampSetting_(k, n);
+    cur.meta[k] = { oppdatert: naa, av: String(av || '') };
+  });
+  const sh = sheet(SHEET_NAMES.dashSettings);
+  dashClear(SHEET_NAMES.dashSettings, DASH_SETTINGS_COLS);
+  const keys = Object.keys(DASH_SETTING_DEFAULTS);
+  sh.getRange(2, 1, keys.length, DASH_SETTINGS_COLS.length).setValues(keys.map(k => [
+    k, cur.values[k],
+    (cur.meta[k] && cur.meta[k].oppdatert) || '',
+    (cur.meta[k] && cur.meta[k].av) || '',
+  ]));
+  return dashSettingsGet();
+}
+
+// ─── Dashboard: ukentlige snapshots (dash_snapshots) ────────────────
+// Registeret overskrives ved hver import og «I dag»-listene regnes på nytt
+// hver gang siden lastes. Uten dette arket finnes det ingen historikk over
+// hvordan klubben så ut forrige måned. Én rad pr. ISO-uke, bare aggregater:
+// ingen navn, ingen id-er — og ingen økonomi (den har egen skjermet rute).
+
+// ISO-ukenøkkel, 'YYYY-Www'.
+function dashIsoWeek_(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const aar = t.getUTCFullYear();
+  const nyttaar = new Date(Date.UTC(aar, 0, 1));
+  return aar + '-W' + pad2(Math.ceil(((t - nyttaar) / 86400000 + 1) / 7));
+}
+
+// De n siste mandagene, eldst først — samme serie som lastMondays() i
+// dashboard-shared.jsx, så «siste 4 uker» betyr det samme her og der.
+function dashLastMondays_(n, naa) {
+  const t = naa || new Date();
+  const man = dashMonday(t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()));
+  const out = [];
+  if (!man) return out;
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(man + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 7 * i);
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+// Fire uker som slutter endOffset uker før slutten av serien — speiler sum4().
+function dashSum4_(arr, endOffset) {
+  return arr.slice(arr.length - endOffset - 4, arr.length - endOffset)
+    .reduce((s, v) => s + v, 0);
+}
+// Speiler isInactiveTypeImp() og deriveKategoriImp() i xlsx-import.jsx.
+// «Ikke aktiv» er en parkert medlemskapstype i Spond: personen ligger i
+// eksporten, men trener ikke og skal ikke telle som aktivt medlem.
+function dashInactiveType_(t) { return /ikke\s*aktiv/i.test(String(t || '')); }
+function dashKategoriFraType_(t) {
+  const s = String(t || '').toLowerCase();
+  if (s.indexOf('intro') !== -1) return 'Introkurs';
+  if (s.indexOf('kn') !== -1) return 'Knøtte';
+  if (s.indexOf('junior') !== -1) return 'Junior';
+  if (s.indexOf('student') !== -1) return 'Student';
+  if (s.indexOf('voksen') !== -1) return 'Voksen';
+  if (s.indexOf('familie') !== -1) return 'Familie';
+  return 'Annet';
+}
+
+// Regner ut ukas snapshot. Definisjonene MÅ være de samme som frontend
+// bruker, ellers forteller historikken noe annet enn skjermen:
+//   aktive / per_kategori / per_belte / intro_aktive → mergeLiveKpis()
+//     i daylight-app.jsx (parkerte medlemskap filtreres bort)
+//   stille / graderingsklare / fallende → today-app.jsx (regnes på HELE
+//     registeret, ikke bare de aktive — akkurat som i frontend)
+//   fallende → memberTrendRows() i dashboard-shared.jsx
+// Samme speiling som for gruppene (dashNormGroup_): endrer du én side,
+// endre den andre.
+function dashSnapshotCompute_(naa) {
+  const nu = naa || new Date();
+  const cfg = dashSettingsGet().values;
+  const members = dashReadMembers();
+  const live = dashLiveOppmote();
+  const na = nu.getTime();
+  const dagerSiden = v => {
+    if (!v) return null;
+    const t = new Date(v).getTime();
+    return isNaN(t) ? null : Math.floor((na - t) / 86400000);
+  };
+
+  const aktive = members.filter(m => !dashInactiveType_(m.medlemstype));
+  const perKategori = {}, perBelte = {};
+  let introAktive = 0;
+  aktive.forEach(m => {
+    const kat = m.medlemstype ? dashKategoriFraType_(m.medlemstype) : (m.kategori || 'Annet');
+    perKategori[kat] = (perKategori[kat] || 0) + 1;
+    if (kat === 'Introkurs') introAktive++;
+    const belt = (m.grading && m.grading.current && m.grading.current.belt) || 'Hvit';
+    perBelte[belt] = (perBelte[belt] || 0) + 1;
+  });
+
+  const stille = members.filter(m => {
+    const d = dagerSiden(m.oppmote && m.oppmote.sisteOppmote);
+    return d != null && d >= cfg.stilleUker * 7;
+  });
+  const graderingsklare = members.filter(m => {
+    const g = m.grading && m.grading.current;
+    if (!g || g.belt === 'Sort') return false;
+    const ck = (m.oppmote && m.oppmote.checkins) || 0;
+    const md = dagerSiden(g.since);
+    return ck >= cfg.gradMinOppmote && md != null && md >= cfg.gradMinMnd * 30;
+  });
+
+  const uker = dashLastMondays_(26, nu);
+  const mw = live.memberWeekly || {};
+  const stilleIds = {}; stille.forEach(m => { stilleIds[m.id] = true; });
+  const iRegisteret = {}; members.forEach(m => { iRegisteret[m.id] = true; });
+  let fallende = 0;
+  Object.keys(mw).forEach(id => {
+    if (!iRegisteret[id] || stilleIds[id]) return;
+    const serie = uker.map(w => mw[id][w] || 0);
+    const last4 = dashSum4_(serie, 0), prev4 = dashSum4_(serie, 4);
+    if (last4 < prev4 && prev4 >= cfg.fallendeMinPrev4) fallende++;
+  });
+
+  const fire = uker.slice(uker.length - 4);
+  const sumUker = obj => fire.reduce((s, w) => s + Number((obj && obj[w]) || 0), 0);
+
+  return {
+    uke: dashIsoWeek_(nu),
+    tatt: new Date().toISOString(),
+    aktive: aktive.length,
+    per_kategori: JSON.stringify(perKategori),
+    per_belte: JSON.stringify(perBelte),
+    intro_aktive: introAktive,
+    checkins_4u: sumUker(live.weekly),
+    okter_4u: sumUker(live.sessionWeekly),
+    stille: stille.length,
+    graderingsklare: graderingsklare.length,
+    fallende: fallende,
+  };
+}
+
+// Idempotent: kjører du to ganger samme uke, overskrives raden.
+function dashTakeSnapshot_() {
+  const rad = dashSnapshotCompute_(new Date());
+  const sh = sheet(SHEET_NAMES.dashSnapshots);
+  const rows = dashRows(SHEET_NAMES.dashSnapshots, DASH_SNAPSHOT_COLS);
+  let idx = -1;
+  rows.forEach((r, i) => { if (String(r.uke) === rad.uke) idx = i + 2; });
+  if (idx > 0) writeRow(sh, idx, DASH_SNAPSHOT_COLS, rad);
+  else appendRow(SHEET_NAMES.dashSnapshots, DASH_SNAPSHOT_COLS, rad);
+  return rad;
+}
+
+function dashSnapshotsList() {
+  const p = s => { try { return s ? JSON.parse(s) : {}; } catch (e) { return {}; } };
+  return dashRows(SHEET_NAMES.dashSnapshots, DASH_SNAPSHOT_COLS)
+    .filter(r => r.uke !== '' && r.uke != null)
+    .map(r => ({
+      uke: String(r.uke), tatt: safeIso(r.tatt),
+      aktive: Number(r.aktive || 0),
+      perKategori: p(r.per_kategori), perBelte: p(r.per_belte),
+      introAktive: Number(r.intro_aktive || 0),
+      checkins4u: Number(r.checkins_4u || 0), okter4u: Number(r.okter_4u || 0),
+      stille: Number(r.stille || 0), graderingsklare: Number(r.graderingsklare || 0),
+      fallende: Number(r.fallende || 0),
+    }))
+    .sort((a, b) => a.uke.localeCompare(b.uke));
+}
+
+// Manuell kjøring fra dashboardet (knapp i Innstillinger, styre).
+function dashSnapshotNow() { return dashTakeSnapshot_(); }
+
+// Trigger-håndtak. Ikke gi denne understrek-suffiks — Apps Script kaller
+// trigger-funksjoner ved navn.
+function dashSnapshotWeekly() { return dashTakeSnapshot_(); }
+
+// Kjør manuelt én gang fra editoren. Fjerner en eventuell eksisterende
+// trigger for samme funksjon først, så gjentatte kjøringer ikke stabler opp
+// flere triggere som alle skriver samme rad.
+function _setupSnapshotTrigger() {
+  let fjernet = 0;
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'dashSnapshotWeekly') { ScriptApp.deleteTrigger(t); fjernet++; }
+  });
+  ScriptApp.newTrigger('dashSnapshotWeekly').timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(6).create();
+  Logger.log('Snapshot-trigger satt: dashSnapshotWeekly, mandag kl. 06. Fjernet ' + fjernet + ' gammel(e).');
+}
+
+// ─── Dashboard: hendelser (dash_events) ─────────────────────────────
+// Kontekst til grafene. Et fall i oppmøte i uke 8 er noe helt annet når det
+// står «vinterferie» der — markørene på Klubbens puls kommer herfra.
+const DASH_EVENT_TYPES = ['gradering', 'arrangement', 'ferie', 'introkurs', 'annet'];
+
+function dashNyId_(prefix) {
+  return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function dashEventsList() {
+  return dashRows(SHEET_NAMES.dashEvents, DASH_EVENT_COLS)
+    .filter(r => r.id !== '' && r.id != null)
+    .map(r => ({
+      id: String(r.id), dato: ymd(r.dato), type: String(r.type || 'annet'),
+      tittel: String(r.tittel || ''), notat: String(r.notat || ''),
+    }))
+    .sort((a, b) => String(a.dato).localeCompare(String(b.dato)));
+}
+
+function dashEventAdd(ev) {
+  if (!ev || !ev.dato) throw new Error('dato mangler');
+  const dato = ymd(ev.dato);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dato)) throw new Error('ugyldig dato: ' + ev.dato);
+  const rad = {
+    id: dashNyId_('ev'),
+    dato: dato,
+    type: DASH_EVENT_TYPES.indexOf(String(ev.type || '')) !== -1 ? String(ev.type) : 'annet',
+    tittel: String(ev.tittel || '').slice(0, 120),
+    notat: String(ev.notat || '').slice(0, 500),
+  };
+  appendRow(SHEET_NAMES.dashEvents, DASH_EVENT_COLS, rad);
+  return rad;
+}
+
+function dashEventDelete(id) { return deleteRow(SHEET_NAMES.dashEvents, id); }
+
+// ─── Dashboard: oppfølging (dash_followup) ──────────────────────────
+// «Kontaktet / utsett / notat» på radene i «I dag». Arket er en logg: hver
+// handling er en ny rad, ingenting overskrives, så medlemsprofilen kan vise
+// hele oppfølgingshistorikken. Hvilke rader som SKJULES regnes i frontend
+// (today-app.jsx) — serveren tar bare vare på hendelsene.
+// Personvern: her lagres memberId og et kort notat. Notatfeltet er merket
+// «ikke helseopplysninger» i UI-et; arket ligger uansett bak Access.
+const DASH_FU_LISTER = ['stille', 'intro', 'grad', 'fallende'];
+const DASH_FU_STATUS = ['kontaktet', 'utsatt', 'notat'];
+
+function dashFollowupList() {
+  return dashRows(SHEET_NAMES.dashFollowup, DASH_FOLLOWUP_COLS)
+    .filter(r => r.id !== '' && r.id != null && r.memberId)
+    .map(r => ({
+      id: String(r.id), memberId: String(r.memberId), liste: String(r.liste || ''),
+      status: String(r.status || ''), dato: ymd(r.dato),
+      utsattTil: r.utsattTil ? ymd(r.utsattTil) : '',
+      notat: String(r.notat || ''), av: String(r.av || ''),
+    }))
+    .sort((a, b) => String(a.dato).localeCompare(String(b.dato)));
+}
+
+function dashFollowupAdd(rad) {
+  if (!rad || !rad.memberId) throw new Error('memberId mangler');
+  if (DASH_FU_LISTER.indexOf(String(rad.liste || '')) === -1) throw new Error('ukjent liste: ' + rad.liste);
+  if (DASH_FU_STATUS.indexOf(String(rad.status || '')) === -1) throw new Error('ukjent status: ' + rad.status);
+  const ny = {
+    id: dashNyId_('fu'),
+    memberId: String(rad.memberId),
+    liste: String(rad.liste),
+    status: String(rad.status),
+    dato: rad.dato ? ymd(rad.dato) : ymd(new Date()),
+    utsattTil: rad.utsattTil ? ymd(rad.utsattTil) : '',
+    notat: String(rad.notat || '').slice(0, 500),
+    av: String(rad.av || ''),
+  };
+  appendRow(SHEET_NAMES.dashFollowup, DASH_FOLLOWUP_COLS, ny);
+  return ny;
+}
+
+// sheet() oppretter arket med header kun hvis det ikke finnes fra før, så
+// denne kan kjøres om igjen uten å røre data som allerede ligger der.
 function _setupDashSheets() {
   [SHEET_NAMES.dashMembers, SHEET_NAMES.dashGrading, SHEET_NAMES.dashOkonomi, SHEET_NAMES.dashMeta,
-   SHEET_NAMES.dashVipps, SHEET_NAMES.dashVippsProd].forEach(n => sheet(n));
-  Logger.log('Dashboard-ark opprettet: dash_members, dash_grading, dash_okonomi, dash_meta, dash_vipps, dash_vipps_produkter.');
+   SHEET_NAMES.dashVipps, SHEET_NAMES.dashVippsProd, SHEET_NAMES.dashDeparted,
+   SHEET_NAMES.dashSettings, SHEET_NAMES.dashSnapshots, SHEET_NAMES.dashEvents,
+   SHEET_NAMES.dashFollowup].forEach(n => sheet(n));
+  Logger.log('Dashboard-ark klare: dash_members, dash_grading, dash_okonomi, dash_meta, '
+    + 'dash_vipps, dash_vipps_produkter, dash_departed, dash_settings, dash_snapshots, '
+    + 'dash_events, dash_followup.');
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -1270,6 +1615,10 @@ function sheet(name) {
               : name === SHEET_NAMES.dashVippsProd ? DASH_VIPPS_PROD_COLS
               : name === SHEET_NAMES.dashMeta    ? DASH_META_COLS
               : name === SHEET_NAMES.dashDeparted ? DASH_DEPARTED_COLS
+              : name === SHEET_NAMES.dashSettings ? DASH_SETTINGS_COLS
+              : name === SHEET_NAMES.dashSnapshots ? DASH_SNAPSHOT_COLS
+              : name === SHEET_NAMES.dashEvents ? DASH_EVENT_COLS
+              : name === SHEET_NAMES.dashFollowup ? DASH_FOLLOWUP_COLS
               : [];
     if (cols.length) sh.appendRow(cols);
   }

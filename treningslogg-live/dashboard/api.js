@@ -16,6 +16,14 @@ window.DASH_API = (function () {
   const ENDPOINT = '/api';
   const TOKEN = 'bjj-Hk8nQ2wT-2026';
 
+  // Driftsterskler for «I dag»-listene. Sannheten ligger i dash_settings
+  // (Sheets); dette er kun det dashboardet faller tilbake på når Sheets ikke
+  // svarer. Verdiene speiler DASH_SETTING_DEFAULTS i apps-script/Code.gs —
+  // endrer du dem der, endre dem her også.
+  const SETTING_DEFAULTS = {
+    stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
+  };
+
   // Statuskoden alene sier ikke HVEM som svarte. En 404 fra Cloudflare Pages
   // («ruta /api finnes ikke») og en 404 fra Apps Script («deployen er borte»)
   // er to helt forskjellige feil med to helt forskjellige fikser. Vi tar med
@@ -168,6 +176,21 @@ window.DASH_API = (function () {
       return okPost({ action: 'dashVippsImport', months: payload.months || [], products: payload.products || [] });
     },
 
+    // Driftsterskler (dash_settings). Kaster hvis backend er eldre enn
+    // denne versjonen — kaller faller da tilbake på SETTING_DEFAULTS.
+    fetchSettings() {
+      return get('dashSettingsGet').then(d => ({
+        values: { ...SETTING_DEFAULTS, ...((d && d.values) || {}) },
+        meta: (d && d.meta) || {},
+      }));
+    },
+    // Ukentlige aggregater (dash_snapshots) — kun lesing fra dashboardet.
+    fetchSnapshots() { return get('dashSnapshotsList'); },
+    // Hendelser som gir kontekst til grafene (dash_events).
+    fetchEvents() { return get('dashEventsList'); },
+    // Oppfølgingslogg for «I dag»-radene (dash_followup).
+    fetchFollowup() { return get('dashFollowupList'); },
+
     // ── Skriving ──
     // events: [{ memberId, kind, belt, stripes, date, by, note }]
     grade(events) { return post({ action: 'dashGrade', events }); },
@@ -184,6 +207,16 @@ window.DASH_API = (function () {
     cleanupList(from, to) { return get('dashCleanupList', { from, to }); },
     cleanupApply(deleteIds, clearIds) { return post({ action: 'dashCleanupApply', deleteIds, clearIds }); },
     fetchThemes() { return get('dashThemes'); },
+    // Innstillinger, snapshots, hendelser og oppfølging.
+    // «av» er e-posten frontend kjenner fra whoami — den er en merkelapp for
+    // hvem som gjorde hva, ikke et tilgangsbevis: Apps Script ser ikke den
+    // innloggede Access-brukeren, så tilgangsstyringen er frontend-side
+    // (bare styre får se lagre-knappene) i denne omgangen.
+    saveSettings(values, av) { return post({ action: 'dashSettingsSet', values, av: av || '' }); },
+    snapshotNow() { return post({ action: 'dashSnapshotNow' }); },
+    addEvent(event) { return post({ action: 'dashEventAdd', event }); },
+    deleteEvent(id) { return post({ action: 'dashEventDelete', id }); },
+    addFollowup(row) { return post({ action: 'dashFollowupAdd', row }); },
     // Kalender + øktlogging (samme backend-handlinger som trener-appen).
     fetchCalendar() { return get('dashCalendar'); },
     createSession(payload) { return post({ action: 'createSession', payload }); },
@@ -198,5 +231,7 @@ window.DASH_API = (function () {
     // Eksponert for import/roster-flyten.
     maskMembers,
     isMinor,
+    // Fallback-tersklene, så frontend slipper å duplisere tallene.
+    SETTING_DEFAULTS,
   };
 })();
