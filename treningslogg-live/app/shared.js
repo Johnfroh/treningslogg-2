@@ -39,6 +39,10 @@ const M = {
   blueBg:    'rgba(79,155,234,0.10)',
   purple:    '#B06FD6',  // lilla (junior/highlight)
   purpleBg:  'rgba(176,111,214,0.10)',
+  gold:      '#D9A22E',  // okergul (taktisk grappling)
+  goldBg:    'rgba(217,162,46,0.10)',
+  rose:      '#D96BA0',  // rosa (BJJ damer)
+  roseBg:    'rgba(217,107,160,0.10)',
 
   // Legacy-aliaser (eksisterende kode bruker disse navnene)
   amber:     '#F2825F',  // tag-warning farge — aliaset til coral
@@ -58,6 +62,8 @@ const M_GROUP = {
   'gi':             M.accent2,   // mynte
   'nogi':           M.coral,     // korall
   'åpen matte':     M.blue,      // himmelblå
+  'taktisk':        M.gold,      // okergul
+  'damer':          M.rose,      // rosa
 };
 
 const M_TAG_COLOR = {

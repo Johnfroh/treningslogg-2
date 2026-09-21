@@ -1,7 +1,8 @@
 // Mock data for Treningslogg MVP
 window.TL_DATA = (function () {
-  const groups = ['junior', 'gi', 'nogi', 'åpen matte'];
-  const groupShort = { 'junior': 'jr', 'gi': 'gi', 'nogi': 'nogi', 'åpen matte': 'åpen' };
+  const groups = ['junior', 'gi', 'nogi', 'åpen matte', 'taktisk', 'damer'];
+  const groupShort = { 'junior': 'jr', 'gi': 'gi', 'nogi': 'nogi', 'åpen matte': 'åpen',
+    'taktisk': 'takt', 'damer': 'damer' };
 
   const trainers = [
     { id: 'marius', name: 'marius' },

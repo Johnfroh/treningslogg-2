@@ -13,13 +13,16 @@ const _excelSerialToDate = (serial) => {
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 };
 
-// Foreløpig minimal mapping til ny modell (4 grupper). Mer avansert
-// auto-deteksjon + per-rad-valg kommer i neste commit.
+// Mapping fra Spond-klassenavn til gruppe. Rekkefølgen er bevisst: taktisk
+// grappling og damepartiet er egne parti, og skal vinne over nogi/gi selv om
+// tittelen nevner dem («Damer NoGi» er damepartiet, ikke nogi-partiet).
 const _mapClassToGroup = (raw) => {
   if (!raw) return null;
   const s = String(raw).toLowerCase().replace(/\*+\s*$/, '').trim();
   if (s.includes('junior') || s.includes('knøtte')) return 'junior';
   if (s.includes('åpen matte') || s.includes('open mat')) return 'åpen matte';
+  if (s.includes('taktisk') || s.includes('grappling')) return 'taktisk';
+  if (s.includes('dame') || s.includes('kvinne')) return 'damer';
   if (s.includes('nogi') || s.includes('no-gi') || s.includes('no gi')) return 'nogi';
   return 'gi';
 };

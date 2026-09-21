@@ -16,6 +16,25 @@ window.DASH_API = (function () {
   const ENDPOINT = '/api';
   const TOKEN = 'bjj-Hk8nQ2wT-2026';
 
+  // Statuskoden alene sier ikke HVEM som svarte. En 404 fra Cloudflare Pages
+  // («ruta /api finnes ikke») og en 404 fra Apps Script («deployen er borte»)
+  // er to helt forskjellige feil med to helt forskjellige fikser. Vi tar med
+  // et utdrag av svaret, så neste feilmelding peker rett på årsaken.
+  async function httpFeil(hva, res) {
+    let hint = '';
+    try {
+      const tekst = (await res.text()).trim();
+      if (/<!doctype|<html/i.test(tekst)) {
+        hint = /cloudflare|pages\.dev/i.test(tekst)
+          ? ' — Cloudflare svarte med en HTML-side (ruta /api nådde ikke Apps Script)'
+          : ' — fikk en HTML-side i stedet for JSON (sannsynligvis en innloggingsside)';
+      } else if (tekst) {
+        hint = ' — ' + tekst.slice(0, 120);
+      }
+    } catch (e) { /* kroppen kan være tom eller allerede lest */ }
+    return new Error(hva + ' feilet: ' + res.status + hint);
+  }
+
   async function getJSON(path) {
     const res = await fetch(path, { cache: 'no-store' });
     if (!res.ok) throw new Error(path + ' feilet: ' + res.status);
@@ -30,7 +49,7 @@ window.DASH_API = (function () {
     url.searchParams.set('_ts', Date.now().toString());
     if (extra) Object.entries(extra).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
-    if (!res.ok) throw new Error('GET ' + action + ' feilet: ' + res.status);
+    if (!res.ok) throw await httpFeil('GET ' + action, res);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'ukjent feil');
     return json.data;
@@ -44,7 +63,7 @@ window.DASH_API = (function () {
       body: JSON.stringify({ ...body, token: TOKEN }),
       cache: 'no-store',
     });
-    if (!res.ok) throw new Error('POST ' + body.action + ' feilet: ' + res.status);
+    if (!res.ok) throw await httpFeil('POST ' + body.action, res);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'ukjent feil');
     return json.data;
@@ -57,7 +76,7 @@ window.DASH_API = (function () {
     const res = await fetch(OK_ENDPOINT + '?action=' + encodeURIComponent(action)
       + '&token=' + encodeURIComponent(TOKEN) + '&_ts=' + Date.now(), { cache: 'no-store' });
     if (res.status === 403) throw new Error('forbidden');
-    if (!res.ok) throw new Error('GET ' + action + ' feilet: ' + res.status);
+    if (!res.ok) throw await httpFeil('GET ' + action, res);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'ukjent feil');
     return json.data;
@@ -70,7 +89,7 @@ window.DASH_API = (function () {
       cache: 'no-store',
     });
     if (res.status === 403) throw new Error('forbidden');
-    if (!res.ok) throw new Error('POST ' + body.action + ' feilet: ' + res.status);
+    if (!res.ok) throw await httpFeil('POST ' + body.action, res);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'ukjent feil');
     return json.data;
