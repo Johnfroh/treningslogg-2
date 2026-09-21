@@ -4,10 +4,14 @@
    Bruker window.parseXlsxRaw + window.serialToISOimp fra xlsx-import.jsx. */
 const { useState: useAi } = React;
 
+// Taktisk grappling og damepartiet sjekkes FØR nogi: begge kan ha «nogi» i
+// klassenavnet uten å være nogi-partiet. Speiler dashNormGroup_ i Code.gs.
 function _attGroup(raw){
   const s = String(raw||'').toLowerCase().replace(/\*+\s*$/,'').trim();
   if(s.includes('junior')||s.includes('knøtte')) return 'junior';
   if(s.includes('åpen matte')||s.includes('open mat')) return 'åpen matte';
+  if(s.includes('taktisk')||s.includes('grappling')) return 'taktisk';
+  if(s.includes('dame')||s.includes('kvinne')) return 'damer';
   if(s.includes('nogi')||s.includes('no-gi')||s.includes('no gi')) return 'nogi';
   return 'gi';
 }

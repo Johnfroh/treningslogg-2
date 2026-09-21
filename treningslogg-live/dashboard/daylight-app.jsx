@@ -746,7 +746,8 @@ function Avstemming() {
 // siste 90 dager. Kjernetaksonomien speiler trener-appens tags.
 const CORE_POS = ['guard','mount','sidekontroll','back','c2c','c2b'];
 const CORE_ACT = ['passing','escapes','submissions','takedowns','sweeps','pins'];
-const GROUP_LABEL = { junior:'Junior', gi:'Gi', nogi:'No-Gi', 'åpen matte':'Åpen matte', ukjent:'Ukjent' };
+const GROUP_LABEL = { junior:'Junior', gi:'Gi', nogi:'No-Gi', 'åpen matte':'Åpen matte',
+  taktisk:'Taktisk grappling', damer:'BJJ damer', ukjent:'Ukjent' };
 
 function ThemeBars({ keys, allMap, recentMap, color }){
   const max = Math.max(1, ...keys.map(k => allMap[k] || 0));
@@ -807,12 +808,12 @@ function Innhold(){
         </>
       )}
 
-      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · junior / gi / no-gi / åpen matte</span></div>
+      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · junior / gi / no-gi / åpen matte / taktisk / damer</span></div>
       <Tile title="grupper" corner="balanse">
         <HBar data={groupData} color="var(--accent)" height={20}/>
         {ukjentGroup && ukjentGroup.sessions > 0 && (
           <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
-            ⚠ {ukjentGroup.sessions} økter har ukjent/ugyldig gruppe — rydd dem til junior / gi / no-gi / åpen matte i kalenderen.
+            ⚠ {ukjentGroup.sessions} økter har ukjent/ugyldig gruppe — rydd dem til en av de seks gruppene i kalenderen.
           </div>
         )}
       </Tile>

@@ -45,5 +45,10 @@ Send gjerne fila med SendUserFile samtidig.
   og `API_TOKEN` i `fotball/app-core.js`. Ikke gjeninnfør plassholder.
 - Lint: `eslint treningslogg-live/ functions/` (flat-config i repo-rot,
   ingen npm install nødvendig). 0 errors før commit.
-- Grupper i datamodellen: `junior / gi / nogi / åpen matte`.
+- Grupper i datamodellen: `junior / gi / nogi / åpen matte / taktisk / damer`
+  (`taktisk` = Taktisk grappling, `damer` = BJJ damer). Gruppe utledes seks
+  steder — hold dem i synk: `app/shared.js` (M_GROUP), `app/data.js`,
+  `app/desktop.jsx` (_mapClassToGroup), `apps-script/Code.gs`
+  (dashNormGroup_), `dashboard/attendance-import.jsx` (_attGroup),
+  `dashboard/calendar-app.jsx` + `daylight-app.jsx` (etiketter/farger).
   Nivå (`grunn/erfaren/mix/junior`) er tags, ikke grupper.

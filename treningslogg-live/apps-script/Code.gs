@@ -683,7 +683,8 @@ function dashCalendar() {
 // for hele perioden og siste 90 dager — så trenerne ser hva som er over-
 // eller underdekket. Kun økter med innhold (tittel/tags) teller som logget.
 // Kanonisk gruppe fra et rått group-felt (+ tittel for gamle nivånavn).
-// Ett sett: junior / gi / nogi / åpen matte. Skrivemåte-varianter slås sammen;
+// Ett sett: junior / gi / nogi / åpen matte / taktisk / damer. Skrivemåte-
+// varianter slås sammen;
 // rusk (tomt, «group», «group (1)», ukjent) → 'ukjent' (skjules i hovedvisning,
 // flagges som ryddeoppgave). Speiler _migrateToNewGroups + attendance-importen.
 function dashNormGroup_(raw, title) {
@@ -692,9 +693,19 @@ function dashNormGroup_(raw, title) {
   if (s.indexOf('junior') >= 0 || s.indexOf('knøtte') >= 0 || s.indexOf('knotte') >= 0) return 'junior';
   if (s.indexOf('åpen matte') >= 0 || s.indexOf('apen matte') >= 0 ||
       s.indexOf('åpne matter') >= 0 || s.indexOf('open mat') >= 0) return 'åpen matte';
+  // Taktisk grappling og damepartiet er egne parti. De sjekkes FØR nogi/gi:
+  // «Taktisk grappling» drives no-gi, og «BJJ Damer NoGi» er damepartiet —
+  // uten denne rekkefølgen ville begge blitt slukt av nogi.
+  if (s.indexOf('taktisk') >= 0 || s.indexOf('grappling') >= 0) return 'taktisk';
+  if (s.indexOf('dame') >= 0 || s.indexOf('kvinne') >= 0) return 'damer';
   if (s === 'nogi' || s.indexOf('no-gi') >= 0 || s.indexOf('no gi') >= 0 || s.indexOf('nogi') >= 0) return 'nogi';
-  // gamle nivånavn → gruppe etter «nogi» i tittel (nivå bæres som tag separat)
-  if (s === 'grunnleggende' || s === 'erfaren' || s === 'alle nivåer' || s === 'alle nivaer') {
+  // Gamle nivånavn → gruppe etter «nogi» i tittel (nivå bæres som tag separat).
+  // Delstreng, ikke eksakt treff: klassen heter «Grunnleggende BJJ» i Spond,
+  // og med === havnet den på 'ukjent' her mens importen og trener-appen sa
+  // 'gi'. Ekte rusk (tomt, «group», «group (1)») fanges fortsatt øverst.
+  if (s.indexOf('grunnleggende') >= 0 || s.indexOf('erfaren') >= 0 ||
+      s.indexOf('viderekommende') >= 0 || s.indexOf('basics') >= 0 ||
+      s.indexOf('alle nivå') >= 0 || s.indexOf('alle niva') >= 0) {
     var t = String(title || '').toLowerCase();
     return (t.indexOf('nogi') >= 0 || t.indexOf('no-gi') >= 0 || t.indexOf('no gi') >= 0) ? 'nogi' : 'gi';
   }
@@ -1382,6 +1393,7 @@ function _testRoundtrip() {
 // Migrasjons-reglene:
 //   junior        → junior (uendret)
 //   åpen matte    → åpen matte (uendret)
+//   taktisk/damer → taktisk / damer (egne parti, uendret)
 //   grunnleggende → gi (eller nogi hvis "nogi" i tittel) + tag "grunn"
 //   erfaren       → gi (eller nogi hvis "nogi" i tittel) + tag "erfaren"
 //   alle nivåer   → gi (eller nogi hvis "nogi" i tittel) + tag "mix"
@@ -1410,7 +1422,7 @@ function _migrateToNewGroups() {
   if (!sh) throw new Error('Fant ikke sessions-ark');
   const lastRow = sh.getLastRow();
   let migrated = 0, skipped = 0;
-  const fordeling = { gi: 0, nogi: 0, junior: 0, 'åpen matte': 0 };
+  const fordeling = { gi: 0, nogi: 0, junior: 0, 'åpen matte': 0, taktisk: 0, damer: 0 };
 
   if (lastRow >= 2) {
     const range = sh.getRange(2, 1, lastRow - 1, SESSION_COLS.length);
