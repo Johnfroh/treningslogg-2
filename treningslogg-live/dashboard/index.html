@@ -218,12 +218,85 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; border: 3px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* fem KPI-kort i Trender */
+.grid-5 { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; }
+.kpi-tile.klikkbar { cursor: pointer; }
+.kpi-tile.klikkbar:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+
+/* kontrollstripe (Trender) */
+.kstripe { display:flex; flex-wrap:wrap; gap:18px 26px; align-items:flex-start;
+  background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-sm); padding:14px 18px; margin-bottom:14px; }
+.kstripe-felt { display:flex; flex-direction:column; gap:7px; min-width:0; }
+.kstripe-lbl { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.kstripe select { border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:9px 12px;
+  font:inherit; font-size:13px; background:var(--card); color:var(--ink); max-width:100%; }
+
+/* sammenfoldbare fordelinger over medlemsregisteret */
+.fordelinger { background:var(--card); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:14px 18px; margin-bottom:8px; }
+.fordelinger > summary { cursor:pointer; font-size:13px; font-weight:700; color:var(--ink); list-style:none; }
+.fordelinger > summary::-webkit-details-marker { display:none; }
+.fordelinger > summary::before { content:'▸ '; color:var(--muted); }
+.fordelinger[open] > summary::before { content:'▾ '; }
+.fordelinger[open] > summary { margin-bottom:8px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+
+/* bunnmeny — kun mobil */
+.bunnmeny { display:none; }
+.mer-ark { display:none; }
+
 @media (max-width: 1080px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; align-items: center; gap: 18px; }
   .nav { flex-direction: row; flex-wrap: wrap; }
   .live { margin: 0; }
-  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .grid-4, .grid-5 { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============ MOBIL (< 760 px) ============
+   Sidefeltet byttes ut med bunnmeny, KPI-ene går i to kolonner, og tabeller
+   får sin egen vannrette scroll slik at SIDEN aldri scroller sidelengs.
+   Brekkpunktet er det samme som SMAL_PX i dashboard-shared.jsx. */
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; padding: 12px 12px 0; gap: 0; overflow-x: hidden; }
+  .sidebar { display: none; }
+  .main { padding: 4px 0 84px; }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .topbar-pills { flex-wrap: wrap; }
+  .h1 { font-size: 22px; }
+  .grid-4, .grid-5, .grid-3, .grid-2, .grid-2-1, .grid-1-2 { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 > *:nth-child(3), .grid-2-1 > *, .grid-1-2 > * { grid-column: span 2; }
+  .grid-3 > *:nth-child(3) { grid-column: span 2; }
+  .section-h { flex-direction: column; align-items: flex-start; gap: 4px; margin: 22px 0 10px; }
+  .tile { padding: 14px; }
+  /* display:block gjør tabellen til en scrollbar boks — siden står i ro */
+  .t { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .kstripe { gap: 12px; padding: 12px 14px; }
+  .kstripe-felt { flex: 1 1 100%; }
+  .okbars { overflow-x: auto; }
+  .bunnmeny {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+    background: var(--card); border-top: 1px solid var(--line);
+    box-shadow: 0 -2px 14px rgba(60,50,110,.08);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .bunnmeny button {
+    flex: 1; appearance: none; border: 0; background: transparent; font: inherit;
+    font-size: 11px; font-weight: 600; color: var(--muted); padding: 8px 2px;
+    border-radius: var(--r-sm); cursor: pointer; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bunnmeny button.active { color: var(--accent); background: var(--accent-bg); }
+  .mer-ark { display: block; position: fixed; inset: 0; z-index: 91; background: rgba(35,33,54,.42); }
+  .mer-liste {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--card);
+    border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 14px 14px calc(70px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .mer-liste button {
+    appearance: none; border: 0; background: transparent; font: inherit; font-size: 14px;
+    font-weight: 600; color: var(--ink-soft); text-align: left; padding: 13px 14px;
+    border-radius: var(--r-sm); cursor: pointer;
+  }
+  .mer-liste button.active { color: var(--accent); background: var(--accent-bg); }
 }
 
 /* ============ REGISTER ============ */
@@ -445,7 +518,9 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 <script type="text/babel" src="xlsx-export.jsx"></script>
 <script type="text/babel" src="rapport.jsx"></script>
 <script type="text/babel" src="data-panel.jsx"></script>
-<script type="text/babel" src="settings-modal.jsx"></script>
+<script type="text/babel" src="settings-panels.jsx"></script>
+<script type="text/babel" src="trends-app.jsx"></script>
+<script type="text/babel" src="data-tab.jsx"></script>
 <script type="text/babel" src="daylight-app.jsx"></script>
 
 <script>

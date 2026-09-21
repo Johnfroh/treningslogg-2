@@ -4,9 +4,10 @@
    Tag-taksonomien speiler trener-appen (app/data.js). */
 const { useState: useCs, useEffect: useCe } = React;
 
-const CAL_GROUPS = ['junior', 'gi', 'nogi', 'åpen matte', 'taktisk', 'damer'];
-const CAL_GROUP_COLOR = { junior:'#B06FD6', gi:'#34B98C', nogi:'#F2825F', 'åpen matte':'#4F9BEA',
-  taktisk:'#D9A22E', damer:'#D96BA0' };
+// Gruppene kommer fra dashboard-shared.jsx — kalenderen hadde sin egen kopi,
+// og da måtte to lister holdes i synk hver gang et parti ble lagt til.
+const CAL_GROUPS = DASH_GRUPPER;
+const CAL_GROUP_COLOR = DASH_GRUPPE_FARGE;
 const CAL_TAGCATS = [
   { kind:'position', label:'Posisjon', color:'#34B98C', tags:['guard','mount','sidekontroll','back','c2c','c2b'] },
   { kind:'action',   label:'Handling', color:'#F2825F', tags:['passing','escapes','submissions','takedowns','sweeps','pins'] },

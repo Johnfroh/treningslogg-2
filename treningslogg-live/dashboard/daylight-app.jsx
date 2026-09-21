@@ -26,17 +26,23 @@ function hexA(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+// Faner etter BRUK, ikke etter datadomene. Oversikt + Oppmøte + Kohort &
+// Churn svarte alle på «hvordan går det over tid» og er slått sammen til
+// Trender; Medlemsstatistikk er blitt en sammenfoldbar seksjon i Medlemmer;
+// alt som handler om selve datagrunnlaget ligger i Data.
 const TABS = [
   { id: 'idag', label: 'I dag' },
-  { id: 'oversikt', label: 'Oversikt' },
-  { id: 'kalender', label: 'Kalender' },
+  { id: 'trender', label: 'Trender' },
   { id: 'register', label: 'Medlemmer' },
-  { id: 'statistikk', label: 'Medlemsstatistikk' },
-  { id: 'oppmote', label: 'Oppmøte' },
+  { id: 'kalender', label: 'Kalender' },
   { id: 'innhold', label: 'Innhold' },
   { id: 'okonomi', label: 'Økonomi' },
-  { id: 'churn', label: 'Kohort & Churn' },
+  { id: 'data', label: 'Data' },
 ];
+// Gamle lenker skal fortsatt lande riktig sted.
+const TAB_ALIAS = { oversikt:'trender', oppmote:'trender', churn:'trender', statistikk:'register' };
+// Bunnmenyen på mobil: fire faste + «Mer» for resten.
+const MOBIL_FANER = ['idag', 'trender', 'register', 'kalender'];
 
 const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 
@@ -53,9 +59,28 @@ const TERSKEL_FALLBACK = (typeof DASH_API !== 'undefined' && DASH_API.SETTING_DE
 // oppfriskning lander på samme fane — og tilbake/frem i nettleseren bytter
 // fane i stedet for å forlate dashboardet. Ukjent hash → «I dag».
 const TAB_IDS = TABS.map(t => t.id);
+// Hashen bærer både fane og fanens parametre: #trender?p=semester&c=ifjor&g=gi.
+// Da kan en visning deles som lenke og gjenskapes nøyaktig.
+function hashDeler(){
+  const raw = String(location.hash || '').replace(/^#/, '');
+  const i = raw.indexOf('?');
+  const id = (i < 0 ? raw : raw.slice(0, i)).toLowerCase();
+  const q = {};
+  if(i >= 0) raw.slice(i + 1).split('&').forEach(par => {
+    const j = par.indexOf('=');
+    if(j > 0) q[decodeURIComponent(par.slice(0, j))] = decodeURIComponent(par.slice(j + 1));
+  });
+  return { id, q };
+}
 function tabFromHash(){
-  const h = String(location.hash || '').replace(/^#/, '').toLowerCase();
-  return TAB_IDS.indexOf(h) >= 0 ? h : 'idag';
+  const { id } = hashDeler();
+  if(TAB_IDS.indexOf(id) >= 0) return id;
+  if(TAB_ALIAS[id]) return TAB_ALIAS[id];
+  return 'idag';
+}
+function qsAv(q){
+  return Object.keys(q).filter(k => q[k] != null && q[k] !== '')
+    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(q[k])).join('&');
 }
 
 // Inneværende år. Var hardkodet til '2026' på fire steder, som ville begynt å
@@ -260,12 +285,16 @@ function mergeLiveKpis(kpis, members, departed){
 function App() {
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [tab, setTab] = useState(tabFromHash);
+  // Fanens parametre (Trender: periode, sammenligning, gruppe) bor i hashen,
+  // ikke i state alene — da kan en visning deles som lenke.
+  const [hashQ, setHashQ] = useState(() => hashDeler().q);
+  const [merAapen, setMerAapen] = useState(false);
   // Medlemsprofilen bodde i «I dag»-fanen. Nå ligger den her, slik at ethvert
   // medlemsnavn i dashboardet kan åpne den samme profilen (se MemberOpenCtx).
   const [profilId, setProfilId] = useState(null);
-  const [innstAapen, setInnstAapen] = useState(false);
+  const [snapshots, setSnapshots] = useState(null);
   const staticKpis = useKpis();
-  const { members, meta, access, okonomi, live, departed, settings, events } = useMembers();
+  const { members, meta, access, okonomi, live, departed, settings, events, actions } = useMembers();
   // Tersklene kommer fra dash_settings. Svarer ikke Sheets (gammel backend,
   // manglende ark, nettfeil) faller vi tilbake på standardverdiene og sier
   // fra i topplinja — tallene i «I dag» skal aldri være et mysterium.
@@ -279,11 +308,22 @@ function App() {
   const lastUpdated = (() => { const f = freshnessInfo(meta, live, kpis, isStyre); return f.nyeste != null ? f.nyeste : (meta && (meta.rosterImportedAt || meta.okonomiImportedAt)) || null; })();
   const periode = dataPeriode(kpis, live);
 
-  // Tilbake/frem i nettleseren bytter fane.
+  // Tilbake/frem i nettleseren bytter fane og gjenskaper parametrene.
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash());
+    const onHash = () => { setTab(tabFromHash()); setHashQ(hashDeler().q); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Snapshots brukes av KPI-kortene i Trender. Feiler kallet (eldre backend,
+  // arket mangler) blir det en tom liste, og kortene viser «—» i stedet for
+  // et tall vi ikke har dekning for.
+  useEffect(() => {
+    let levende = true;
+    Promise.resolve().then(() => actions.fetchSnapshots())
+      .then(l => { if (levende) setSnapshots(l || []); })
+      .catch(() => { if (levende) setSnapshots([]); });
+    return () => { levende = false; };
   }, []);
 
   useEffect(() => {
@@ -302,19 +342,29 @@ function App() {
     kan: (id) => !!byIdMedlem[id],
   };
   const profilMedlem = profilId ? byIdMedlem[profilId] : null;
-  const velgFane = (id) => { setTab(id); if (tabFromHash() !== id) location.hash = '#' + id; };
+  const velgFane = (id) => {
+    setTab(id); setHashQ({}); setMerAapen(false);
+    location.hash = '#' + id;
+  };
+  // Endrer én parameter i gjeldende fane og skriver hele settet til hashen.
+  const endreQ = (key, verdi) => {
+    const ny = { ...hashQ, [key]: verdi };
+    setHashQ(ny);
+    const qs = qsAv(ny);
+    location.hash = '#' + tab + (qs ? '?' + qs : '');
+  };
 
   if (!kpis) return <div style={{padding:40, color:'#9290A6'}}>Laster…</div>;
   // Identitetsbro: umatchede oppmøter er én rot bak feil i leaderboard, oppmøte
   // OG konvertering. Gjør den til en tydelig inngang, ikke en boks nederst.
   const unmatched = (live && live.unmatched) ? live.unmatched : 0;
   const gotoReconcile = () => {
-    velgFane('oppmote');
-    setTimeout(() => { const el = document.getElementById('avstemming'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+    velgFane('data');
+    setTimeout(() => { const el = document.getElementById('avstemming'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
   };
   const visibleTabs = TABS.filter(x => x.id !== 'okonomi' || isStyre);
   // Ikke-styre skal aldri ende på økonomi-fanen.
-  const effTab = (tab === 'okonomi' && !isStyre) ? 'oversikt' : tab;
+  const effTab = (tab === 'okonomi' && !isStyre) ? 'trender' : tab;
   const tabLabel = (TABS.find(x=>x.id===effTab) || TABS[0]).label;
   return (
     <MemberOpenCtx.Provider value={memberOpen}>
@@ -400,19 +450,22 @@ function App() {
                 forhåndsvalg i rapportbyggeren, ikke to faste knapper. */}
             <DataKnapp members={members} live={live} departed={departed} meta={meta}
               okonomi={okonomi} kpis={kpis} isStyre={isStyre} terskler={terskler}/>
-            <button className="btn ghost sm" onClick={()=>setInnstAapen(true)}
-              title="Innstillinger — terskler for «I dag» og hendelser i grafene">⚙</button>
+            <button className="btn ghost sm" onClick={()=>velgFane('data')}
+              title="Innstillinger — terskler, snapshots og hendelser ligger i Data-fanen">⚙</button>
           </div>
         </div>
         {effTab==='idag' && <Today members={members} live={live} thresholds={terskler}/>}
-        {effTab==='oversikt' && <Oversikt kpis={kpis} charts={charts} isStyre={isStyre} live={live} events={events}/>}
+        {effTab==='trender' && <Trender kpis={kpis} charts={charts} live={live} members={members}
+          events={events} snapshots={snapshots} isStyre={isStyre} departed={departed}
+          onGotoReconcile={gotoReconcile} q={hashQ} onEndreQ={endreQ}/>}
+        {effTab==='register' && <><Fordelinger kpis={kpis}/><Register/></>}
         {effTab==='kalender' && <Kalender/>}
-        {effTab==='register' && <Register/>}
-        {effTab==='statistikk' && <Medlemmer kpis={kpis} charts={charts}/>}
-        {effTab==='oppmote' && <Oppmote kpis={kpis} charts={charts} live={live} isStyre={isStyre} members={members} meta={meta} events={events}/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
-        {effTab==='churn' && <Churn kpis={kpis} charts={charts} live={live} isStyre={isStyre} onGotoReconcile={gotoReconcile} departed={departed}/>}
+        {effTab==='data' && <DataFane kpis={kpis} charts={charts} live={live} meta={meta} isStyre={isStyre}
+          terskler={terskler} brukerStandard={standardTerskler}
+          checkins={kpis.totals.totalCheckins + liveSince(kpis, live).total}
+          okter={kpis.totals.sessionsTracked + liveSessionsSince(kpis, live)}/>}
       </main>
       <TweaksPanel>
         <TweakSection label="Typografi" />
@@ -423,8 +476,8 @@ function App() {
         <TweakSlider label="Avrunding" value={tw.radius} min={0.5} max={1.5} step={0.1} onChange={v=>setTweak('radius', v)} />
       </TweaksPanel>
       {profilMedlem && <MemberProfile member={profilMedlem} onClose={()=>setProfilId(null)}/>}
-      {innstAapen && <Innstillinger onClose={()=>setInnstAapen(false)} isStyre={isStyre}
-        settings={terskler} brukerStandard={standardTerskler}/>}
+      <BunnMeny tabs={visibleTabs} aktiv={effTab} onVelg={velgFane}
+        merAapen={merAapen} onMer={()=>setMerAapen(v=>!v)}/>
     </div>
     </MemberOpenCtx.Provider>
   );
@@ -509,171 +562,6 @@ function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHin
   );
 }
 
-function Oversikt({ kpis, charts, isStyre, live, events }) {
-  const t = kpis.totals;
-  const liveAdd = liveSince(kpis, live).total;
-  return (
-    <div>
-      <div className="grid-4">
-        <KPI label="Aktive medlemmer" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
-        {isStyre
-          ? <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta={`ARR ≈ ${fmtN(t.arr)} kr`} deltaClass="amber" accent="green"/>
-          : <KPI label={`Nye i ${AAR_NA}`} value={kpis.signupsPerYear[AAR_NA]||0} delta="nye medlemskap" accent="green"/>}
-        <KPI label="Snitt medlemstid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" delta="aktive medlemmer" accent="blue"/>
-        <KPI label="Total check-ins" value={fmtN(t.totalCheckins + liveAdd)} delta={liveAdd>0 ? `historisk + ${fmtN(liveAdd)} live` : `${t.sessionsTracked} events`} accent="coral"/>
-      </div>
-
-      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
-      <Tile title="oppmøte pr. uke" corner="weekly">
-        <Spark
-          data={blendedWeeklyEntries(kpis, live)}
-          accessor={d => d[1]} height={140}
-          labelAccessor={d => ukeEtikett(d[0])} showAxis
-          markers={events} dateAccessor={d => d[0]}
-          color="var(--accent)" fill="var(--accent-soft)"
-        />
-        <HendelseTegnforklaring events={events}/>
-      </Tile>
-
-      <div className="section-h">Sammensetning</div>
-      <div className="grid-3">
-        <Tile title="Medlemstype" corner="kategori">
-          <div style={{display:'flex', gap:14, alignItems:'center', marginTop:6}}>
-            <Donut
-              data={Object.entries(kpis.byKategori).map(([k,v])=>({label:k, value:v}))}
-              colors={COLORS} centerValue={t.activeMembers} centerLabel="aktive"
-            />
-            <div style={{flex:1, fontSize:11}}>
-              {Object.entries(kpis.byKategori).map(([k,v],i) => (
-                <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'3px 0'}}>
-                  <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:COLORS[i]}}/>{k}</span>
-                  <span className="tabular">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Tile>
-        <Tile title="Aldersfordeling" corner="alder">
-          <HBar data={Object.entries(kpis.byAgeBucket).map(([k,v])=>({label:k, value:v}))} color="#5A8DB0" height={18}/>
-        </Tile>
-        <Tile title="Kjønn" corner="kjonn">
-          <div style={{display:'flex', gap:14, alignItems:'center'}}>
-            <Donut
-              data={Object.entries(kpis.byKjonn).map(([k,v])=>({label:k, value:v}))}
-              colors={['#4F9BEA','#F2825F','#C0BED2']}
-              centerValue={fmtPct(kpis.byKjonn.Mann/(kpis.byKjonn.Mann+kpis.byKjonn.Kvinne))} centerLabel="menn"
-            />
-            <div style={{flex:1, fontSize:11}}>
-              {Object.entries(kpis.byKjonn).map(([k,v],i)=>(
-                <div key={k} style={{padding:'3px 0', display:'flex', justifyContent:'space-between'}}>
-                  <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:['#4F9BEA','#F2825F','#C0BED2'][i]}}/>{k}</span>
-                  <span className="tabular">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Tile>
-      </div>
-
-      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · snitt deltagere pr. økt</span></div>
-      <Tile title="alle klassetyper" corner="ranking">
-        <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
-      </Tile>
-
-      <div className="section-h">Topp 5 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
-      <Tile title="leaderboard" corner="hot">
-        <LeaderboardTable live={live} limit={5}
-          emptyHint="last opp ukesoppmøte i avstemmingen under Oppmøte-fanen."
-          unmatchedHint="Kjør identitetsbroen under Oppmøte."/>
-      </Tile>
-    </div>
-  );
-}
-
-function Medlemmer({ kpis, charts }) {
-  const t = kpis.totals;
-  return (
-    <div>
-      <div className="grid-4">
-        <KPI label="Aktive" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
-        <KPI label="Junior + Knøtte" value={kpis.byKategori['Junior']||0} delta="9–14 år" accent="green"/>
-        <KPI label="Voksen + Student" value={(kpis.byKategori['Voksen']||0)+(kpis.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
-        <KPI label="Kvinneandel" value={fmtPct(kpis.byKjonn.Kvinne/(kpis.byKjonn.Mann+kpis.byKjonn.Kvinne))} delta={`${kpis.byKjonn.Kvinne} av ${kpis.byKjonn.Mann+kpis.byKjonn.Kvinne}`} accent="coral"/>
-      </div>
-
-      <div className="section-h">Beltefordeling<span className="meta">graderingsstatus</span></div>
-      <div className="grid-2-1">
-        <Tile title="Belter — fordeling" corner="grading">
-          {(() => {
-            // Skalaen var hardkodet til 93, og teksten under påsto «93 %» uansett
-            // hva tallene sa. Begge regnes nå ut av den faktiske fordelingen.
-            const rader = [
-              {n:'Hvit', c:kpis.byBelt['Hvit']||0, color:'#EFEDF8'},
-              {n:'Grå/Hvit', c:kpis.byBelt['Grå/Hvit']||0, color:'#9290A6'},
-              {n:'Blå', c:(kpis.byBelt['Blå']||0)+(kpis.byBelt['Blått']||0), color:'#4F9BEA'},
-              {n:'Lilla', c:kpis.byBelt['Lilla']||0, color:'#B06FD6'},
-              {n:'Brun', c:kpis.byBelt['Brun']||0, color:'#B07A4A'},
-              {n:'Sort', c:kpis.byBelt['Sort']||0, color:'#2B2A3C'},
-            ];
-            const max = Math.max(1, ...rader.map(b=>b.c));
-            const sum = Object.values(kpis.byBelt||{}).reduce((a,b)=>a+b,0);
-            const hvit = kpis.byBelt['Hvit']||0;
-            const farget = sum - hvit;
-            return (
-              <>
-                <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
-                  {rader.map((b,i)=>(
-                    <div key={i} className="bar-row">
-                      <div className="name">
-                        <span style={{width:10,height:10,background:b.color, border:'1px solid var(--border-strong)'}}/>
-                        <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.14em'}}>{b.n}</span>
-                        <div className="meter"><div style={{width:(b.c/max)*100+'%', background:b.color}}/></div>
-                      </div>
-                      <span className="tabular" style={{textAlign:'right'}}>{b.c}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
-                  {sum
-                    ? <>{fmtPct(hvit/sum)} av {sum} graderte medlemmer står fortsatt på hvitt belte
-                        — {farget} har farget belte.</>
-                    : 'Ingen graderinger registrert ennå.'}
-                </div>
-              </>
-            );
-          })()}
-        </Tile>
-        <Tile title="Vekst over år" corner="trend">
-          <div style={{display:'flex', alignItems:'flex-end', gap:6, height: 180, padding: '8px 0'}}>
-            {aarSerie(kpis).map(y=>{
-              const s = kpis.signupsPerYear[y]||0;
-              const c = kpis.deactPerYear[y]||0;
-              const max = Math.max(...Object.values(kpis.signupsPerYear));
-              return (
-                <div key={y} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4}}>
-                  <div className="dim" style={{fontSize:9}}>+{s}/-{c}</div>
-                  <div style={{position:'relative', width:'100%', height: 130, display:'flex', flexDirection:'column', justifyContent:'flex-end'}}>
-                    <div style={{height:(s/max)*130, background:'var(--amber)'}}/>
-                    <div style={{height:(c/max)*130, background:'var(--coral)', opacity:.7}}/>
-                  </div>
-                  <div style={{fontSize:10, fontWeight:700}}>{y}</div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{display:'flex', gap:12, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:8}}>
-            <span><span style={{display:'inline-block',width:8,height:8,background:'var(--amber)',marginRight:5}}/>nye</span>
-            <span><span style={{display:'inline-block',width:8,height:8,background:'var(--coral)',marginRight:5}}/>sluttet</span>
-          </div>
-        </Tile>
-      </div>
-
-    </div>
-  );
-}
-
-// Oppmøte-avstemming: knytt umatchede oppmøte-navn til medlemmer i registeret.
-// Identitetsbroen (memberId) gjør at leaderboard/oppmøteprosent stemmer per medlem.
 function Avstemming() {
   const { members, actions, live } = useMembers();
   const [unmatched, setUnmatched] = React.useState(null);
@@ -772,8 +660,9 @@ function Avstemming() {
 // siste 90 dager. Kjernetaksonomien speiler trener-appens tags.
 const CORE_POS = ['guard','mount','sidekontroll','back','c2c','c2b'];
 const CORE_ACT = ['passing','escapes','submissions','takedowns','sweeps','pins'];
-const GROUP_LABEL = { junior:'Junior', gi:'Gi', nogi:'No-Gi', 'åpen matte':'Åpen matte',
-  taktisk:'Taktisk grappling', damer:'BJJ damer', ukjent:'Ukjent' };
+// Etikettene ligger i dashboard-shared.jsx (DASH_GRUPPE_LABEL) — Innhold-fanen
+// hadde sin egen kopi av de samme seks gruppene.
+const GROUP_LABEL = DASH_GRUPPE_LABEL;
 
 function ThemeBars({ keys, allMap, recentMap, color }){
   const max = Math.max(1, ...keys.map(k => allMap[k] || 0));
@@ -954,11 +843,11 @@ function TrendPerMedlem({ live, members }){
 // «Om dataene» — erstatter den gamle datafoten som sto under hver fane med
 // faste filnavn og eventtall fra en engangsopptelling. Her vises bare verdier
 // som faktisk regnes ut av dataene, ett sted, sammenfoldet.
-function OmDataene({ kpis, live, meta, isStyre, checkins, okter }) {
+function OmDataene({ kpis, live, meta, isStyre, checkins, okter, apen }) {
   const periode = dataPeriode(kpis, live);
   const kilder = freshnessSources(meta, isStyre);
   return (
-    <details className="omdata">
+    <details className="omdata" open={apen}>
       <summary>Om dataene</summary>
       <div className="omdata-body">
         <div>
@@ -993,82 +882,234 @@ function OmDataene({ kpis, live, meta, isStyre, checkins, okter }) {
   );
 }
 
-function Oppmote({ kpis, charts, live, isStyre, members, meta, events }) {
-  const t = kpis.totals;
-  const ls = liveSince(kpis, live);
-  // «Økter holdt» og «Snitt pr. økt» sto fast på det historiske grunnlaget og
-  // rørte seg ikke uansett hvor mye som ble logget eller importert etterpå.
-  const lsOkter = liveSessionsSince(kpis, live);
-  const okterTot = t.sessionsTracked + lsOkter;
-  const checkinsTot = t.totalCheckins + ls.total;
-  const gruppeLive = liveGruppeStats(kpis, live);
-  const populaer = gruppeLive.length ? gruppeLive[0] : null;
+// Bunnmeny for mobil. Sidefeltet er skjult under 760 px (se index.html), og
+// fire faner + «Mer» dekker det man faktisk bytter mellom på telefon.
+function BunnMeny({ tabs, aktiv, onVelg, merAapen, onMer }) {
+  const faste = MOBIL_FANER.map(id => tabs.find(t => t.id === id)).filter(Boolean);
+  const resten = tabs.filter(t => MOBIL_FANER.indexOf(t.id) === -1);
+  const iMer = resten.some(t => t.id === aktiv);
   return (
-    <div>
-      <div className="grid-4">
-        <KPI label="Total check-ins" value={fmtN(checkinsTot)} delta={ls.total>0 ? `historisk + ${fmtN(ls.total)} live` : (dataPeriode(kpis, live) || 'historisk grunnlag')} accent="amber"/>
-        <KPI label="Økter holdt" value={fmtN(okterTot)} delta={lsOkter>0 ? `historisk + ${fmtN(lsOkter)} live` : 'historisk grunnlag'} accent="green"/>
-        <KPI label="Snitt pr. økt" value={okterTot ? (checkinsTot/okterTot).toFixed(1) : '—'} delta="deltagere" accent="blue"/>
-        {populaer
-          ? <KPI label="Mest populære" value={populaer.navn} delta={`${populaer.snitt.toFixed(1)} snitt · live`} deltaClass="amber" accent="coral"/>
-          : <KPI label="Mest populære" value={charts.classes[0].name} delta={`${charts.classes[0].avg.toFixed(1)} snitt · historisk`} deltaClass="amber" accent="coral"/>}
+    <>
+      {merAapen && (
+        <div className="mer-ark" onClick={onMer}>
+          <div className="mer-liste" onClick={e => e.stopPropagation()}>
+            {resten.map(t => (
+              <button key={t.id} className={aktiv === t.id ? 'active' : ''} onClick={() => onVelg(t.id)}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <nav className="bunnmeny">
+        {faste.map(t => (
+          <button key={t.id} className={aktiv === t.id ? 'active' : ''} onClick={() => onVelg(t.id)}>{t.label}</button>
+        ))}
+        <button className={iMer || merAapen ? 'active' : ''} onClick={onMer}>Mer</button>
+      </nav>
+    </>
+  );
+}
+
+// Fordelinger — var en egen fane («Medlemsstatistikk»). Tallene beskriver
+// registeret, så de hører hjemme over registeret, sammenfoldet: de fleste
+// åpner Medlemmer for å finne én person, ikke for å se en kjønnsfordeling.
+function Fordelinger({ kpis }) {
+  const t = kpis.totals;
+  const kvinner = kpis.byKjonn.Kvinne || 0, menn = kpis.byKjonn.Mann || 0;
+  return (
+    <details className="fordelinger">
+      <summary>Fordelinger <span className="dim">· belte, alder, kjønn, medlemstype, vekst</span></summary>
+      <div className="grid-4" style={{marginTop:16}}>
+        <KPI label="Aktive" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
+        <KPI label="Junior + Knøtte" value={(kpis.byKategori['Junior']||0)+(kpis.byKategori['Knøtte']||0)} delta="9–14 år" accent="green"/>
+        <KPI label="Voksen + Student" value={(kpis.byKategori['Voksen']||0)+(kpis.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
+        <KPI label="Kvinneandel" value={menn+kvinner ? fmtPct(kvinner/(menn+kvinner)) : '—'} delta={`${kvinner} av ${menn+kvinner}`} accent="coral"/>
       </div>
 
-      {live && live.sessions > 0 && (
-        <>
-        <div className="section-h">Live — logget i appen<span className="meta">oppdateres løpende · etter {histMaxWeek(kpis)}</span></div>
-        <div className="grid-4">
-          <KPI label="Live check-ins" value={fmtN(ls.total)} delta="nye siden grunnlaget" deltaClass="up" accent="green"/>
-          <KPI label="Økter logget" value={fmtN(live.sessions)} delta="i trener-appen" accent="amber"/>
-          <KPI label="Siste økt" value={/^\d{4}-\d{2}-\d{2}$/.test(live.maxDate) ? fmtDate(live.maxDate) : '—'} accent="blue"/>
-          <KPI label="Totalt m/ live" value={fmtN(t.totalCheckins + ls.total)} delta="historisk + live" accent="coral"/>
-        </div>
-        </>
-      )}
-
-      <div className="section-h">Trend pr. gruppe<span className="meta">live · register-koblede oppmøter · siste 26 uker</span></div>
-      <TrendPerGruppe live={live}/>
-
-      <div className="section-h">Trend pr. medlem<span className="meta">live · siste 26 uker · 4-ukers endring</span></div>
-      <TrendPerMedlem live={live} members={members}/>
-
-      <div className="section-h">Topp 10 mest dedikerte<span className="meta">nåværende medlemmer · faktiske oppmøte-rader</span></div>
-      <Tile title="leaderboard" corner="dedicated">
-        <LeaderboardTable live={live} limit={10} medals
-          emptyHint="last opp ukesoppmøte i avstemmingen nederst."
-          unmatchedHint="Koble dem i avstemmingen nederst."/>
-      </Tile>
-
-      {gruppeLive.length > 0 && (
-        <>
-        <div className="section-h">Populære grupper<span className="meta">live · loggede og importerte økter etter {histMaxWeek(kpis)}</span></div>
-        <Tile title="snitt pr. økt" corner="live">
-          <HBar data={gruppeLive.map(g=>({label:g.navn+' ('+g.okter+' økter)', value:Math.round(g.snitt*10)/10}))} color="var(--green)" height={20}/>
+      <div className="grid-3">
+        <Tile title="Medlemstype" corner="kategori">
+          <div style={{display:'flex', gap:14, alignItems:'center', marginTop:6, flexWrap:'wrap'}}>
+            <Donut data={Object.entries(kpis.byKategori).map(([k,v])=>({label:k, value:v}))}
+              colors={COLORS} centerValue={t.activeMembers} centerLabel="aktive"/>
+            <div style={{flex:1, minWidth:130, fontSize:11}}>
+              {Object.entries(kpis.byKategori).map(([k,v],i) => (
+                <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'3px 0'}}>
+                  <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:COLORS[i%COLORS.length]}}/>{k}</span>
+                  <span className="tabular">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </Tile>
-        </>
-      )}
+        <Tile title="Aldersfordeling" corner="alder">
+          <HBar data={Object.entries(kpis.byAgeBucket).map(([k,v])=>({label:k, value:v}))} color="#5A8DB0" height={18}/>
+        </Tile>
+        <Tile title="Kjønn" corner="kjonn">
+          <div style={{display:'flex', gap:14, alignItems:'center', flexWrap:'wrap'}}>
+            <Donut data={Object.entries(kpis.byKjonn).map(([k,v])=>({label:k, value:v}))}
+              colors={['#4F9BEA','#F2825F','#C0BED2']}
+              centerValue={menn+kvinner ? fmtPct(menn/(menn+kvinner)) : '—'} centerLabel="menn"/>
+            <div style={{flex:1, minWidth:120, fontSize:11}}>
+              {Object.entries(kpis.byKjonn).map(([k,v],i)=>(
+                <div key={k} style={{padding:'3px 0', display:'flex', justifyContent:'space-between'}}>
+                  <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:['#4F9BEA','#F2825F','#C0BED2'][i%3]}}/>{k}</span>
+                  <span className="tabular">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Tile>
+      </div>
 
-      <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · frosset grunnlag</span></div>
-      <Tile title="ranking" corner="popularity">
-        <HBar data={charts.classes.map(c=>({label:c.name+' ('+c.sessions+' økter)', value:Math.round(c.avg*10)/10}))} color="var(--accent)" height={20}/>
-        <div className="dim" style={{fontSize:11, marginTop:12}}>
-          Spond-eksporten er gruppert på klassenavn, trener-appen på gruppe. De vises hver for seg fordi tallene ikke betyr det samme.
+      <div className="grid-2-1">
+        <Tile title="Belter — fordeling" corner="grading">
+          {(() => {
+            const rader = [
+              {n:'Hvit', c:kpis.byBelt['Hvit']||0, color:'#EFEDF8'},
+              {n:'Grå/Hvit', c:kpis.byBelt['Grå/Hvit']||0, color:'#9290A6'},
+              {n:'Blå', c:(kpis.byBelt['Blå']||0)+(kpis.byBelt['Blått']||0), color:'#4F9BEA'},
+              {n:'Lilla', c:kpis.byBelt['Lilla']||0, color:'#B06FD6'},
+              {n:'Brun', c:kpis.byBelt['Brun']||0, color:'#B07A4A'},
+              {n:'Sort', c:kpis.byBelt['Sort']||0, color:'#2B2A3C'},
+            ];
+            const max = Math.max(1, ...rader.map(b=>b.c));
+            const sum = Object.values(kpis.byBelt||{}).reduce((a,b)=>a+b,0);
+            const hvit = kpis.byBelt['Hvit']||0;
+            return (
+              <>
+                <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
+                  {rader.map((b,i)=>(
+                    <div key={i} className="bar-row">
+                      <div className="name">
+                        <span style={{width:10,height:10,background:b.color, border:'1px solid var(--border-strong)'}}/>
+                        <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.14em'}}>{b.n}</span>
+                        <div className="meter"><div style={{width:(b.c/max)*100+'%', background:b.color}}/></div>
+                      </div>
+                      <span className="tabular" style={{textAlign:'right'}}>{b.c}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
+                  {sum
+                    ? <>{fmtPct(hvit/sum)} av {sum} graderte medlemmer står fortsatt på hvitt belte — {sum-hvit} har farget belte.</>
+                    : 'Ingen graderinger registrert ennå.'}
+                </div>
+              </>
+            );
+          })()}
+        </Tile>
+        <Tile title="Vekst over år" corner="trend">
+          <div style={{display:'flex', alignItems:'flex-end', gap:6, height: 180, padding: '8px 0'}}>
+            {aarSerie(kpis).map(y=>{
+              const sUp = kpis.signupsPerYear[y]||0;
+              const c = kpis.deactPerYear[y]||0;
+              const max = Math.max(1, ...Object.values(kpis.signupsPerYear));
+              return (
+                <div key={y} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4}}>
+                  <div className="dim" style={{fontSize:9}}>+{sUp}/-{c}</div>
+                  <div style={{position:'relative', width:'100%', height: 130, display:'flex', flexDirection:'column', justifyContent:'flex-end'}}>
+                    <div style={{height:(sUp/max)*130, background:'var(--amber)'}}/>
+                    <div style={{height:(c/max)*130, background:'var(--coral)', opacity:.7}}/>
+                  </div>
+                  <div style={{fontSize:10, fontWeight:700}}>{y}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex', gap:12, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:8}}>
+            <span><span style={{display:'inline-block',width:8,height:8,background:'var(--amber)',marginRight:5}}/>nye</span>
+            <span><span style={{display:'inline-block',width:8,height:8,background:'var(--coral)',marginRight:5}}/>sluttet</span>
+          </div>
+        </Tile>
+      </div>
+    </details>
+  );
+}
+
+// Kohort-retention + avgang. Var egen fane («Kohort & Churn»); hører hjemme
+// i Trender, som er stedet man spør «hvordan går det over tid».
+function KohortSeksjon({ kpis, charts, departed }) {
+  const t = kpis.totals;
+  return (
+    <>
+      <Tile title="cohort" corner="retention">
+        <CohortBar cohorts={charts.cohorts} color1="#34B98C" color2="rgba(242,130,95,.35)"/>
+        <div style={{display:'flex', gap:14, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:14}}>
+          <span><span style={{display:'inline-block',width:8,height:8,background:'#34B98C',marginRight:6}}/>fortsatt aktive</span>
+          <span><span style={{display:'inline-block',width:8,height:8,background:'rgba(242,130,95,.35)',marginRight:6}}/>sluttet</span>
+        </div>
+        <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
+          {(() => {
+            const cs = charts.cohorts.filter(c => c.signups > 0);
+            if(!cs.length) return 'Ingen innmeldingsår i grunnlaget ennå.';
+            const eldst = cs[0], ifjor = cs.length > 1 ? cs[cs.length-2] : cs[cs.length-1];
+            const aar = Number(AAR_NA) - Number(eldst.year);
+            return <>Av {eldst.signups} personer som meldte seg inn i {eldst.year} trener {eldst.stillActive} fortsatt
+              — det er {fmtPct(eldst.retention)} {aar>0 ? `${aar}-års-retention` : 'retention'}.
+              {ifjor.year !== eldst.year && <> Av {ifjor.signups} fra {ifjor.year} er {ifjor.stillActive} fortsatt aktive ({fmtPct(ifjor.retention)}).</>}</>;
+          })()}
+          {' '}Registeret viser bare dem som fortsatt trener, så inneværende år kan aldri få under 100 % her.
         </div>
       </Tile>
 
-      <div className="section-h">Klubbens puls<span className="meta">ukentlig oppmøte · historisk + live</span></div>
-      <Tile title="weekly attendance" corner="long-range">
-        <Spark data={blendedWeeklyEntries(kpis, live)} accessor={d=>d[1]} height={140}
-          labelAccessor={d=>ukeEtikett(d[0])} showAxis color="#4D9A6B" fill="rgba(52,185,140,.15)"
-          markers={events} dateAccessor={d=>d[0]}/>
-        <HendelseTegnforklaring events={events}/>
+      <div className="grid-3" style={{marginTop:16}}>
+        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
+        <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
+        <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
+      </div>
+
+      <div className="section-h">Deaktiveringer pr. år</div>
+      <Tile title="churn" corner="annual">
+        <HBar data={Object.entries(kpis.deactPerYear).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({label:k, value:v}))} color="#C45838" height={22}/>
+        <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>
+          {departed && departed.fra
+            ? <>Fra {fmtDate(departed.fra)} registreres avgang automatisk: hver medlemsimport noterer hvem som er falt ut siden forrige gang. Årene før det kommer fra det historiske grunnlaget.</>
+            : <>Avgang før i dag kommer fra det historiske grunnlaget. Fra nå av noterer hver medlemsimport hvem som er falt ut siden forrige import.</>}
+        </div>
       </Tile>
+    </>
+  );
+}
 
-      {isStyre && <Avstemming/>}
-
-      <OmDataene kpis={kpis} live={live} meta={meta} isStyre={isStyre}
-        checkins={checkinsTot} okter={okterTot}/>
-    </div>
+function Funnel({ kpis, live, isStyre, onGotoReconcile }) {
+  const conv = kpis.conversion || {};
+  // 0 konverterte av N intro er nesten sikkert join-svikt, ikke virkelighet.
+  const convUnreliable = !(conv.converted > 0);
+  const unmatched = (live && live.unmatched) ? live.unmatched : 0;
+  return (
+    <Tile title="funnel" corner="conversion">
+      <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'center', flexWrap:'wrap'}}>
+        <div style={{flex:1, minWidth:130}}>
+          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 1 — intro-kurs</div>
+          <div style={{fontSize:36, fontWeight:700}}>{conv.introTotal || 0}</div>
+          <div className="dim" style={{fontSize:11}}>registrerte intro-deltagere</div>
+        </div>
+        <div className="dim" style={{fontSize:24}}>→</div>
+        <div style={{flex:1, minWidth:130}}>
+          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 2 — fast medlem nå</div>
+          <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{convUnreliable ? '—' : conv.converted}</div>
+          <div className="dim" style={{fontSize:11}}>{convUnreliable ? 'ikke koblet ennå' : 'fortsatt aktive'}</div>
+        </div>
+        <div style={{flex:1, minWidth:130}}>
+          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Konverteringsrate</div>
+          {convUnreliable
+            ? <><div style={{fontSize:22, fontWeight:700, color:'var(--coral)'}}>Ikke beregnet</div>
+                <div className="dim" style={{fontSize:11}}>avhenger av navnematching</div></>
+            : <><div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{fmtPct(conv.rate)}</div>
+                <div className="dim" style={{fontSize:11}}>navn-match-basert</div></>}
+        </div>
+      </div>
+      {convUnreliable ? (
+        <div style={{fontSize:12, padding:14, borderTop:'1px solid var(--border)', marginTop:8, lineHeight:1.6}}>
+          <strong>{conv.introTotal || 0} introdeltakere</strong>{unmatched>0 && <> · <strong style={{color:'var(--coral)'}}>{unmatched} umatchede oppmøter</strong></>} — konvertering kan ikke beregnes før navnene er koblet til medlemsregisteret.
+          {isStyre && <button className="btn primary sm" style={{marginLeft:10}} onClick={onGotoReconcile}>Kjør identitetsbro</button>}
+          <div className="dim" style={{fontSize:11, marginTop:8}}>Merk: intro-deltagere som ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Tag intro-kohorter eksplisitt for ekte konverteringstall.</div>
+        </div>
+      ) : (
+        <div className="dim" style={{fontSize:11, padding:14, borderTop:'1px solid var(--border)', marginTop:8}}>
+          <strong>Merknad:</strong> intro-deltagere som senere ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond.
+        </div>
+      )}
+    </Tile>
   );
 }
 
@@ -1349,95 +1390,13 @@ function Okonomi({ kpis, charts }) {
   );
 }
 
-function Churn({ kpis, charts, live, isStyre, onGotoReconcile, departed }) {
-  const t = kpis.totals;
-  const conv = kpis.conversion || {};
-  // 0 konverterte av N intro er nesten sikkert join-svikt, ikke virkelighet.
-  // Da viser vi ikke en falsk «0 %», men en oppfordring om å koble navn først.
-  const convUnreliable = !(conv.converted > 0);
-  const unmatched = (live && live.unmatched) ? live.unmatched : 0;
-  return (
-    <div>
-      <div className="grid-4">
-        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
-        <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
-        <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
-        <KPI label="Konv. intro→fast" value={convUnreliable ? '—' : fmtPct(conv.rate)} delta={convUnreliable ? 'ikke beregnet — kjør identitetsbro' : `${conv.converted} / ${conv.introTotal}`} accent="blue"/>
-      </div>
-
-      <div className="section-h">Kohort-retention<span className="meta">hvor mange fra hvert år trener fortsatt?</span></div>
-      <Tile title="cohort" corner="retention">
-        <CohortBar cohorts={charts.cohorts} color1="#34B98C" color2="rgba(242,130,95,.35)"/>
-        <div style={{display:'flex', gap:14, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:14}}>
-          <span><span style={{display:'inline-block',width:8,height:8,background:'#34B98C',marginRight:6}}/>fortsatt aktive</span>
-          <span><span style={{display:'inline-block',width:8,height:8,background:'rgba(242,130,95,.35)',marginRight:6}}/>sluttet</span>
-        </div>
-        <div className="dim" style={{fontSize:11, marginTop:14, lineHeight:1.6}}>
-          {(() => {
-            // Var låst til 2021 og 2025. Plukker nå eldste og fjorårets kohort
-            // fra serien, så teksten følger med når årene ruller videre.
-            const cs = charts.cohorts.filter(c => c.signups > 0);
-            if(!cs.length) return 'Ingen innmeldingsår i grunnlaget ennå.';
-            const eldst = cs[0], ifjor = cs.length > 1 ? cs[cs.length-2] : cs[cs.length-1];
-            const aar = Number(AAR_NA) - Number(eldst.year);
-            return <>Av {eldst.signups} personer som meldte seg inn i {eldst.year} trener {eldst.stillActive} fortsatt
-              — det er {fmtPct(eldst.retention)} {aar>0 ? `${aar}-års-retention` : 'retention'}.
-              {ifjor.year !== eldst.year && <> Av {ifjor.signups} fra {ifjor.year} er {ifjor.stillActive} fortsatt aktive ({fmtPct(ifjor.retention)}).</>}</>;
-          })()}
-          {' '}Registeret viser bare dem som fortsatt trener, så inneværende år kan aldri få under 100 % her.
-        </div>
-      </Tile>
-
-      <div className="section-h">Deaktiveringer pr. år</div>
-      <Tile title="churn" corner="annual">
-        <HBar data={Object.entries(kpis.deactPerYear).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({label:k, value:v}))} color="#C45838" height={22}/>
-        <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>
-          {departed && departed.fra
-            ? <>Fra {fmtDate(departed.fra)} registreres avgang automatisk: hver medlemsimport noterer hvem som er falt ut siden forrige gang. Årene før det kommer fra det historiske grunnlaget.</>
-            : <>Avgang før i dag kommer fra det historiske grunnlaget. Fra nå av noterer hver medlemsimport hvem som er falt ut siden forrige import — tallene for inneværende år fylles ut etter hvert.</>}
-        </div>
-      </Tile>
-
-      <div className="section-h">Konverteringsfunnel<span className="meta">intro-kurs → fast medlemskap</span></div>
-      <Tile title="funnel" corner="conversion">
-        <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'center'}}>
-          <div style={{flex:1}}>
-            <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 1 — intro-kurs</div>
-            <div style={{fontSize:36, fontWeight:700}}>{kpis.conversion.introTotal}</div>
-            <div className="dim" style={{fontSize:11}}>registrerte intro-deltagere</div>
-          </div>
-          <div className="dim" style={{fontSize:24}}>→</div>
-          <div style={{flex:1}}>
-            <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 2 — fast medlem nå</div>
-            <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{convUnreliable ? '—' : conv.converted}</div>
-            <div className="dim" style={{fontSize:11}}>{convUnreliable ? 'ikke koblet ennå' : 'fortsatt aktive'}</div>
-          </div>
-          <div style={{flex:1}}>
-            <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Konverteringsrate</div>
-            {convUnreliable
-              ? <><div style={{fontSize:22, fontWeight:700, color:'var(--coral)'}}>Ikke beregnet</div>
-                  <div className="dim" style={{fontSize:11}}>avhenger av navnematching</div></>
-              : <><div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{fmtPct(conv.rate)}</div>
-                  <div className="dim" style={{fontSize:11}}>navn-match-basert</div></>}
-          </div>
-        </div>
-        {convUnreliable ? (
-          <div style={{fontSize:12, padding:14, borderTop:'1px solid var(--border)', marginTop:8, lineHeight:1.6}}>
-            <strong>{conv.introTotal || 0} introdeltakere</strong>{unmatched>0 && <> · <strong style={{color:'var(--coral)'}}>{unmatched} umatchede oppmøter</strong></>} — konvertering kan ikke beregnes før navnene er koblet til medlemsregisteret.
-            {isStyre && <button className="btn primary sm" style={{marginLeft:10}} onClick={onGotoReconcile}>Kjør identitetsbro</button>}
-            <div className="dim" style={{fontSize:11, marginTop:8}}>Merk: intro-deltagere som ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Tag intro-kohorter eksplisitt for ekte konverteringstall.</div>
-          </div>
-        ) : (
-          <div className="dim" style={{fontSize:11, padding:14, borderTop:'1px solid var(--border)', marginTop:8}}>
-            <strong>Merknad:</strong> intro-deltagere som senere ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Anbefaling: tag intro-kohorter eksplisitt så vi får ekte konverteringstall.
-          </div>
-        )}
-      </Tile>
-    </div>
-  );
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
-window.KPI = KPI;
-window.Tile = Tile;
+// Filene lastes i rekkefølge, men alt kalles først ved render — så trends-app
+// og data-tab kan bruke disse selv om de lastes før denne fila.
+Object.assign(window, {
+  KPI, Tile, LeaderboardTable, TrendDelta, TrendPerGruppe, TrendPerMedlem,
+  HendelseTegnforklaring, Avstemming, OmDataene, Fordelinger, KohortSeksjon, Funnel,
+  blendedWeeklyEntries, liveSince, liveSessionsSince, histMaxWeek, liveGruppeStats,
+  ukeEtikett, isoUkenr, hexA, dataPeriode, freshnessSources, aarSerie, AAR_NA, COLORS,
+});
 root.render(<MembersProvider><App /></MembersProvider>);

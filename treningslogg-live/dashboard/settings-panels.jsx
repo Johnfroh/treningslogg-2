@@ -1,5 +1,8 @@
 /* Innstillinger — driftsterskler og hendelser.
 
+   Lå som modal bak ⚙ i topplinja. Nå er panelene seksjoner i Data-fanen,
+   der resten av «drift» bor (import, avstemming, om dataene) — ⚙ lenker dit.
+
    Tersklene for «I dag»-listene lå i Tweaks-panelet, altså i hver enkelt
    nettleser: to trenere så to forskjellige lister, og ingen visste hvilke
    tall som gjaldt. Nå ligger de i dash_settings (Sheets) og leses av alle.
@@ -43,32 +46,8 @@ const TERSKEL_FELT = [
       + 'Lavere terskel gir flere rader, men også mer støy.' },
 ];
 
-function Innstillinger({ onClose, isStyre, settings, brukerStandard }) {
+function TerskelSkjema({ isStyre, settings, brukerStandard }) {
   const { actions } = useMembers();
-  const [fane, setFane] = useSt('terskler');
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '100%' }}>
-        <div className="modal-head">
-          <div>
-            <div className="modal-kicker">Klubbpanel</div>
-            <div className="modal-title">Innstillinger</div>
-          </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Lukk">✕</button>
-        </div>
-        <div className="seg">
-          <button className={fane === 'terskler' ? 'on' : ''} onClick={() => setFane('terskler')}>Terskler</button>
-          <button className={fane === 'hendelser' ? 'on' : ''} onClick={() => setFane('hendelser')}>Hendelser</button>
-        </div>
-        {fane === 'terskler'
-          ? <TerskelSkjema isStyre={isStyre} settings={settings} brukerStandard={brukerStandard} actions={actions} />
-          : <HendelsePanel isStyre={isStyre} actions={actions} />}
-      </div>
-    </div>
-  );
-}
-
-function TerskelSkjema({ isStyre, settings, brukerStandard, actions }) {
   // settings kan mangle helt hvis nettleseren sitter med en gammel cachet
   // api.js (script-tag og Babel-fetch caches ulikt). Da skal skjemaet vise
   // standardverdier, ikke krasje på første felt.
@@ -123,7 +102,6 @@ function TerskelSkjema({ isStyre, settings, brukerStandard, actions }) {
         </div>
       )}
       {msg && <div className="dim" style={{ fontSize: 12, marginTop: 10 }}>{msg}</div>}
-      <SnapshotPanel isStyre={isStyre} actions={actions} />
     </>
   );
 }
@@ -131,7 +109,8 @@ function TerskelSkjema({ isStyre, settings, brukerStandard, actions }) {
 // Ukentlige aggregater. Historikken starter ved første kjøring — det finnes
 // ingen tilbakefylling, for tallene for forrige uke er ikke lenger utledbare
 // når registeret først er overskrevet.
-function SnapshotPanel({ isStyre, actions }) {
+function SnapshotPanel({ isStyre }) {
+  const { actions } = useMembers();
   const [snaps, setSnaps] = useSt(null);
   const [busy, setBusy] = useSt(false);
   const [msg, setMsg] = useSt('');
@@ -165,8 +144,8 @@ function SnapshotPanel({ isStyre, actions }) {
   );
 }
 
-function HendelsePanel({ isStyre, actions }) {
-  const { events } = useMembers();
+function HendelsePanel({ isStyre }) {
+  const { events, actions } = useMembers();
   const [dato, setDato] = useSt(() => new Date().toISOString().slice(0, 10));
   const [type, setType] = useSt('arrangement');
   const [tittel, setTittel] = useSt('');
@@ -243,4 +222,4 @@ function HendelsePanel({ isStyre, actions }) {
   );
 }
 
-Object.assign(window, { Innstillinger, TERSKEL_FELT });
+Object.assign(window, { TerskelSkjema, SnapshotPanel, HendelsePanel, TERSKEL_FELT, tersklerFra });

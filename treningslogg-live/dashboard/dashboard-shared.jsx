@@ -18,6 +18,45 @@ const fmtKr = (n) => new Intl.NumberFormat('nb-NO').format(Math.round(n)) + ' kr
 const fmtPct = (n, d=0) => (n*100).toFixed(d) + '%';
 const WD = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
 
+// =============== GRUPPER (én kilde i dashboardet) ===============
+// Treningsgruppene i datamodellen. Speiler M_GROUP i app/shared.js, som er
+// trener-appens kilde — dashboardet laster ikke den fila, så dette er
+// dashboard-sidens ene liste. CAL_GROUPS (kalenderen) og GROUP_LABEL
+// (Innhold-fanen) leser herfra i stedet for å ha hver sin kopi.
+// CLAUDE.md: gruppe utledes flere steder — endrer du her, sjekk de andre.
+const DASH_GRUPPER = ['junior', 'gi', 'nogi', 'åpen matte', 'taktisk', 'damer'];
+const DASH_GRUPPE_LABEL = {
+  junior: 'Junior', gi: 'Gi', nogi: 'No-Gi', 'åpen matte': 'Åpen matte',
+  taktisk: 'Taktisk grappling', damer: 'BJJ damer', ukjent: 'Ukjent',
+};
+// Fargene er de samme som M_GROUP bruker (M.purple/accent2/coral/blue/gold/
+// rose i app/shared.js) — kalenderen så allerede slik ut, og skal fortsette
+// å gjøre det.
+const DASH_GRUPPE_FARGE = {
+  junior: '#B06FD6', gi: '#34B98C', nogi: '#F2825F', 'åpen matte': '#4F9BEA',
+  taktisk: '#D9A22E', damer: '#D96BA0', ukjent: '#A6A3BD',
+};
+
+// =============== MOBIL ===============
+// Under denne bredden bytter dashboardet til bunnmeny og nedtrekk i stedet
+// for sidefelt og knapperader. Samme brekkpunkt som media queries i
+// index.html — endrer du her, endre der også.
+const SMAL_PX = 760;
+function useSmal() {
+  const [smal, setSmal] = useState(() => {
+    try { return window.matchMedia(`(max-width:${SMAL_PX}px)`).matches; } catch (e) { return false; }
+  });
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(`(max-width:${SMAL_PX}px)`); } catch (e) { return undefined; }
+    const paa = e => setSmal(e.matches);
+    setSmal(mq.matches);
+    mq.addEventListener('change', paa);
+    return () => mq.removeEventListener('change', paa);
+  }, []);
+  return smal;
+}
+
 // =============== ÅPEN MEDLEMSPROFIL (global kanal) ===============
 // Profil-state bor i App (daylight-app.jsx). Alle navnelister i dashboardet
 // henter åpne-funksjonen herfra, slik at ett klikk på et navn gir samme
@@ -385,6 +424,11 @@ window.fmtN = fmtN;
 window.fmtKr = fmtKr;
 window.fmtPct = fmtPct;
 window.WD = WD;
+window.DASH_GRUPPER = DASH_GRUPPER;
+window.DASH_GRUPPE_LABEL = DASH_GRUPPE_LABEL;
+window.DASH_GRUPPE_FARGE = DASH_GRUPPE_FARGE;
+window.SMAL_PX = SMAL_PX;
+window.useSmal = useSmal;
 window.HENDELSE_FARGE = HENDELSE_FARGE;
 window.HENDELSE_TYPER = HENDELSE_TYPER;
 window.MemberOpenCtx = MemberOpenCtx;

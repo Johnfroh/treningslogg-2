@@ -22,7 +22,7 @@ const browserGlobals = {
   Event: 'readonly', KeyboardEvent: 'readonly', MouseEvent: 'readonly',
   HTMLElement: 'readonly', Element: 'readonly', Node: 'readonly',
   ResizeObserver: 'readonly', MutationObserver: 'readonly', IntersectionObserver: 'readonly',
-  getComputedStyle: 'readonly',
+  getComputedStyle: 'readonly', matchMedia: 'readonly',
 };
 
 // Top-level konstanter/funksjoner fra shared.js, data.js og api.js. Disse er
@@ -118,6 +118,8 @@ module.exports = [
         MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
         lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
+        DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',
+        SMAL_PX: 'readonly', useSmal: 'readonly',
         // belt-system.jsx
         BELT_META: 'readonly', ADULT_BELTS: 'readonly', JUNIOR_BELTS: 'readonly',
         ALL_BELTS: 'readonly', maxStripes: 'readonly', beltMeta: 'readonly',
@@ -165,10 +167,25 @@ module.exports = [
         Kalender: 'readonly', LogSessionModal: 'readonly',
         // today-app.jsx
         Today: 'readonly', tdSkjulteIder: 'readonly',
-        // settings-modal.jsx
-        Innstillinger: 'readonly', TERSKEL_FELT: 'readonly',
-        // daylight-app.jsx (window.KPI / window.Tile)
-        KPI: 'readonly', Tile: 'readonly',
+        // settings-panels.jsx
+        TerskelSkjema: 'readonly', SnapshotPanel: 'readonly', HendelsePanel: 'readonly',
+        TERSKEL_FELT: 'readonly', tersklerFra: 'readonly',
+        // trends-app.jsx
+        Trender: 'readonly', periodeRange: 'readonly', sammenlignRange: 'readonly',
+        semesterFor: 'readonly', aktiveVed: 'readonly', isoUkeNokkel: 'readonly',
+        ukeserie: 'readonly', oktSerie: 'readonly', nyeSerie: 'readonly',
+        SemesterOverlay: 'readonly', Kontrollstripe: 'readonly', TrendKort: 'readonly',
+        // data-tab.jsx
+        DataFane: 'readonly',
+        // daylight-app.jsx — eksportert for trends-app.jsx og data-tab.jsx
+        KPI: 'readonly', Tile: 'readonly', LeaderboardTable: 'readonly',
+        TrendDelta: 'readonly', TrendPerGruppe: 'readonly', TrendPerMedlem: 'readonly',
+        HendelseTegnforklaring: 'readonly', Avstemming: 'readonly', OmDataene: 'readonly',
+        Fordelinger: 'readonly', KohortSeksjon: 'readonly', Funnel: 'readonly',
+        blendedWeeklyEntries: 'readonly', liveSince: 'readonly', liveSessionsSince: 'readonly',
+        histMaxWeek: 'readonly', liveGruppeStats: 'readonly', ukeEtikett: 'readonly',
+        isoUkenr: 'readonly', hexA: 'readonly', dataPeriode: 'readonly',
+        freshnessSources: 'readonly', aarSerie: 'readonly', AAR_NA: 'readonly', COLORS: 'readonly',
       },
     },
     rules: sharedRules,
