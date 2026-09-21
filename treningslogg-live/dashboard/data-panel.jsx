@@ -169,6 +169,8 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
   // Samme utvalg, samme periode — men som regneark. Nyttig når tallene skal
   // sorteres eller regnes videre på, ikke leses.
   function lagCSV(){ lastNedRapportCSV(byggData(), [...valgt], tittel()); }
+  // Ekte regneark: én fane pr. seksjon, autofilter, fryst overskriftsrad.
+  function lagXlsx(){ lastNedRapportXlsx(byggData(), [...valgt], tittel()); }
 
   const rute=(s)=>(
     <label key={s.key} style={{display:'flex', alignItems:'flex-start', gap:8, padding:'5px 0', fontSize:12.5, cursor:'pointer'}}>
@@ -230,9 +232,13 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
           {sessions===null ? 'Henter økter …' : `${antValgt} ${antValgt===1?'seksjon':'seksjoner'} valgt`}
         </span>
         <span style={{display:'flex', gap:8}}>
-          <button className="btn outline" disabled={!gyldig || !antValgt || sessions===null} onClick={lagCSV}
-            title="Last ned de valgte seksjonene som regneark (semikolon, UTF-8 — åpner rett i Excel)">
-            ⤓ Regneark (CSV)
+          <button className="btn outline" disabled={!gyldig || !antValgt || sessions===null} onClick={lagXlsx}
+            title="Ekte Excel-fil: én fane pr. seksjon, autofilter og fryst overskriftsrad">
+            ⤓ Excel
+          </button>
+          <button className="btn ghost" disabled={!gyldig || !antValgt || sessions===null} onClick={lagCSV}
+            title="Flat CSV (semikolon, UTF-8). Bruk Excel-knappen om kolonnene ikke deler seg riktig.">
+            CSV
           </button>
           <button className="btn primary" disabled={!gyldig || !antValgt || sessions===null} onClick={lag}>
             Åpne rapport

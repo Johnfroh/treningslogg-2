@@ -669,6 +669,20 @@ function buildRapportCSV(d, valgte, tittel){
   return '\ufeff' + linjer.join('\r\n') + '\r\n';
 }
 
+// Samme tabeller som CSV-en, men som ekte regneark: én fane pr. seksjon,
+// autofilter og fryst overskriftsrad. Ingen skilletegn å bomme på.
+function lastNedRapportXlsx(d, valgte, tittel){
+  const valgt=new Set(valgte||[]);
+  const ark=RAPPORT_SEKSJONER.filter(s => valgt.has(s.key) && MR_TABELL[s.key])
+    .map(s => { const t=MR_TABELL[s.key](d); return { navn:s.navn, kolonner:t.kolonner, rader:t.rader }; });
+  if(!ark.length){ alert('Ingen seksjoner å eksportere.'); return; }
+  lastNedXlsx('bodojj_'+mrFilnavn(tittel, d)+'.xlsx', ark);
+}
+function mrFilnavn(tittel, d){
+  const slug=String(tittel||'rapport').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return slug+'_'+((d.fra===d.til) ? d.fra : d.fra+'_'+d.til);
+}
 function lastNedRapportCSV(d, valgte, tittel){
   const csv=buildRapportCSV(d, valgte, tittel);
   if(!csv){ alert('Ingen seksjoner å eksportere.'); return; }
@@ -747,5 +761,5 @@ function openRapport(d, valgte, tittel){
 }
 
 Object.assign(window, { buildRapportData, buildRapportHTML, openRapport, mrNavn,
-  buildRapportCSV, lastNedRapportCSV, MR_TABELL,
+  buildRapportCSV, lastNedRapportCSV, lastNedRapportXlsx, mrFilnavn, MR_TABELL,
   RAPPORT_SEKSJONER, RAPPORT_PRESETS, mrPeriode, mrMndNavn, mrMndKort, mrSkyv, mrMndListe, useMr });

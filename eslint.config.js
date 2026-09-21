@@ -141,6 +141,11 @@ module.exports = [
         mrPeriode: 'readonly', mrMndNavn: 'readonly', mrMndKort: 'readonly',
         mrSkyv: 'readonly', mrMndListe: 'readonly',
         buildRapportCSV: 'readonly', lastNedRapportCSV: 'readonly', MR_TABELL: 'readonly',
+        lastNedRapportXlsx: 'readonly', mrFilnavn: 'readonly',
+        // xlsx-export.jsx
+        byggXlsx: 'readonly', lastNedXlsx: 'readonly', xeZip: 'readonly',
+        xeCrc32: 'readonly', xeKol: 'readonly', xeSerial: 'readonly', xeArknavn: 'readonly',
+        Uint8Array: 'readonly', Uint32Array: 'readonly',
         // data-panel.jsx
         DataKnapp: 'readonly', DataPanel: 'readonly', Rapportbygger: 'readonly',
         ImportOversikt: 'readonly',
