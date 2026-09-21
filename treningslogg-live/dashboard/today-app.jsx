@@ -2,10 +2,13 @@
    medlemsfelt (Sist sett, Sist gradert, oppmøtetall). Ingen nye datakilder.
    Terskler kommer fra Tweaks-panelet via props. Barnemaskering: kun fornavn
    for mindreårige, som ellers i dashboardet.
-   Bruker globale KPI, Tile, MemberProfile, fmtN. */
-const { useState: useTd } = React;
+   Bruker globale KPI, Tile, MemberLink, memberTrendRows, fmtN. */
 
 const TD_MS_DAY = 86400000;
+// «Fallende oppmøte»: hvor mange oppmøter medlemmet må ha hatt i de FORRIGE
+// fire ukene før et fall er verdt å reagere på. Under dette er utslagene for
+// små til å bety noe — 1 → 0 er ikke en trend, det er en bortreist helg.
+const TD_FALL_MIN_PREV4 = 3;
 function tdDaysSince(iso){
   if(!iso) return null;
   const t = new Date(iso).getTime();
@@ -41,11 +44,10 @@ function TodayList({ title, hint, accent, rows, meta, empty, onOpen }){
                     <span style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:`var(--${accent})`}}/>
                   </td>
                   <td>
-                    <strong>{tdName(m)}</strong>
+                    <MemberLink id={m.id}><strong>{tdName(m)}</strong></MemberLink>
                     <div className="dim" style={{fontSize:11}}>{m.kategori}{m.grading&&m.grading.current?` · ${m.grading.current.belt}`:''}</div>
                   </td>
                   <td className="num dim" style={{whiteSpace:'nowrap'}}>{meta(m)}</td>
-                  <td style={{width:60,textAlign:'right'}}><span className="dim" style={{fontSize:11}}>åpne →</span></td>
                 </tr>
               ))}
             </tbody>
@@ -56,8 +58,10 @@ function TodayList({ title, hint, accent, rows, meta, empty, onOpen }){
   );
 }
 
-function Today({ members, thresholds }){
-  const [openId, setOpenId] = useTd(null);
+function Today({ members, live, thresholds }){
+  // Profilen åpnes via den globale kanalen (MemberOpenCtx), ikke lokal state —
+  // samme profil som i toppliste, trender og medlemsregister.
+  const { open: openMember } = useMemberOpen();
   const list = members || [];
   const th = thresholds || {};
   const stilleUker = th.stilleUker || 3;
@@ -91,7 +95,15 @@ function Today({ members, thresholds }){
     })
     .sort((a,b) => (tdDaysSince(b.oppmote && b.oppmote.sisteOppmote) || 9999) - (tdDaysSince(a.oppmote && a.oppmote.sisteOppmote) || 9999));
 
-  const openMember = list.find(m => m.id === openId);
+  // 4) Fallende oppmøte: samme «siste 4 uker vs. forrige 4» som Trend pr.
+  //    medlem (delt funksjon i dashboard-shared.jsx). Medlemmer som allerede
+  //    står under «Stille» vises ikke her — det er samme oppfølging to ganger.
+  const stilleIds = new Set(stille.map(m => m.id));
+  const fallende = memberTrendRows(live, list)
+    .filter(r => r.medlem && !stilleIds.has(r.id) && r.last4 < r.prev4 && r.prev4 >= TD_FALL_MIN_PREV4)
+    .sort((a,b) => (a.last4-a.prev4) - (b.last4-b.prev4))
+    .map(r => ({ ...r.medlem, fall: r }));
+  const harTrend = !!(live && live.memberWeekly);
 
   return (
     <div>
@@ -99,7 +111,7 @@ function Today({ members, thresholds }){
         <KPI label="Stille medlemmer" value={fmtN(stille.length)} delta={`ikke sett ≥ ${stilleUker} uker`} accent="coral"/>
         <KPI label="Graderingsklare" value={fmtN(grad.length)} delta={`≥ ${gradMinOppmote} oppmøter · ≥ ${gradMinMnd} mnd`} accent="green"/>
         <KPI label="Intro-oppfølging" value={fmtN(intro.length)} delta={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"/>
-        <KPI label="Medlemmer totalt" value={fmtN(list.length)} delta="i registeret" accent="blue"/>
+        <KPI label="Fallende oppmøte" value={harTrend ? fmtN(fallende.length) : '—'} delta={harTrend ? `siste 4 uker ned · fra ≥ ${TD_FALL_MIN_PREV4}` : 'krever koblede oppmøter'} accent="blue"/>
       </div>
 
       <div className="dim" style={{fontSize:11, margin:'6px 2px 0', lineHeight:1.6}}>
@@ -111,21 +123,27 @@ function Today({ members, thresholds }){
         title="Stille medlemmer" hint={`aktive · ikke sett på ≥ ${stilleUker} uker`} accent="coral"
         rows={stille} meta={m => tdRelSince(m.oppmote.sisteOppmote)}
         empty="Ingen stille medlemmer over terskelen — eller oppmøtedata mangler ennå."
-        onOpen={setOpenId}/>
+        onOpen={openMember}/>
 
       <TodayList
         title="Graderingsklare" hint={`≥ ${gradMinOppmote} oppmøter · ≥ ${gradMinMnd} mnd siden gradering`} accent="green"
         rows={grad} meta={m => `${fmtN(m.oppmote.checkins||0)} oppmøter · sist gradert ${tdRelSince(m.grading.current.since)}`}
         empty="Ingen kandidater over terskelen akkurat nå."
-        onOpen={setOpenId}/>
+        onOpen={openMember}/>
 
       <TodayList
         title="Intro-oppfølging" hint={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"
         rows={intro} meta={m => tdRelSince(m.oppmote && m.oppmote.sisteOppmote)}
         empty="Ingen intro-deltakere som trenger oppfølging."
-        onOpen={setOpenId}/>
+        onOpen={openMember}/>
 
-      {openMember && <MemberProfile member={openMember} onClose={()=>setOpenId(null)}/>}
+      <TodayList
+        title="Fallende oppmøte" hint={`siste 4 uker mot forrige 4 · fra ≥ ${TD_FALL_MIN_PREV4} oppmøter`} accent="blue"
+        rows={fallende} meta={m => `${m.fall.prev4} → ${m.fall.last4} oppmøter`}
+        empty={harTrend
+          ? 'Ingen med markert fall i oppmøte akkurat nå.'
+          : 'Krever register-koblede oppmøter — kjør identitetsbroen under Oppmøte.'}
+        onOpen={openMember}/>
     </div>
   );
 }

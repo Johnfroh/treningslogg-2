@@ -115,6 +115,8 @@ module.exports = [
         fmtN: 'readonly', fmtKr: 'readonly', fmtPct: 'readonly', WD: 'readonly',
         HBar: 'readonly', Spark: 'readonly', Donut: 'readonly',
         CohortBar: 'readonly',
+        MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
+        lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly',
         // belt-system.jsx
         BELT_META: 'readonly', ADULT_BELTS: 'readonly', JUNIOR_BELTS: 'readonly',
         ALL_BELTS: 'readonly', maxStripes: 'readonly', beltMeta: 'readonly',
