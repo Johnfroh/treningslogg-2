@@ -119,7 +119,9 @@ a { color: inherit; text-decoration: none; }
 @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
 
 /* main */
-.main { min-width: 0; padding: 6px 6px 60px; }
+/* Felles maksbredde på innholdet. Uten den strekkes tabeller og grafer over
+   hele en 27-tommer, og øyet mister sammenhengen mellom kolonnene. */
+.main { min-width: 0; padding: 6px 6px 60px; max-width: 1200px; }
 .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 22px; }
 .crumbs { font-size: 12px; color: var(--muted); }
 .crumbs .cur { color: var(--ink); font-weight: 600; }
@@ -132,16 +134,18 @@ a { color: inherit; text-decoration: none; }
 .section-h .meta { font-size: 12px; font-weight: 500; color: var(--muted); }
 
 /* grids */
-.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
-.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+/* minmax(0,1fr), ikke 1fr: en grid-kolonne har min-width auto som standard,
+   så én bred tabell eller et langt navn dytter hele raden ut av skjermen. */
+.grid-4 { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.grid-1-2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr); gap: 16px; }
+.grid-2-1 { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: 16px; }
 
 /* tile */
 .tile { background: var(--card); border-radius: var(--r-md); box-shadow: var(--shadow); padding: 20px; }
 .tile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.tile-title { font-size: 13px; font-weight: 600; color: var(--ink); letter-spacing: -.005em; text-transform: capitalize; }
+.tile-title { font-size: 13px; font-weight: 600; color: var(--ink); letter-spacing: -.005em; }
 .tile-corner { font-size: 11px; color: var(--muted); background: var(--bg); padding: 3px 10px; border-radius: 999px; }
 
 /* kpi tile */
@@ -196,6 +200,33 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 /* heatmap cells -> rounded */
 .main [style*="aspect-ratio"] { border-radius: 7px; }
 
+/* knapper skal aldri brekke teksten over to linjer */
+.btn.nowrap { white-space: nowrap; }
+
+/* ⋯-meny på en I dag-rad */
+.rad-meny { position:absolute; right:0; top:calc(100% + 4px); z-index:40; min-width:150px;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--r-sm);
+  box-shadow:var(--shadow); padding:4px; display:flex; flex-direction:column; }
+.rad-meny button { appearance:none; border:0; background:transparent; font:inherit; font-size:12px;
+  color:var(--ink-soft); text-align:left; padding:8px 10px; border-radius:6px; cursor:pointer; white-space:nowrap; }
+.rad-meny button:hover { background:var(--bg); color:var(--ink); }
+
+/* «Borte over 8 uker» — sammenfoldet liste */
+.td-fold { margin-top:26px; }
+.td-fold > summary { cursor:pointer; font-size:15px; font-weight:700; color:var(--ink); list-style:none;
+  margin-bottom:12px; }
+.td-fold > summary::-webkit-details-marker { display:none; }
+.td-fold > summary::before { content:'▸ '; color:var(--muted); }
+.td-fold[open] > summary::before { content:'▾ '; }
+
+/* merke på en fane i sidefeltet (umatchede navn) */
+.nav-merke { margin-left:auto; min-width:18px; height:18px; padding:0 5px; border-radius:999px;
+  background:var(--coral); color:#fff; font-size:10.5px; font-weight:700; line-height:18px; text-align:center; }
+
+/* min/maks på y-aksen i Spark */
+.spark-y { position:absolute; left:0; font-size:9.5px; color:var(--muted); line-height:1;
+  background:var(--card); padding:1px 3px; border-radius:3px; pointer-events:none; }
+
 /* klikkbart medlemsnavn — åpner medlemsprofilen */
 .mlink { cursor: pointer; }
 .mlink:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -219,7 +250,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* fem KPI-kort i Trender */
-.grid-5 { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 16px; }
 .kpi-tile.klikkbar { cursor: pointer; }
 .kpi-tile.klikkbar:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
 
@@ -248,7 +279,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
   .sidebar { position: static; height: auto; flex-direction: row; align-items: center; gap: 18px; }
   .nav { flex-direction: row; flex-wrap: wrap; }
   .live { margin: 0; }
-  .grid-4, .grid-5 { grid-template-columns: 1fr 1fr; }
+  .grid-4, .grid-5 { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 /* ============ MOBIL (< 760 px) ============
@@ -262,7 +293,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
   .topbar { flex-direction: column; align-items: flex-start; gap: 10px; }
   .topbar-pills { flex-wrap: wrap; }
   .h1 { font-size: 22px; }
-  .grid-4, .grid-5, .grid-3, .grid-2, .grid-2-1, .grid-1-2 { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-4, .grid-5, .grid-3, .grid-2, .grid-2-1, .grid-1-2 { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .grid-3 > *:nth-child(3), .grid-2-1 > *, .grid-1-2 > * { grid-column: span 2; }
   .grid-3 > *:nth-child(3) { grid-column: span 2; }
   .section-h { flex-direction: column; align-items: flex-start; gap: 4px; margin: 22px 0 10px; }
@@ -479,7 +510,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .okbar-v { font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px; }
 .okbar-track { width:100%; max-width:46px; flex:1; background:var(--bar-bg); border-radius:8px 8px 4px 4px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; }
 .okbar-fill { width:100%; background:linear-gradient(180deg, var(--green), #2a9d77); border-radius:8px 8px 0 0; min-height:3px; transition:height .3s ease; }
-.okbar-l { font-size:10.5px; color:var(--muted); margin-top:8px; text-transform:capitalize; white-space:nowrap; }
+.okbar-l { font-size:10.5px; color:var(--muted); margin-top:8px; white-space:nowrap; }
 /* Samlet inntekt: stablede segmenter i samme track (kontingent/butikk/diverse) */
 .okbar-seg { width:100%; }
 .oklegend { display:flex; gap:16px; margin-top:14px; flex-wrap:wrap; font-size:11px; color:var(--muted); }

@@ -116,18 +116,10 @@ function mrMnd(live, id, ym){
 // kalendermåned, så måneden graderingen skjedde i tas med i sin helhet — å
 // utelate den ville underrapportert alle som ble gradert tidlig i en måned.
 // Øvre grense hindrer at en augustrapport teller september med.
-function mrOkterSiden(live, id, fraISO, tilYm){
-  const mm=(live && live.memberMonthly && live.memberMonthly[id]) || null;
-  if(!mm) return 0;
-  const fraYm = MR_ISO.test(fraISO||'') ? fraISO.slice(0,7) : '';
-  let n=0;
-  Object.keys(mm).forEach(ym=>{
-    if(fraYm && ym<fraYm) return;
-    if(tilYm && ym>tilYm) return;
-    n+=mm[ym];
-  });
-  return n;
-}
+// Ligger i dashboard-shared.jsx som okterSidenGradering() — «I dag»-lista
+// over graderingsklare bruker samme funksjon, så de to stedene ikke kan
+// regne ulikt på samme medlem.
+const mrOkterSiden = okterSidenGradering;
 
 /* ---------- Seksjoner ----------
    `periode: true`  → følger den valgte perioden

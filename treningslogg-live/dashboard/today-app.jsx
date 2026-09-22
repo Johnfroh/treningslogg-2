@@ -17,6 +17,14 @@ const TD_FALL_MIN_PREV4 = 3;
 const TD_KONTAKTET_DAGER = 14;
 // «Utsett» er den lange knappen: én måned uten mas.
 const TD_UTSETT_DAGER = 30;
+// Grensen mellom «stille» og «borte». Under åtte uker er det som regel en
+// skade, en eksamen eller en ferie — en telefon holder. Over åtte uker er
+// det sjelden et oppmøteproblem lenger, men et medlemskap som må avklares,
+// og da er det en annen samtale og en annen liste.
+const TD_BORTE_UKER = 8;
+// Hvor mange rader en liste viser før «Vis alle». Seks rader er omtrent det
+// man rekker å gjøre noe med i én økt.
+const TD_MAKS_RADER = 6;
 
 function tdDaysSince(iso){
   if(!iso) return null;
@@ -78,23 +86,32 @@ function tdSkjulteIder(followup, liste){
 }
 
 /* ---------- Oppfølgingsknapper på en rad ---------- */
-function TodayHandlinger({ member, liste, onHandling, busy }){
+// Én synlig knapp for det man gjør ni av ti ganger, resten i en ⋯-meny.
+// Tre knapper ved siden av hverandre brøt teksten på smale skjermer, og
+// «Utsett 30 d» over to linjer ser ut som to knapper.
+function TodayHandlinger({ member, liste, onHandling, busy, hovedNavn, hovedNotat }){
   const [notatAapen, setNotatAapen] = useTd(false);
+  const [menyAapen, setMenyAapen] = useTd(false);
   const [tekst, setTekst] = useTd('');
   const stopp = e => e.stopPropagation();
+  const hoved = () => onHandling(member.id, liste,
+    hovedNotat ? { status:'kontaktet', notat: hovedNotat } : { status:'kontaktet' });
   return (
     <>
-      <div style={{display:'flex', gap:6, justifyContent:'flex-end'}} onClick={stopp}>
-        <button className="btn ghost xs" disabled={busy}
+      <div style={{display:'flex', gap:6, justifyContent:'flex-end', position:'relative'}} onClick={stopp}>
+        <button className="btn ghost xs nowrap" disabled={busy}
           title={`Skjuler raden i ${TD_KONTAKTET_DAGER} dager. Treffer medlemmet fortsatt kriteriet etterpå, kommer den tilbake.`}
-          onClick={()=>onHandling(member.id, liste, { status:'kontaktet' })}>Kontaktet</button>
-        <button className="btn ghost xs" disabled={busy}
-          title={`Skjuler raden til ${tdPlussDager(TD_UTSETT_DAGER)}.`}
-          onClick={()=>onHandling(member.id, liste, { status:'utsatt', utsattTil: tdPlussDager(TD_UTSETT_DAGER) })}>
-          Utsett {TD_UTSETT_DAGER} d</button>
-        <button className="btn ghost xs" disabled={busy}
-          title="Skriv et kort notat. Raden blir stående."
-          onClick={()=>setNotatAapen(v=>!v)}>Notat</button>
+          onClick={hoved}>✓ {hovedNavn || 'Kontaktet'}</button>
+        <button className="btn ghost xs nowrap" disabled={busy} aria-label="Flere valg"
+          title="Flere valg" onClick={()=>setMenyAapen(v=>!v)}>⋯</button>
+        {menyAapen && (
+          <div className="rad-meny" onMouseLeave={()=>setMenyAapen(false)}>
+            <button disabled={busy} onClick={()=>{ setMenyAapen(false);
+              onHandling(member.id, liste, { status:'utsatt', utsattTil: tdPlussDager(TD_UTSETT_DAGER) }); }}>
+              Utsett {TD_UTSETT_DAGER} dager</button>
+            <button disabled={busy} onClick={()=>{ setMenyAapen(false); setNotatAapen(true); }}>Notat</button>
+          </div>
+        )}
       </div>
       {notatAapen && (
         <div style={{display:'flex', gap:6, marginTop:6, justifyContent:'flex-end'}} onClick={stopp}>
@@ -113,20 +130,23 @@ function TodayHandlinger({ member, liste, onHandling, busy }){
   );
 }
 
-function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skjulte, onHandling, busy }){
+function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skjulte, onHandling, busy,
+  hovedNavn, hovedNotat, sammenfoldet }){
   const [visSkjulte, setVisSkjulte] = useTd(false);
+  const [visAlle, setVisAlle] = useTd(false);
   const synlige = rows.filter(m => !skjulte[m.id]);
   const antSkjulte = rows.length - synlige.length;
-  const vist = visSkjulte ? rows : synlige;
-  return (
+  const alle = visSkjulte ? rows : synlige;
+  // Lange lister lammer: seks rader er omtrent det man rekker i én økt.
+  const vist = visAlle ? alle : alle.slice(0, TD_MAKS_RADER);
+  const innhold = (
     <>
-      <div className="section-h">{title}<span className="meta">{hint}</span></div>
       <Tile title={`${synlige.length} ${synlige.length===1?'medlem':'medlemmer'}`}
         corner={antSkjulte > 0
-          ? <button className="btn ghost xs" onClick={()=>setVisSkjulte(v=>!v)}>
+          ? <button className="btn ghost xs nowrap" onClick={()=>setVisSkjulte(v=>!v)}>
               {visSkjulte ? 'Skjul fulgt opp' : `Vis skjulte (${antSkjulte})`}
             </button>
-          : accent}>
+          : null}>
         {vist.length === 0 ? (
           <div className="dim" style={{fontSize:12}}>{empty}</div>
         ) : (
@@ -147,8 +167,9 @@ function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skju
                       </div>
                     </td>
                     <td className="num dim" style={{whiteSpace:'nowrap'}}>{meta(m)}</td>
-                    <td style={{textAlign:'right', width:210}}>
-                      <TodayHandlinger member={m} liste={liste} onHandling={onHandling} busy={busy}/>
+                    <td style={{textAlign:'right', width:150}}>
+                      <TodayHandlinger member={m} liste={liste} onHandling={onHandling} busy={busy}
+                        hovedNavn={hovedNavn} hovedNotat={hovedNotat}/>
                     </td>
                   </tr>
                 );
@@ -156,7 +177,31 @@ function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skju
             </tbody>
           </table>
         )}
+        {alle.length > vist.length && (
+          <button className="btn ghost xs nowrap" style={{marginTop:10}} onClick={()=>setVisAlle(true)}>
+            Vis alle ({alle.length})
+          </button>
+        )}
+        {visAlle && alle.length > TD_MAKS_RADER && (
+          <button className="btn ghost xs nowrap" style={{marginTop:10}} onClick={()=>setVisAlle(false)}>Vis færre</button>
+        )}
       </Tile>
+    </>
+  );
+  // «Borte over 8 uker» er sammenfoldet: den skal være lett å finne, men ikke
+  // det første man møter når man åpner «I dag».
+  if (sammenfoldet) {
+    return (
+      <details className="td-fold">
+        <summary>{title} <span className="dim">· {synlige.length} — {hint}</span></summary>
+        {innhold}
+      </details>
+    );
+  }
+  return (
+    <>
+      <div className="section-h">{title}<span className="meta">{hint}</span></div>
+      {innhold}
     </>
   );
 }
@@ -183,22 +228,43 @@ function Today({ members, live, thresholds }){
       .then(() => setBusy(false));
   }
 
-  // 1) Stille medlemmer: kjent «sist sett», men ikke sett på ≥ X uker.
+  // Introdeltakere har sin egen liste og sin egen samtale («kommer du
+  // tilbake?», ikke «vi savner deg på matta»). De skal aldri dukke opp i
+  // stille/borte/fallende i tillegg — ingen skal stå i to lister.
+  const utenIntro = list.filter(m => m.kategori !== 'Introkurs');
+
+  // 1) Stille: kjent «sist sett», borte mellom terskelen og åtte uker.
   //    (Medlemmer uten oppmøtedata utelates — det er datagap, ikke stillhet.)
-  const stille = list
-    .filter(m => { const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote); return d != null && d >= stilleUker*7; })
+  //    Sortert med de ferskeste først: de er lettest å få tilbake.
+  const stille = utenIntro
+    .filter(m => {
+      const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote);
+      return d != null && d >= stilleUker*7 && d < TD_BORTE_UKER*7;
+    })
+    .sort((a,b) => tdDaysSince(a.oppmote.sisteOppmote) - tdDaysSince(b.oppmote.sisteOppmote));
+
+  // 1b) Borte over åtte uker: ikke lenger et oppmøteproblem, men et
+  //     medlemskap som må avklares.
+  const borte = utenIntro
+    .filter(m => {
+      const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote);
+      return d != null && d >= TD_BORTE_UKER*7;
+    })
     .sort((a,b) => tdDaysSince(b.oppmote.sisteOppmote) - tdDaysSince(a.oppmote.sisteOppmote));
 
-  // 2) Graderingsklare: nok oppmøter + lenge siden forrige gradering.
-  //    Sortbelte utelates (graderes i grader, ikke nye belter her).
+  // 2) Graderingsklare: nok oppmøter SIDEN SIST GRADERING + lenge nok siden.
+  //    Tidligere talte den alle oppmøter noensinne, mens rapporten talte fra
+  //    forrige gradering — to lister som pekte på hver sine medlemmer. Begge
+  //    bruker nå okterSidenGradering(). Sortbelte utelates (graderes i grader).
   const grad = list
     .filter(m => {
       const g = m.grading && m.grading.current; if(!g || g.belt === 'Sort') return false;
-      const ck = (m.oppmote && m.oppmote.checkins) || 0;
       const md = tdDaysSince(g.since); // dager siden sist gradert
-      return ck >= gradMinOppmote && md != null && md >= gradMinMnd*30;
+      if(md == null || md < gradMinMnd*30) return false;
+      return okterSidenGradering(live, m.id, g.since) >= gradMinOppmote;
     })
-    .sort((a,b) => ((b.oppmote.checkins||0) - (a.oppmote.checkins||0)));
+    .map(m => ({ ...m, siden: okterSidenGradering(live, m.id, m.grading.current.since) }))
+    .sort((a,b) => b.siden - a.siden);
 
   // 3) Intro-oppfølging: introdeltakere som ikke har møtt nylig (eller aldri).
   const intro = list
@@ -212,14 +278,16 @@ function Today({ members, live, thresholds }){
   // 4) Fallende oppmøte: samme «siste 4 uker vs. forrige 4» som Trend pr.
   //    medlem (delt funksjon i dashboard-shared.jsx). Medlemmer som allerede
   //    står under «Stille» vises ikke her — det er samme oppfølging to ganger.
-  const stilleIds = new Set(stille.map(m => m.id));
-  const fallende = memberTrendRows(live, list)
-    .filter(r => r.medlem && !stilleIds.has(r.id) && r.last4 < r.prev4 && r.prev4 >= fallMinPrev4)
+  const iStilleEllerBorte = new Set(stille.concat(borte).map(m => m.id));
+  const fallende = memberTrendRows(live, utenIntro)
+    .filter(r => r.medlem && !iStilleEllerBorte.has(r.id) && r.last4 < r.prev4 && r.prev4 >= fallMinPrev4)
     .sort((a,b) => (a.last4-a.prev4) - (b.last4-b.prev4))
     .map(r => ({ ...r.medlem, fall: r }));
   const harTrend = !!(live && live.memberWeekly);
 
   // Skjulte rader pr. liste — én handling skjuler bare den lista den gjaldt.
+  // «Borte» deler liste-nøkkel med «Stille» i dash_followup: backend godtar
+  //  stille/intro/grad/fallende, og de to er to halvdeler av samme sak.
   const skjultStille = tdSkjulteIder(followup, 'stille');
   const skjultGrad = tdSkjulteIder(followup, 'grad');
   const skjultIntro = tdSkjulteIder(followup, 'intro');
@@ -229,8 +297,8 @@ function Today({ members, live, thresholds }){
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`ikke sett ≥ ${stilleUker} uker`} accent="coral"/>
-        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter · ≥ ${gradMinMnd} mnd`} accent="green"/>
+        <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`} accent="coral"/>
+        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"/>
         <KPI label="Intro-oppfølging" value={fmtN(synlige(intro, skjultIntro))} delta={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"/>
         <KPI label="Fallende oppmøte" value={harTrend ? fmtN(synlige(fallende, skjultFall)) : '—'} delta={harTrend ? `siste 4 uker ned · fra ≥ ${fallMinPrev4}` : 'krever koblede oppmøter'} accent="blue"/>
       </div>
@@ -239,18 +307,28 @@ function Today({ members, live, thresholds }){
         Listene bygger på «Sist sett», «Sist gradert» og oppmøtetall i registeret — ingen nye datakilder.
         Terskler endres i Innstillinger (⚙ øverst). Klikk en rad for å åpne medlemsprofilen;
         «Kontaktet» skjuler den i {TD_KONTAKTET_DAGER} dager, «Utsett» i {TD_UTSETT_DAGER}.
+        Ingen står i mer enn én liste: introdeltakere holdes til sin egen, og den som
+        er borte over {TD_BORTE_UKER} uker står ikke også som stille.
       </div>
       {feil && <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral)'}}>{feil}</div>}
 
       <TodayList
-        title="Stille medlemmer" hint={`aktive · ikke sett på ≥ ${stilleUker} uker`} accent="coral"
+        title="Stille medlemmer" hint={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte · ferskeste først`} accent="coral"
         liste="stille" rows={stille} meta={m => tdRelSince(m.oppmote.sisteOppmote)}
         empty="Ingen stille medlemmer over terskelen — eller oppmøtedata mangler ennå."
         skjulte={skjultStille} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
-        title="Graderingsklare" hint={`≥ ${gradMinOppmote} oppmøter · ≥ ${gradMinMnd} mnd siden gradering`} accent="green"
-        liste="grad" rows={grad} meta={m => `${fmtN(m.oppmote.checkins||0)} oppmøter · sist gradert ${tdRelSince(m.grading.current.since)}`}
+        title="Borte over 8 uker" hint={`≥ ${TD_BORTE_UKER} uker uten oppmøte · medlemskapet bør avklares`} accent="coral"
+        liste="stille" rows={borte} meta={m => tdRelSince(m.oppmote.sisteOppmote)}
+        empty="Ingen har vært borte så lenge."
+        hovedNavn="Avklart" hovedNotat="Medlemskap til avklaring"
+        sammenfoldet
+        skjulte={skjultStille} onHandling={handling} busy={busy} onOpen={openMember}/>
+
+      <TodayList
+        title="Graderingsklare" hint={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"
+        liste="grad" rows={grad} meta={m => `${fmtN(m.siden||0)} oppmøter siden gradering · sist gradert ${tdRelSince(m.grading.current.since)}`}
         empty="Ingen kandidater over terskelen akkurat nå."
         skjulte={skjultGrad} onHandling={handling} busy={busy} onOpen={openMember}/>
 
@@ -273,3 +351,5 @@ function Today({ members, live, thresholds }){
 
 window.Today = Today;
 window.tdSkjulteIder = tdSkjulteIder;
+window.TD_BORTE_UKER = TD_BORTE_UKER;
+window.TD_MAKS_RADER = TD_MAKS_RADER;

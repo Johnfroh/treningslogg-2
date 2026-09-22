@@ -29,17 +29,17 @@ function DataFane({ kpis, charts, live, meta, isStyre, terskler, brukerStandard,
         <>
           <div className="section-h" id="innstillinger" style={{ scrollMarginTop: 80 }}>Terskler
             <span className="meta">styrer hvem som havner i «I dag»-listene</span></div>
-          <Tile title="terskler" corner={isStyre ? 'styre kan endre' : 'kun lesing'}>
+          <Tile title="Terskler" corner={isStyre ? 'styre kan endre' : 'kun lesing'}>
             <TerskelSkjema isStyre={isStyre} settings={terskler} brukerStandard={brukerStandard} />
           </Tile>
 
           <div className="section-h">Ukentlig snapshot<span className="meta">historikk som ellers går tapt</span></div>
-          <Tile title="snapshots" corner="mandag kl. 06">
+          <Tile title="Snapshots" corner="mandag kl. 06">
             <SnapshotPanel isStyre={isStyre} />
           </Tile>
 
           <div className="section-h">Hendelser<span className="meta">markører på Klubbens puls</span></div>
-          <Tile title="hendelser" corner="ferie · gradering · arrangement">
+          <Tile title="Hendelser" corner="ferie · gradering · arrangement">
             <HendelsePanel isStyre={isStyre} />
           </Tile>
         </>
@@ -48,7 +48,7 @@ function DataFane({ kpis, charts, live, meta, isStyre, terskler, brukerStandard,
       {seksjon === 'import' && (
         <>
           <div className="section-h">Importer<span className="meta">medlemmer · oppmøte · økonomi · Vipps</span></div>
-          <Tile title="datakilder" corner="månedlig">
+          <Tile title="Datakilder" corner="månedlig">
             <ImportOversikt meta={meta} isStyre={isStyre} />
           </Tile>
           {isStyre
@@ -56,7 +56,7 @@ function DataFane({ kpis, charts, live, meta, isStyre, terskler, brukerStandard,
             : (
               <>
                 <div className="section-h">Oppmøte-avstemming</div>
-                <Tile title="identitetsbro" corner="styre">
+                <Tile title="Identitetsbro" corner="styre">
                   <div className="dim" style={{ fontSize: 12, lineHeight: 1.6 }}>
                     Koblingen mellom oppmøte-navn og medlemsregisteret gjøres av styret.
                     {live && live.unmatched > 0 && <> Akkurat nå mangler <strong style={{ color: 'var(--coral)' }}>{fmtN(live.unmatched)} oppmøter</strong> kobling.</>}
@@ -74,7 +74,7 @@ function DataFane({ kpis, charts, live, meta, isStyre, terskler, brukerStandard,
             checkins={checkins} okter={okter} apen />
 
           <div className="section-h">Klassepopularitet<span className="meta">historisk klassetype (Spond) · frosset grunnlag</span></div>
-          <Tile title="ranking" corner="historisk">
+          <Tile title="Rangering" corner="historisk">
             <HBar data={charts.classes.map(c => ({ label: c.name + ' (' + c.sessions + ' økter)', value: Math.round(c.avg * 10) / 10 }))}
               color="var(--accent)" height={20} />
             <div className="dim" style={{ fontSize: 11, marginTop: 12, lineHeight: 1.6 }}>
