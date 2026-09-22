@@ -118,6 +118,7 @@ module.exports = [
         MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
         lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
+        okterSidenGradering: 'readonly', SPARK_SOYLE_GRENSE: 'readonly',
         DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',
         SMAL_PX: 'readonly', useSmal: 'readonly',
         // belt-system.jsx

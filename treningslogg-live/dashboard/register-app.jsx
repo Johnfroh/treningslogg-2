@@ -14,7 +14,7 @@ function beltRank(belt){
 }
 
 function Register(){
-  const { members, actions } = useMembers();
+  const { members, actions, live } = useMembers();
   const [q, setQ] = useS('');
   const [kat, setKat] = useS('Alle');
   const [beltFilter, setBeltFilter] = useS('Alle');
@@ -128,6 +128,7 @@ function Register(){
               <th>Navn</th>
               <th>Belte</th>
               <th>Sist gradert</th>
+              <th className="num" title="Oppmøter registrert etter forrige gradering — samme tall som «I dag» og rapporten bruker">Siden gradering</th>
               <th className="num">Oppmøter</th>
               <th style={{width:40}}></th>
             </tr>
@@ -154,14 +155,19 @@ function Register(){
                         </div>}
                   </td>
                   <td className="muted" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>{fmtDate(g.since)}</td>
-                  <td className="num" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}><span style={{color:'var(--accent)',fontWeight:600}}>{fmtN(m.oppmote.checkins)}</span></td>
+                  <td className="num" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>
+                    <span style={{fontWeight:600}}>{fmtN(okterSidenGradering(live, m.id, g.since))}</span>
+                  </td>
+                  {/* Nøytral farge: aksentfarge på et tall leses som «dette er
+                      en lenke», og den var det ikke. */}
+                  <td className="num" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>{fmtN(m.oppmote.checkins)}</td>
                   <td>
                     {!isEdit && <button className="pencil" title="Rask endring" onClick={()=>setEditId(m.id)}>✎</button>}
                   </td>
                 </tr>
               );
             })}
-            {filtered.length===0 && <tr><td colSpan={6} style={{textAlign:'center',padding:30,color:'var(--muted)'}}>Ingen treff</td></tr>}
+            {filtered.length===0 && <tr><td colSpan={7} style={{textAlign:'center',padding:30,color:'var(--muted)'}}>Ingen treff</td></tr>}
           </tbody>
         </table>
       </div>

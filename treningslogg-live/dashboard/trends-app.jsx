@@ -137,9 +137,35 @@ function nyeSerie(members, r) {
   return Object.keys(per).sort().map(k => [k, per[k]]);
 }
 
+// Sjekker at snapshots faktisk kan brukes til sammenligning, og sier fra i
+// konsollen hvis ikke. Uke-nøkkelen skrives av dashIsoWeek_() i Code.gs og
+// leses av isoUkeNokkel() her — matcher de ikke, finner aktiveVed() aldri en
+// rad, og kortet ville stille vist «—» uten at noen skjønte hvorfor.
+function sjekkSnapshots(snapshots) {
+  if (!snapshots) return;                       // ikke lastet ennå
+  if (!snapshots.length) {
+    console.warn('[dashboard] dashSnapshotsList ga 0 rader — kjør «Ta snapshot nå» under Data, '
+      + 'eller _setupSnapshotTrigger i Apps Script.');
+    return;
+  }
+  const ugyldige = snapshots.filter(s => !/^\d{4}-W\d{2}$/.test(String(s.uke || '')));
+  if (ugyldige.length) {
+    console.warn('[dashboard] snapshots med uke-nøkkel som ikke matcher isoUkeNokkel():',
+      ugyldige.map(s => s.uke));
+  }
+  const naa = isoUkeNokkel(trIso(new Date()));
+  const bak = snapshots.filter(s => s.uke <= naa);
+  if (!bak.length) {
+    console.warn('[dashboard] ingen snapshots til og med denne uka (' + naa + '). Nyeste rad:',
+      snapshots[snapshots.length - 1] && snapshots[snapshots.length - 1].uke);
+  }
+}
+
 // Aktive medlemmer på et tidspunkt — fra dash_snapshots. Finner siste
 // snapshot til og med datoen. Mangler det, returneres null (kortet viser
 // «—»), aldri 0: null betyr «vet ikke», 0 betyr «ingen medlemmer».
+// Brukes KUN til sammenligningsperioden: nå-verdien tas fra registeret, så
+// kortet alltid viser samme tall som sidefeltet.
 function aktiveVed(snapshots, iso) {
   if (!snapshots || !snapshots.length || !iso) return null;
   const maal = isoUkeNokkel(iso);
@@ -193,7 +219,7 @@ function Kontrollstripe({ q, onEndre }) {
 
 /* ---------- KPI-kort med sammenligning ---------- */
 // verdi/for: null betyr «vet ikke» og vises som «—». 0 er et ekte nulltall.
-function TrendKort({ label, verdi, forrige, format, enhet, serie, farge, hint, onKlikk }) {
+function TrendKort({ label, verdi, forrige, format, enhet, serie, farge, hint, onKlikk, under }) {
   const vis = verdi == null ? '—' : (format ? format(verdi) : fmtN(verdi));
   const harDelta = verdi != null && forrige != null && forrige !== 0;
   const d = harDelta ? verdi - forrige : null;
@@ -209,6 +235,7 @@ function TrendKort({ label, verdi, forrige, format, enhet, serie, farge, hint, o
           ? `${opp ? '▲ +' : ned ? '▼ ' : '— '}${format ? format(d) : fmtN(d)}${pst != null && isFinite(pst) ? ` (${pst > 0 ? '+' : ''}${pst.toFixed(0)} %)` : ''}`
           : <span className="dim">ingen sammenligning</span>}
       </div>
+      {under && <div className="dim" style={{ fontSize: 10.5, marginTop: 2 }}>{under}</div>}
       {serie && serie.length > 1 && (
         <div style={{ marginTop: 8, opacity: .9 }}>
           <Spark data={serie} accessor={d2 => d2[1]} height={28}
@@ -226,9 +253,9 @@ function TrendKort({ label, verdi, forrige, format, enhet, serie, farge, hint, o
 function SemesterOverlay({ entries, naaKey }) {
   const sem = {};
   entries.forEach(([wk, v]) => {
-    const s = semesterFor(wk);
-    if (!s) return;                       // juli hører ikke til noe semester
-    (sem[s.key] || (sem[s.key] = [])).push([wk, v]);
+    const s2 = semesterFor(wk);
+    if (!s2) return;                       // juli hører ikke til noe semester
+    (sem[s2.key] || (sem[s2.key] = [])).push([wk, v]);
   });
   const keys = Object.keys(sem).sort();
   if (keys.length < 2) {
@@ -239,39 +266,74 @@ function SemesterOverlay({ entries, naaKey }) {
       </div>
     );
   }
-  const serier = keys.map(k => ({ key: k, verdier: sem[k].sort((a, b) => a[0].localeCompare(b[0])).map(e => e[1]) }));
-  const maxN = Math.max(...serier.map(s => s.verdier.length));
-  const maxV = Math.max(1, ...serier.map(s => Math.max(...s.verdier)));
-  const w = 100, h = 42;                  // viewBox-enheter, skaleres av CSS
-  const punkt = (v, i) => [
-    maxN > 1 ? (i / (maxN - 1)) * w : 0,
-    h - (v / maxV) * h,
-  ];
-  // Eldre semestre tones ned; det inneværende skal være det man ser først.
-  const farger = ['#C0BED2', '#A6A3BD', '#8A86A0', '#4F9BEA', '#34B98C'];
+  const serieAv = k => sem[k].sort((a, b) => a[0].localeCompare(b[0])).map(e => e[1]);
+  // Fem-seks like linjer blir garn. To linjer bærer sammenligningen —
+  // inneværende semester og samme semester i fjor — og alt eldre legges som
+  // et grått min–maks-bånd, som er det historikken faktisk sier: her lå vi før.
+  const naa = keys.indexOf(naaKey) >= 0 ? naaKey : keys[keys.length - 1];
+  const ifjorKey = (Number(naa.slice(0, 4)) - 1) + naa.slice(4);
+  const ifjor = keys.indexOf(ifjorKey) >= 0 ? ifjorKey : null;
+  const eldre = keys.filter(k => k !== naa && k !== ifjor);
+
+  const naaS = serieAv(naa);
+  const ifjorS = ifjor ? serieAv(ifjor) : null;
+  const eldreS = eldre.map(serieAv);
+  const maxN = Math.max(naaS.length, ifjorS ? ifjorS.length : 0, ...eldreS.map(a => a.length), 1);
+  const maxV = Math.max(1, ...naaS, ...(ifjorS || []), ...eldreS.map(a => Math.max(...a, 0)));
+  const w = 100, h = 42;
+  const px = i => (maxN > 1 ? (i / (maxN - 1)) * w : 0);
+  const py = v => h - (v / maxV) * h;
+  const dAv = (arr) => arr.map((v, i) => (i === 0 ? 'M' : 'L') + px(i).toFixed(2) + ' ' + py(v).toFixed(2)).join(' ');
+
+  // Bånd: min og maks pr. semesteruke blant de eldre semestrene.
+  let band = '';
+  if (eldreS.length) {
+    const topp = [], bunn = [];
+    for (let i = 0; i < maxN; i++) {
+      const verdier = eldreS.map(a => a[i]).filter(v => v != null);
+      if (!verdier.length) continue;
+      topp.push([i, Math.max(...verdier)]);
+      bunn.push([i, Math.min(...verdier)]);
+    }
+    if (topp.length) {
+      band = topp.map((p, i) => (i === 0 ? 'M' : 'L') + px(p[0]).toFixed(2) + ' ' + py(p[1]).toFixed(2)).join(' ')
+        + ' ' + bunn.reverse().map(p => 'L' + px(p[0]).toFixed(2) + ' ' + py(p[1]).toFixed(2)).join(' ') + ' Z';
+    }
+  }
+  // Uketall på x-aksen — 1, midt på og siste.
+  const akse = maxN > 2 ? [1, Math.round(maxN / 2), maxN] : [1, maxN];
+
   return (
     <>
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
         style={{ display: 'block', width: '100%', height: 170 }}>
-        {serier.map((s, i) => {
-          const naa = s.key === naaKey;
-          const d = s.verdier.map((v, k) => (k === 0 ? 'M' : 'L') + punkt(v, k).map(n => n.toFixed(2)).join(' ')).join(' ');
-          return <path key={s.key} d={d} fill="none" vectorEffect="non-scaling-stroke"
-            stroke={naa ? 'var(--accent)' : farger[i % farger.length]}
-            strokeWidth={naa ? 2.2 : 1} opacity={naa ? 1 : .55} />;
-        })}
+        {band && <path d={band} fill="var(--line-strong)" opacity={.4} />}
+        {ifjorS && <path d={dAv(ifjorS)} fill="none" stroke="var(--muted)" strokeWidth={1.4}
+          vectorEffect="non-scaling-stroke" />}
+        <path d={dAv(naaS)} fill="none" stroke="var(--accent)" strokeWidth={2.4}
+          vectorEffect="non-scaling-stroke" />
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
-        <span>uke 1</span><span>uke {maxN}</span>
+        {akse.map(u => <span key={u}>uke {u}</span>)}
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, fontSize: 11 }}>
-        {serier.map((s, i) => (
-          <span key={s.key} style={{ color: s.key === naaKey ? 'var(--ink)' : 'var(--muted)', fontWeight: s.key === naaKey ? 700 : 500 }}>
-            <span style={{ display: 'inline-block', width: 10, height: 2, marginRight: 5, verticalAlign: 'middle',
-              background: s.key === naaKey ? 'var(--accent)' : farger[i % farger.length] }} />
-            {semesterNavn(s.key)} <span className="dim">· {fmtN(s.verdier.reduce((a, b) => a + b, 0))}</span>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontSize: 11 }}>
+        <span style={{ fontWeight: 700 }}>
+          <span style={{ display: 'inline-block', width: 14, height: 3, marginRight: 6, verticalAlign: 'middle', background: 'var(--accent)' }} />
+          {semesterNavn(naa)} <span className="dim">· {fmtN(naaS.reduce((a, b) => a + b, 0))}</span>
+        </span>
+        {ifjorS && (
+          <span style={{ color: 'var(--muted)' }}>
+            <span style={{ display: 'inline-block', width: 14, height: 2, marginRight: 6, verticalAlign: 'middle', background: 'var(--muted)' }} />
+            {semesterNavn(ifjor)} <span className="dim">· {fmtN(ifjorS.reduce((a, b) => a + b, 0))}</span>
           </span>
-        ))}
+        )}
+        {eldreS.length > 0 && (
+          <span style={{ color: 'var(--muted)' }}>
+            <span style={{ display: 'inline-block', width: 14, height: 8, marginRight: 6, verticalAlign: 'middle',
+              background: 'var(--line-strong)', opacity: .6 }} />
+            min–maks for {eldre.length} eldre {eldre.length === 1 ? 'semester' : 'semestre'}
+          </span>
+        )}
       </div>
     </>
   );
@@ -294,23 +356,36 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
   const snitt = s => (sumOkt(s) ? sumOpp(s) / sumOkt(s) : null);
 
-  // Aktive medlemmer: fra snapshots, aldri gjettet.
+  // Aktive medlemmer NÅ regnes fra registeret — samme definisjon og samme
+  // tall som sidefeltet (mergeLiveKpis filtrerer bort parkerte medlemskap).
+  // Snapshots brukes bare bakover i tid, der registeret ikke kan svare.
+  React.useEffect(() => { sjekkSnapshots(snapshots); }, [snapshots]);
   const forsteSnap = snapshots && snapshots.length ? snapshots[0] : null;
-  const aktiveNa = aktiveVed(snapshots, r.til);
+  const aktiveNa = kpis.totals.activeMembers;
   const aktiveFor = rc ? aktiveVed(snapshots, rc.til) : null;
-  const snapHint = forsteSnap
-    ? `Fra ukentlige snapshots. Historikken starter ${semesterNavnFraUke(forsteSnap.uke)}.`
-    : 'Ingen snapshots ennå — kjør «Ta snapshot nå» under Data.';
+  const snapHint = 'Aktive medlemmer i dag, regnet fra registeret — samme tall som i sidefeltet. '
+    + (rc
+      ? (aktiveFor == null
+        ? (forsteSnap
+          ? `Ingen snapshot for ${rc.til}; historikken starter ${semesterNavnFraUke(forsteSnap.uke)}.`
+          : 'Ingen snapshots ennå — kjør «Ta snapshot nå» under Data.')
+        : `Sammenligningen er snapshotet for ${rc.til}.`)
+      : '');
 
   // Intro → fast: av dem som meldte seg inn i perioden, hvor mange står med
   // fast (ikke-intro) medlemskap i dag. Spond oppretter nytt medlemskap når
   // en introdeltaker fortsetter, så dette er et gulv — ikke en fasit.
-  const introAndel = (rr) => {
+  // Under fem innmeldinger sier en prosent mer enn den vet: 1 av 2 blir
+  // «50 %», og det leses som en trend. Da viser vi bare «a av b».
+  const INTRO_MIN_FOR_PROSENT = 5;
+  const introTall = (rr) => {
     if (!rr) return null;
     const inn = (members || []).filter(m => iRange(m.innmeldingsdato, rr));
     if (!inn.length) return null;
-    return inn.filter(m => m.kategori !== 'Introkurs').length / inn.length;
+    return { fast: inn.filter(m => m.kategori !== 'Introkurs').length, av: inn.length };
   };
+  const introNa = introTall(r), introFor = introTall(rc);
+  const introAndel = (t) => (t && t.av >= INTRO_MIN_FOR_PROSENT ? t.fast / t.av : null);
 
   const til = (id) => () => {
     const el = document.getElementById(id);
@@ -347,25 +422,30 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
           forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
           hint="Innmeldingsdato i registeret. Registeret har bare nåværende medlemmer, så tall bakover i tid er et gulv — de som meldte seg inn og sluttet igjen er ikke med."
           onKlikk={til('tr-kohort')} serie={nye} />
-        <TrendKort label="Intro → fast" verdi={introAndel(r)} forrige={introAndel(rc)} farge="green"
-          format={v => Math.round(v * 100) + ' %'}
-          hint="Av dem som meldte seg inn i perioden, andelen som i dag står med fast medlemskap. Spond oppretter nytt medlemskap når en introdeltaker fortsetter, så dette er et gulv — ikke en ekte konverteringsrate."
+        <TrendKort label="Intro → fast"
+          verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}
+          farge="green" format={v => fmtN(v)}
+          enhet={introNa ? ` av ${introNa.av}` : ''}
+          under={introNa && introAndel(introNa) != null
+            ? `${Math.round(introAndel(introNa) * 100)} % av innmeldingene`
+            : introNa ? `for få innmeldinger til å regne prosent (< ${INTRO_MIN_FOR_PROSENT})` : ''}
+          hint="Av dem som meldte seg inn i perioden, hvor mange som i dag står med fast medlemskap. Spond oppretter nytt medlemskap når en introdeltaker fortsetter, så dette er et gulv — ikke en ekte konverteringsrate."
           onKlikk={til('tr-funnel')} />
       </div>
 
       <div className="section-h" id="tr-puls" style={{ scrollMarginTop: 80 }}>Klubbens puls
         <span className="meta">oppmøte pr. uke · {gruppeNavn}</span></div>
-      <Tile title="oppmøte pr. uke" corner={r.navn}>
+      <Tile title="Oppmøte per uke" corner={r.navn}>
         {serie.length ? (
           <>
             <Spark data={serie} accessor={d => d[1]} height={150} showAxis
               labelAccessor={d => ukeEtikett(d[0])} markers={events} dateAccessor={d => d[0]}
-              color="var(--accent)" fill="var(--accent-soft)" />
+              compareData={serieC} color="var(--accent)" fill="var(--accent-soft)" />
             <HendelseTegnforklaring events={events} />
             <div className="dim" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.6 }}>
               {fmtN(sumSerie(serie))} check-ins i perioden
               {serieC && (serieC.length
-                ? <> · {fmtN(sumSerie(serieC))} i {rc.navn}</>
+                ? <> · <span style={{color:'var(--muted)'}}>grå skygge: {fmtN(sumSerie(serieC))} i {rc.navn}</span></>
                 : <> · ingen tall for {rc.navn}</>)}
             </div>
           </>
@@ -373,14 +453,14 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
       </Tile>
 
       <div className="section-h">Semester mot semester<span className="meta">oppmøte pr. semesteruke · hele grunnlaget</span></div>
-      <Tile title="semester-overlay" corner="uke 1 → N">
+      <Tile title="Semester mot semester" corner="uke 1 → N">
         <SemesterOverlay entries={ukeserie(kpis, live, { fra: '', til: trIso(new Date()) }, gruppe)}
           naaKey={periodeRange('semester').semKey} />
       </Tile>
 
       <div className="section-h" id="tr-gruppe" style={{ scrollMarginTop: 80 }}>Grupper
         <span className="meta">snitt deltagere pr. økt · {r.navn}</span></div>
-      <Tile title="snitt pr. økt" corner="grupper">
+      <Tile title="Snitt per økt" corner="grupper">
         {(() => {
           const rader = DASH_GRUPPER.concat(['ukjent']).map(g => {
             const s = oktSerie(live, r, g);
@@ -397,7 +477,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
 
       <div className="section-h" id="tr-topp" style={{ scrollMarginTop: 80 }}>Mest dedikerte
         <span className="meta">nåværende medlemmer · hele oppmøtehistorikken</span></div>
-      <Tile title="toppliste" corner="topp 10">
+      <Tile title="Toppliste" corner="topp 10">
         <LeaderboardTable live={live} limit={10} medals
           emptyHint="last opp ukesoppmøte under Data."
           unmatchedHint="Koble dem i avstemmingen under Data." />

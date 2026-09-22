@@ -219,7 +219,7 @@ function Kalender(){
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,alignItems:'start'}}>
-        <Tile title="måned" corner="kalender">
+        <Tile title="Måned" corner="kalender">
           <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
             {DAY_HDR.map(d=><div key={d} className="dim" style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.1em',textAlign:'center',padding:'4px 0'}}>{d}</div>)}
             {cells.map((ymd,i)=>{

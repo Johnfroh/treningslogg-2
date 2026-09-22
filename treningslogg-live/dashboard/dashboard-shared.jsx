@@ -183,6 +183,28 @@ function deriveCharts(kpis) {
   return { classes, daily, monthlyArr, cohorts, yearly, belts, pricing };
 }
 
+// =============== OPPMØTE SIDEN SIST GRADERING ===============
+// Lå i rapport.jsx som mrOkterSiden. «I dag»-lista over graderingsklare
+// brukte TOTALT antall oppmøter, rapporten brukte oppmøter siden sist
+// gradering — så de to stedene kunne peke på hver sine medlemmer. Nå er det
+// én funksjon.
+//
+// Merk: live.memberMonthly dekker bare økter som ligger i Sheets (logget i
+// appen eller importert). Et medlem gradert før den æraen får derfor et lavt
+// tall her — men det er samme lave tall i rapporten, og det er poenget.
+function okterSidenGradering(live, memberId, fraISO, tilYm) {
+  const mm = (live && live.memberMonthly && live.memberMonthly[memberId]) || null;
+  if (!mm) return 0;
+  const fraYm = /^\d{4}-\d{2}-\d{2}$/.test(String(fraISO || '')) ? String(fraISO).slice(0, 7) : '';
+  let n = 0;
+  Object.keys(mm).forEach(ym => {
+    if (fraYm && ym < fraYm) return;
+    if (tilYm && ym > tilYm) return;
+    n += mm[ym];
+  });
+  return n;
+}
+
 // =============== TINY CHART PRIMITIVES ===============
 // Bar chart (horizontal)
 function HBar({ data, valueKey='value', labelKey='label', max, color, showValue=true, height=18, gap=6 }) {
@@ -214,22 +236,25 @@ const HENDELSE_FARGE = {
 };
 const HENDELSE_TYPER = ['gradering', 'arrangement', 'ferie', 'introkurs', 'annet'];
 
-// Sparkline / line chart
-// Valgfritt (bakoverkompatibelt): labelAccessor(d, i) gir x-etiketten for et
-// punkt — brukes både på x-aksen og i tooltipen. showAxis slår på x-aksen med
-// 3–5 etiketter avledet av dataene. Uten dem oppfører grafen seg som før.
-//
-// markers=[{dato, type, tittel}] tegner tynne loddrette linjer der noe
-// skjedde (ferie, gradering, arrangement). Markørene må kunne plasseres på
-// tidsaksen, så de krever dateAccessor(d, i) — datoen punktet dekker. Uten
-// den ignoreres de, slik at grafer uten tidsakse ikke prøver å tegne dem.
+// Sparkline / søylediagram.
+// Valgfritt (bakoverkompatibelt):
+//   labelAccessor(d, i)  x-etikett — brukes på aksen og i tooltipen
+//   showAxis             x-akse med 3–5 etiketter + min/maks på y
+//   markers              [{dato,type,tittel}] loddrette hendelseslinjer (krever dateAccessor)
+//   compareData          sammenligningsperiode, tegnes som grå skygge bak
+// Under 10 datapunkter tegnes SØYLER: en linje mellom fire punkter later som
+// om det er en kurve mellom dem, og det er det ikke.
+const SPARK_SOYLE_GRENSE = 10;
+
 function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, labelAccessor=null,
-  markers=null, dateAccessor=null }) {
+  markers=null, dateAccessor=null, compareData=null }) {
   const ref = useRef(null);
-  const [w, setW] = useState(400);
+  // Starter på 0, ikke 400: tegner vi før ResizeObserver har målt, hopper
+  // grafen synlig når den ekte bredden kommer.
+  const [w, setW] = useState(0);
   const [hoverI, setHoverI] = useState(null);
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current) return undefined;
     const ro = new ResizeObserver(entries => {
       for (const e of entries) setW(e.contentRect.width);
     });
@@ -239,23 +264,27 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
 
   const rows = data || [];
   const values = rows.map(accessor);
+  const cmp = (compareData || []).map(accessor);
   const h = height;
-  const maxV = values.length ? Math.max(...values) : 0;
-  const minV = 0;
+  // Felles skala for begge seriene — ellers ser sammenligningen større ut
+  // enn den er bare fordi den har sin egen y-akse.
+  const maxV = Math.max(0, ...values, ...cmp);
   const stepX = rows.length > 1 ? w / (rows.length - 1) : 0;
-  const yOf = (v) => h - ((v - minV) / (maxV - minV || 1)) * h;
+  const yOf = (v) => h - ((v) / (maxV || 1)) * h;
   const points = values.map((v, i) => [i * stepX, yOf(v)]);
-  const pathD = points.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-  const fillD = pathD + ` L ${w} ${h} L 0 ${h} Z`;
+  const soyler = rows.length > 0 && rows.length < SPARK_SOYLE_GRENSE;
+  const bw = rows.length ? (w / rows.length) : 0;
+  const bx = (i) => i * bw + bw * 0.15;
+  const bWidth = Math.max(1, bw * 0.7);
   const etikett = (i) => (labelAccessor ? labelAccessor(rows[i], i) : String(i + 1));
 
   // Finger eller mus: nærmeste punkt langs x. touch-action pan-y lar siden
   // fortsatt scrolles vertikalt mens vannrett dragging leser av grafen.
   function pek(e) {
-    if (!rows.length) return;
+    if (!rows.length || !w) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left;
-    const i = stepX ? Math.round(x / stepX) : 0;
+    const i = soyler ? Math.floor(x / (bw || 1)) : (stepX ? Math.round(x / stepX) : 0);
     setHoverI(Math.max(0, Math.min(rows.length - 1, i)));
   }
   // Musepeker: tooltipen forsvinner når pekeren forlater grafen. Finger: den
@@ -265,7 +294,7 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
 
   // 3–5 etiketter, jevnt fordelt — flere blir uleselig på mobilbredde.
   const aksePunkter = [];
-  if (showAxis && rows.length) {
+  if (showAxis && rows.length && w) {
     const antall = Math.min(rows.length, w < 380 ? 3 : w < 640 ? 4 : 5);
     for (let k = 0; k < antall; k++) {
       aksePunkter.push(antall === 1 ? 0 : Math.round(k * (rows.length - 1) / (antall - 1)));
@@ -287,48 +316,78 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
   }
   const markorerFor = (i) => markorer.filter(mk => mk.i === i);
 
-  if (!rows.length) return <div ref={ref} style={{ width:'100%', height: h }} />;
+  // Uten målt bredde tegner vi ingenting — bare boksen som skal måles.
+  if (!w || !rows.length) return <div ref={ref} style={{ width:'100%', height: h }} />;
 
-  const hx = hoverI != null ? points[hoverI][0] : 0;
-  const hy = hoverI != null ? points[hoverI][1] : 0;
+  const mx = soyler ? (i) => bx(i) + bWidth / 2 : (i) => i * stepX;
+  const hx = hoverI != null ? mx(hoverI) : 0;
+  const hy = hoverI != null ? yOf(values[hoverI]) : 0;
+  const linjeD = points.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const fyllD = linjeD + ` L ${w} ${h} L 0 ${h} Z`;
+  // Sammenligningen legges på samme x-bredde, uansett hvor mange punkter den
+  // har — det er formen som skal sammenlignes, ikke antall uker.
+  const cmpX = cmp.length > 1 ? w / (cmp.length - 1) : 0;
+  const cmpD = cmp.map((v, i) => (i===0?'M':'L') + (i * cmpX).toFixed(1) + ' ' + yOf(v).toFixed(1)).join(' ');
+
   return (
     <div ref={ref} style={{ width:'100%', position:'relative' }}>
-      <svg width={w} height={h} style={{ display:'block', overflow:'visible', touchAction:'pan-y' }}
+      <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
+        style={{ display:'block', overflow:'visible', touchAction:'pan-y' }}
         onPointerDown={pek} onPointerMove={pek}
         onPointerLeave={slipp} onPointerCancel={avbryt}>
+        {/* Sammenligningsperioden — grå skygge bak hovedserien */}
+        {cmp.length > 0 && (soyler
+          ? cmp.map((v, i) => {
+              const cw = w / cmp.length;
+              return <rect key={'c'+i} x={i * cw + cw * 0.15} y={yOf(v)} width={Math.max(1, cw * 0.7)}
+                height={Math.max(0, h - yOf(v))} fill="var(--line-strong)" opacity={.45} />;
+            })
+          : <path d={cmpD + ` L ${w} ${h} L 0 ${h} Z`} fill="var(--line-strong)" opacity={.35} />)}
         {markorer.map((mk, k) => {
-          const x = mk.i * stepX;
+          const x = mx(mk.i);
           const f = HENDELSE_FARGE[mk.type] || HENDELSE_FARGE.annet;
           return (
             <g key={k}>
-              <line x1={x} y1={0} x2={x} y2={h} stroke={f} strokeWidth={1} opacity={.7} />
+              <line x1={x} y1={0} x2={x} y2={h} stroke={f} strokeWidth={1} opacity={.7} vectorEffect="non-scaling-stroke" />
               <circle cx={x} cy={0} r={2.5} fill={f} />
-              {/* Bred, usynlig treffsone — en 1px-strek er umulig å treffe. */}
               <rect x={x - 5} y={0} width={10} height={h} fill="transparent">
                 <title>{mk.tittel ? `${mk.tittel} (${mk.type})` : mk.type}</title>
               </rect>
             </g>
           );
         })}
-        {fill && <path d={fillD} fill={fill} />}
-        <path d={pathD} fill="none" stroke={color || 'currentColor'} strokeWidth={1.2} />
-        {hoverI != null && (
+        {soyler
+          ? values.map((v, i) => (
+              <rect key={i} x={bx(i)} y={yOf(v)} width={bWidth} height={Math.max(0, h - yOf(v))}
+                fill={color || 'currentColor'} opacity={hoverI == null || hoverI === i ? 1 : .55} />
+            ))
+          : <>
+              {fill && <path d={fyllD} fill={fill} />}
+              <path d={linjeD} fill="none" stroke={color || 'currentColor'} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
+            </>}
+        {hoverI != null && !soyler && (
           <g>
-            <line x1={hx} y1={0} x2={hx} y2={h} stroke="var(--ink-soft, #5B5870)" strokeWidth={1} strokeDasharray="3 3" opacity={.55} />
+            <line x1={hx} y1={0} x2={hx} y2={h} stroke="var(--ink-soft, #5B5870)" strokeWidth={1}
+              strokeDasharray="3 3" opacity={.55} vectorEffect="non-scaling-stroke" />
             <circle cx={hx} cy={hy} r={3.5} fill={color || 'currentColor'} stroke="var(--card, #fff)" strokeWidth={1.5} />
           </g>
         )}
       </svg>
       {showAxis && (
-        <div style={{ position:'relative', height: 14, marginTop: 6 }}>
-          {aksePunkter.map((i, k) => (
-            <span key={i} style={{
-              position:'absolute', left: (i * stepX) + 'px', top: 0,
-              transform: k === 0 ? 'none' : k === aksePunkter.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
-              fontSize: 9.5, color:'var(--muted)', whiteSpace:'nowrap',
-            }}>{etikett(i)}</span>
-          ))}
-        </div>
+        <>
+          {/* Min og maks på y — uten dem sier en sparkline ingenting om nivå */}
+          <span className="spark-y" style={{ top: 0 }}>{fmtN(maxV)}</span>
+          <span className="spark-y" style={{ top: h - 12 }}>0</span>
+          <div style={{ position:'relative', height: 14, marginTop: 6 }}>
+            {aksePunkter.map((i, k) => (
+              <span key={i} style={{
+                position:'absolute', left: mx(i) + 'px', top: 0,
+                transform: k === 0 ? 'none' : k === aksePunkter.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+                fontSize: 9.5, color:'var(--muted)', whiteSpace:'nowrap',
+              }}>{etikett(i)}</span>
+            ))}
+          </div>
+        </>
       )}
       {hoverI != null && (
         <div style={{
@@ -429,6 +488,8 @@ window.DASH_GRUPPE_LABEL = DASH_GRUPPE_LABEL;
 window.DASH_GRUPPE_FARGE = DASH_GRUPPE_FARGE;
 window.SMAL_PX = SMAL_PX;
 window.useSmal = useSmal;
+window.okterSidenGradering = okterSidenGradering;
+window.SPARK_SOYLE_GRENSE = SPARK_SOYLE_GRENSE;
 window.HENDELSE_FARGE = HENDELSE_FARGE;
 window.HENDELSE_TYPER = HENDELSE_TYPER;
 window.MemberOpenCtx = MemberOpenCtx;

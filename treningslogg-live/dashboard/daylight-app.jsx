@@ -293,6 +293,10 @@ function App() {
   // medlemsnavn i dashboardet kan åpne den samme profilen (se MemberOpenCtx).
   const [profilId, setProfilId] = useState(null);
   const [snapshots, setSnapshots] = useState(null);
+  // Umatchede oppmøterader sier lite alene — 40 rader kan være to personer.
+  // Antall NAVN er det man faktisk skal rydde i, og det er samme kilde som
+  // avstemmingen bruker.
+  const [umatchedeNavn, setUmatchedeNavn] = useState(null);
   const staticKpis = useKpis();
   const { members, meta, access, okonomi, live, departed, settings, events, actions } = useMembers();
   // Tersklene kommer fra dash_settings. Svarer ikke Sheets (gammel backend,
@@ -325,6 +329,17 @@ function App() {
       .catch(() => { if (levende) setSnapshots([]); });
     return () => { levende = false; };
   }, []);
+
+  // Bare styre — lista inneholder rå oppmøte-navn (også barns), og de skal
+  // ikke hentes til en nettleser som ikke får se dem.
+  useEffect(() => {
+    if (!isStyre) { setUmatchedeNavn(null); return undefined; }
+    let levende = true;
+    Promise.resolve().then(() => actions.unmatchedAttendance())
+      .then(l => { if (levende) setUmatchedeNavn(Array.isArray(l) ? l.length : null); })
+      .catch(() => { if (levende) setUmatchedeNavn(null); });
+    return () => { levende = false; };
+  }, [isStyre]);
 
   useEffect(() => {
     const r = document.documentElement.style;
@@ -381,6 +396,9 @@ function App() {
           {visibleTabs.map(x => (
             <button key={x.id} className={effTab===x.id?'active':''} onClick={()=>velgFane(x.id)}>
               <span className="dot"/>{x.label}
+              {x.id==='data' && isStyre && umatchedeNavn>0 && (
+                <span className="nav-merke" title={`${umatchedeNavn} umatchede navn venter på kobling`}>{umatchedeNavn}</span>
+              )}
             </button>
           ))}
         </div>
@@ -415,10 +433,13 @@ function App() {
           </div>
           <div className="topbar-pills">
             {isStyre && unmatched>0 && (
-              <button className="btn outline sm" onClick={gotoReconcile}
-                title="Oppmøter som ikke er koblet til medlemsregisteret. Klikk for å koble dem nå."
-                style={{borderColor:'var(--coral)', color:'var(--coral)', fontWeight:700}}>
-                ⚠ {unmatched} umatchede — koble nå
+              <button className="pill" onClick={gotoReconcile}
+                title={'Oppmøte-navn som ikke er koblet til medlemsregisteret. '
+                  + (umatchedeNavn != null ? umatchedeNavn + ' navn står bak ' : '')
+                  + unmatched + ' oppmøterader. Klikk for å koble dem.'}
+                style={{border:'none', cursor:'pointer', font:'inherit'}}>
+                <span className="sw" style={{background:'var(--muted)'}}/>
+                {umatchedeNavn != null ? `${umatchedeNavn} navn · ` : ''}{fmtN(unmatched)} oppmøter umatchet
               </button>
             )}
             {(() => {
@@ -458,7 +479,7 @@ function App() {
         {effTab==='trender' && <Trender kpis={kpis} charts={charts} live={live} members={members}
           events={events} snapshots={snapshots} isStyre={isStyre} departed={departed}
           onGotoReconcile={gotoReconcile} q={hashQ} onEndreQ={endreQ}/>}
-        {effTab==='register' && <><Fordelinger kpis={kpis}/><Register/></>}
+        {effTab==='register' && <><Fordelinger kpis={kpis} members={members}/><Register/></>}
         {effTab==='kalender' && <Kalender/>}
         {effTab==='innhold' && <Innhold/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
@@ -611,7 +632,7 @@ function Avstemming() {
   return (
     <>
       <div id="avstemming" className="section-h" style={{scrollMarginTop:80}}>Oppmøte-avstemming<span className="meta">styre · knytt oppmøte til medlemsregisteret</span></div>
-      <Tile title="identitetsbro" corner="avstemming">
+      <Tile title="Identitetsbro" corner="avstemming">
         <div className="dim" style={{fontSize:12, lineHeight:1.6, marginBottom:12}}>
           Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer kobles her én gang (huskes som alias) — eller merkes «Sluttet» hvis det er et tidligere medlem, så forsvinner det fra lista.
           {liveUnmatched>0 && <> <strong style={{color:'var(--coral)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
@@ -714,7 +735,7 @@ function Innhold(){
       {underdekket.length > 0 && (
         <>
         <div className="section-h">Underdekket siste 90 dager<span className="meta">kjernetemaer uten økter</span></div>
-        <Tile title="bør prioriteres" corner="balanse">
+        <Tile title="Bør prioriteres" corner="balanse">
           <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
             {underdekket.map(k => <span key={k} className="tag coral" style={{textTransform:'uppercase',letterSpacing:'.1em'}}>{k}</span>)}
           </div>
@@ -724,7 +745,7 @@ function Innhold(){
       )}
 
       <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · junior / gi / no-gi / åpen matte / taktisk / damer</span></div>
-      <Tile title="grupper" corner="balanse">
+      <Tile title="Grupper" corner="balanse">
         <HBar data={groupData} color="var(--accent)" height={20}/>
         {ukjentGroup && ukjentGroup.sessions > 0 && (
           <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
@@ -734,12 +755,12 @@ function Innhold(){
       </Tile>
 
       <div className="section-h">Posisjoner<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
-      <Tile title="posisjon" corner="position">
+      <Tile title="Posisjon" corner="position">
         <ThemeBars keys={CORE_POS} allMap={allMap} recentMap={recentMap} color="#34B98C"/>
       </Tile>
 
       <div className="section-h">Handlinger<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
-      <Tile title="handling" corner="action">
+      <Tile title="Handling" corner="action">
         <ThemeBars keys={CORE_ACT} allMap={allMap} recentMap={recentMap} color="#F2825F"/>
       </Tile>
     </div>
@@ -768,7 +789,7 @@ function TrendPerGruppe({ live }){
     }).filter(g=>g.total>0).sort((a,b)=>b.total-a.total);
   }, [kw, weeks]);
   if(!groups.length) return (
-    <Tile title="trend pr. gruppe" corner="live">
+    <Tile title="Trend per gruppe" corner="live">
       <div className="dim" style={{fontSize:12}}>Ingen gruppetrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
     </Tile>
   );
@@ -797,7 +818,7 @@ function TrendPerMedlem({ live, members }){
   const rows = React.useMemo(()=>memberTrendRows(live, members, weeks), [live, members, weeks]);
   const [selId, setSelId] = useState('');
   if(!rows.length) return (
-    <Tile title="trend pr. medlem" corner="live">
+    <Tile title="Trend per medlem" corner="live">
       <div className="dim" style={{fontSize:12}}>Ingen medlemstrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
     </Tile>
   );
@@ -813,7 +834,7 @@ function TrendPerMedlem({ live, members }){
   );
   return (
     <>
-      <Tile title="trend pr. medlem" corner="live">
+      <Tile title="Trend per medlem" corner="live">
         <div style={{display:'flex', gap:14, alignItems:'center', marginBottom:12, flexWrap:'wrap'}}>
           <select value={sel.id} onChange={e=>setSelId(e.target.value)}
             style={{padding:'8px 12px', borderRadius:10, border:'1px solid var(--border)', background:'var(--card)', color:'var(--ink)', font:'inherit', fontSize:13}}>
@@ -828,10 +849,10 @@ function TrendPerMedlem({ live, members }){
       </Tile>
       {(opp.length>0 || ned.length>0) && (
         <div className="grid-2" style={{marginTop:16}}>
-          <Tile title="størst fremgang" corner="4 uker vs forrige 4">
+          <Tile title="Størst fremgang" corner="4 uker vs forrige 4">
             {opp.length ? opp.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med fremgang i perioden.</div>}
           </Tile>
-          <Tile title="størst nedgang" corner="4 uker vs forrige 4">
+          <Tile title="Størst nedgang" corner="4 uker vs forrige 4">
             {ned.length ? ned.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med nedgang i perioden.</div>}
           </Tile>
         </div>
@@ -912,14 +933,20 @@ function BunnMeny({ tabs, aktiv, onVelg, merAapen, onMer }) {
 // Fordelinger — var en egen fane («Medlemsstatistikk»). Tallene beskriver
 // registeret, så de hører hjemme over registeret, sammenfoldet: de fleste
 // åpner Medlemmer for å finne én person, ikke for å se en kjønnsfordeling.
-function Fordelinger({ kpis }) {
+function Fordelinger({ kpis, members }) {
   const t = kpis.totals;
   const kvinner = kpis.byKjonn.Kvinne || 0, menn = kpis.byKjonn.Mann || 0;
+  // Samme aktiv-definisjon som mergeLiveKpis: «Ikke aktiv» er en parkert
+  // medlemskapstype i Spond. Registeret inneholder begge, og kortet het
+  // «Aktive» mens det viste alle — nå står det hva det er.
+  const alle = (members || []).length;
+  const parkert = (members || []).filter(m => isInactiveTypeImp(m.medlemstype)).length;
   return (
     <details className="fordelinger">
       <summary>Fordelinger <span className="dim">· belte, alder, kjønn, medlemstype, vekst</span></summary>
       <div className="grid-4" style={{marginTop:16}}>
-        <KPI label="Aktive" value={t.activeMembers} delta={`+${kpis.signupsPerYear[AAR_NA]||0} i ${AAR_NA}`} deltaClass="up" accent="amber"/>
+        <KPI label="I registeret" value={alle || t.activeMembers}
+          delta={`${fmtN(alle ? alle - parkert : t.activeMembers)} aktive · ${fmtN(parkert)} parkert`} accent="amber"/>
         <KPI label="Junior + Knøtte" value={(kpis.byKategori['Junior']||0)+(kpis.byKategori['Knøtte']||0)} delta="9–14 år" accent="green"/>
         <KPI label="Voksen + Student" value={(kpis.byKategori['Voksen']||0)+(kpis.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
         <KPI label="Kvinneandel" value={menn+kvinner ? fmtPct(kvinner/(menn+kvinner)) : '—'} delta={`${kvinner} av ${menn+kvinner}`} accent="coral"/>
@@ -1031,7 +1058,7 @@ function KohortSeksjon({ kpis, charts, departed }) {
   const t = kpis.totals;
   return (
     <>
-      <Tile title="cohort" corner="retention">
+      <Tile title="Kohort" corner="retention">
         <CohortBar cohorts={charts.cohorts} color1="#34B98C" color2="rgba(242,130,95,.35)"/>
         <div style={{display:'flex', gap:14, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:14}}>
           <span><span style={{display:'inline-block',width:8,height:8,background:'#34B98C',marginRight:6}}/>fortsatt aktive</span>
@@ -1058,7 +1085,7 @@ function KohortSeksjon({ kpis, charts, departed }) {
       </div>
 
       <div className="section-h">Deaktiveringer pr. år</div>
-      <Tile title="churn" corner="annual">
+      <Tile title="Deaktiveringer per år" corner="annual">
         <HBar data={Object.entries(kpis.deactPerYear).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({label:k, value:v}))} color="#C45838" height={22}/>
         <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>
           {departed && departed.fra
@@ -1076,7 +1103,7 @@ function Funnel({ kpis, live, isStyre, onGotoReconcile }) {
   const convUnreliable = !(conv.converted > 0);
   const unmatched = (live && live.unmatched) ? live.unmatched : 0;
   return (
-    <Tile title="funnel" corner="conversion">
+    <Tile title="Konvertering" corner="conversion">
       <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'center', flexWrap:'wrap'}}>
         <div style={{flex:1, minWidth:130}}>
           <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 1 — intro-kurs</div>
@@ -1113,11 +1140,23 @@ function Funnel({ kpis, live, isStyre, onGotoReconcile }) {
   );
 }
 
+// Søylegrafene vokser mot høyre. Uten dette starter de på 2021 og man må
+// dra for å finne inneværende måned — som er den man alltid vil se først.
+function useHoyreScroll(deps) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth;
+  }, deps);
+  return ref;
+}
+
 function Okonomi({ kpis, charts }) {
   const t = kpis.totals;
   const { okonomi, okonomiActions } = useMembers();
   const [impOpen, setImpOpen] = useState(false);
-  const [trendMonths, setTrendMonths] = useState(24);
+  // ÉN periodevelger for hele fanen. Før hadde «Samlet inntekt» og
+  // «Inntektstrend» hver sin, og de kunne stå på ulike perioder samtidig —
+  // to grafer over samme tall som ikke var sammenlignbare.
   const [samletMnd, setSamletMnd] = useState(24);
   // Vipps-utsalg (merch) — lastes separat via samme styre-skjermede rute.
   const [vipps, setVipps] = useState(null);
@@ -1134,8 +1173,19 @@ function Okonomi({ kpis, charts }) {
   const ok = okonomi;
   const latestKey = ok && ok.keys.length ? ok.keys[ok.keys.length-1] : null;
   const latest = latestKey ? ok.months[latestKey] : null;
-  const shownKeys = ok ? (trendMonths === 'all' ? ok.keys : ok.keys.slice(-trendMonths)) : [];
-  const maxNet = shownKeys.length ? Math.max(1, ...shownKeys.map(k=>ok.months[k].netto)) : 1;
+  // Netto pr. aktivt medlem: siste HELE måned (inneværende er halvferdig og
+  // ville sett ut som et fall hver eneste måned).
+  const forrigeYm = (() => {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  })();
+  const sisteHele = ok && ok.months[forrigeYm] ? ok.months[forrigeYm] : null;
+  const aktive = kpis.totals.activeMembers;
+  // Refene lages her, i komponentkroppen: inni IIFE-ene under ligger de bak
+  // tidlige return-er, og en hook som noen ganger kalles og noen ganger ikke
+  // er en sikker vei til «Rendered more hooks than during the previous render».
+  const samletRef = useHoyreScroll([samletMnd, ok && ok.keys.length, vipps && vipps.months.length]);
+  const vippsRef = useHoyreScroll([vStream, vipps && vipps.months.length]);
   return (
     <div>
       {(() => {
@@ -1159,6 +1209,39 @@ function Okonomi({ kpis, charts }) {
         const kontP = sumP('kont'), butP = sumP('but'), divP = sumP('div');
         const totP = kontP + butP + divP;
         const perLabel = samletMnd === 'all' ? 'hele perioden' : `siste ${samletMnd} mnd`;
+        // Varesalg = 0 kan bety tre forskjellige ting, og de skal ikke se like
+        // ut. Enten er ingenting importert, eller så ligger de importerte
+        // månedene utenfor den valgte perioden, eller så er det faktisk null
+        // salg. Bare det siste er et ekte nulltall.
+        const vareInfo = (() => {
+          const iPerioden = butP + divP;
+          if (iPerioden > 0) return { harTall: true, tekst: '', kort: '' };
+          if (!vipps) return { harTall: false, kort: 'laster …', tekst: '' };
+          if (!vm.length) return {
+            harTall: false, kort: 'ingen Vipps-import ennå',
+            tekst: 'Ingen Vipps-data er importert. Last ned oppgjørsrapport (.csv) fra portal.vipps.no og bruk «Importer Vipps» nedenfor.',
+          };
+          const vMaaneder = vm.map(m => m.month).sort();
+          const vNetto = vm.reduce((a, m) => a + m.netto, 0);
+          const utenfor = vMaaneder[vMaaneder.length - 1] < shown[0];
+          if (utenfor) return {
+            harTall: false, kort: `data fram til ${monthLabel(vMaaneder[vMaaneder.length - 1])}`,
+            tekst: `Vipps-dataene dekker ${monthLabel(vMaaneder[0])} → ${monthLabel(vMaaneder[vMaaneder.length - 1])}, `
+              + `som er utenfor valgt periode (${perLabel}). Velg «Alt» for å se dem.`,
+          };
+          if (vNetto === 0) return {
+            harTall: false, kort: 'importert, men alle beløp er 0',
+            tekst: `${vm.length} Vipps-måneder er importert, men summerer til 0 kr. `
+              + 'Oppgjørsrapporten teller bare rader der Type = «Belastning» og skiller butikk på '
+              + 'Betalingsløsning = «Handlekurv» — stemmer ikke kolonnenavnene i eksporten, blir alt 0. '
+              + 'Sjekk overskriftsraden i CSV-fila og importer på nytt.',
+          };
+          return {
+            harTall: false, kort: 'ingen salg i perioden',
+            tekst: `Vipps-data finnes (${monthLabel(vMaaneder[0])} → ${monthLabel(vMaaneder[vMaaneder.length - 1])}), `
+              + 'men ingen av månedene i valgt periode har salg.',
+          };
+        })();
         const SEG = [
           { f:'div',  farge:'var(--amber)',  navn:'Diverse (historisk Vipps)' },
           { f:'but',  farge:'var(--accent)', navn:'Butikk (Vipps)' },
@@ -1177,14 +1260,30 @@ function Okonomi({ kpis, charts }) {
                 </span>
               </span>
             </div>
-            <div className="grid-4">
-              <KPI label="Samlet" value={fmtN(Math.round(totP))} unit=" kr" delta={perLabel} accent="green"/>
-              <KPI label="Kontingent" value={fmtN(Math.round(kontP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="blue"/>
-              <KPI label="Varesalg" value={fmtN(Math.round(butP+divP))} unit=" kr" delta={`butikk ${fmtN(Math.round(butP))} · diverse ${fmtN(Math.round(divP))}`} accent="coral"/>
+            {vareInfo.tekst && (
+              <div className="dim" style={{fontSize:11.5, lineHeight:1.6, margin:'0 2px 10px'}}>{vareInfo.tekst}</div>
+            )}
+            <div className={vareInfo.harTall ? 'grid-4' : 'grid-3'}>
+              {vareInfo.harTall ? (
+                <>
+                  <KPI label="Samlet" value={fmtN(Math.round(totP))} unit=" kr" delta={perLabel} accent="green"/>
+                  <KPI label="Kontingent" value={fmtN(Math.round(kontP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="blue"/>
+                  <KPI label="Varesalg" value={fmtN(Math.round(butP+divP))} unit=" kr" delta={`butikk ${fmtN(Math.round(butP))} · diverse ${fmtN(Math.round(divP))}`} accent="coral"/>
+                </>
+              ) : (
+                <>
+                  {/* Uten varesalg i perioden er «Samlet» og «Kontingent» samme
+                      tall to ganger. Da vises ett kort, og varesalget står som
+                      «—» med grunnen — ikke som 0, som ville lest som «vi solgte
+                      ingenting». */}
+                  <KPI label="Samlet (kun kontingent)" value={fmtN(Math.round(totP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="green"/>
+                  <KPI label="Varesalg" value="—" delta={vareInfo.kort} accent="coral"/>
+                </>
+              )}
               <KPI label="Snitt pr. måned" value={shown.length ? fmtN(Math.round(totP/shown.length)) : '—'} unit=" kr" delta={`${shown.length} mnd med data`} accent="amber"/>
             </div>
-            <Tile title="samlet pr. måned" corner="stablet">
-              <div className="okbars">
+            <Tile title="Samlet per måned" corner="stablet">
+              <div className="okbars" ref={samletRef}>
                 {shown.map(k=>{
                   const b = byYm[k];
                   const segs = SEG.filter(s=>b[s.f]>0);
@@ -1218,48 +1317,22 @@ function Okonomi({ kpis, charts }) {
       })()}
 
       <div className="section-h" style={{marginTop:26}}>Faktiske utbetalinger<span className="meta">importert fra Spond · netto etter avgifter</span></div>
-      {!ok ? <Tile title="laster">…</Tile> : (
+      {!ok ? <Tile title="Laster">…</Tile> : (
       <>
       <div className="grid-4">
         <KPI label={latest? 'Netto · '+monthLabel(latestKey):'Netto'} value={latest?fmtN(latest.netto):'—'} unit=" kr" delta={latest?`${latest.antall} betalinger`:'ingen data'} accent="green"/>
         <KPI label="Brutto" value={latest?fmtN(latest.brutto):'—'} unit=" kr" delta="før avgifter" accent="amber"/>
         <KPI label="Spond-avgifter" value={latest?fmtN(latest.avgifter):'—'} unit=" kr" delta={latest&&latest.brutto?fmtPct(latest.avgifter/latest.brutto,1):''} deltaClass="down" accent="coral"/>
-        <KPI label="Måneder i trend" value={ok.keys.length} delta={ok.keys.length>1 ? monthLabel(ok.keys[0])+' → '+monthLabel(latestKey) : 'importer flere for trend'} accent="blue"/>
+        <KPI label="Netto pr. aktivt medlem" value={sisteHele && aktive ? fmtN(sisteHele.netto/aktive) : '—'}
+          unit={sisteHele && aktive ? ' kr/mnd' : ''}
+          delta={sisteHele && aktive ? `${monthLabel(forrigeYm)} · ${fmtN(aktive)} aktive`
+            : 'ingen tall for siste hele måned'} accent="blue"/>
       </div>
-
-      <div className="section-h" style={{marginTop:26}}>Inntektstrend
-        <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
-          <span className="chips">
-            {[['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
-              <button key={v} className={'chip'+(String(trendMonths)===v?' active':'')}
-                onClick={()=>setTrendMonths(v==='all'?'all':Number(v))}>{l}</button>
-            ))}
-          </span>
-          <button className="btn primary sm" onClick={()=>setImpOpen(true)}>Importer økonomi</button>
-        </span>
-      </div>
-      <Tile title="netto pr. måned" corner="faktisk">
-        {shownKeys.length>0 ? (
-          <div className="okbars">
-            {shownKeys.map(k=>(
-              <div key={k} className="okbar">
-                <div className="okbar-v tabular">{fmtN(ok.months[k].netto/1000)}k</div>
-                <div className="okbar-track"><div className="okbar-fill" style={{height:(ok.months[k].netto/maxNet)*100+'%'}}/></div>
-                <div className="okbar-l" title={monthLabel(k)}>
-                  {MND_NO[parseInt(String(k).slice(5,7),10)-1]}
-                  {(String(k).slice(5,7)==='01' || k===shownKeys[0]) ? ' ’'+String(k).slice(2,4) : ''}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : <div className="muted" style={{padding:24}}>Ingen importerte måneder ennå. Klikk «Importer økonomi».</div>}
-        {ok.keys.length===1 && <div className="dim" style={{fontSize:11,marginTop:14,lineHeight:1.6}}>Bare én måned importert så langt — last opp flere Spond-eksporter (én pr. måned) for å bygge trenden over tid.</div>}
-      </Tile>
 
       {latest && Object.keys(latest.byKategori).length>0 && (
         <>
         <div className="section-h" style={{marginTop:26}}>Inntekt pr. kategori<span className="meta">{monthLabel(latestKey)} · netto</span></div>
-        <Tile title="netto pr. medlemstype" corner="kategori">
+        <Tile title="Netto per medlemstype" corner="kategori">
           <HBar data={Object.entries(latest.byKategori).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k, value:v}))} color="var(--green)" height={20}/>
         </Tile>
         </>
@@ -1293,7 +1366,7 @@ function Okonomi({ kpis, charts }) {
               </span>
             </div>
             {vm.length === 0 ? (
-              <Tile title="utsalg" corner="vipps">
+              <Tile title="Utsalg" corner="vipps">
                 <div className="muted" style={{padding:24, fontSize:13, lineHeight:1.7}}>
                   Ingen Vipps-data importert ennå. Last ned <strong>oppgjørsrapport (.csv)</strong> og <strong>salgsrapport (.xlsx)</strong> fra portal.vipps.no for hele perioden, og klikk «Importer Vipps».
                 </div>
@@ -1306,9 +1379,9 @@ function Okonomi({ kpis, charts }) {
                   <KPI label="Snitt pr. ordre" value={antallYr ? fmtN(Math.round(nettoYr/antallYr)) : '—'} unit=" kr" accent="blue"/>
                   <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken hele perioden" accent="amber"/>
                 </div>
-                <Tile title={`netto pr. måned · ${VIPPS_STREAM_LABEL[vStream].toLowerCase()}`} corner="vipps">
+                <Tile title={`Netto per måned · ${VIPPS_STREAM_LABEL[vStream].toLowerCase()}`} corner="vipps">
                   {shown.length > 0 ? (
-                    <div className="okbars">
+                    <div className="okbars" ref={vippsRef}>
                       {shown.map(m=>(
                         <div key={m.month} className="okbar">
                           <div className="okbar-v tabular">{fmtN(Math.round(m.netto/100)/10)}k</div>
@@ -1326,7 +1399,7 @@ function Okonomi({ kpis, charts }) {
                 {vp.length > 0 && (
                   <>
                     <div className="section-h" style={{marginTop:26}}>Hva selger<span className="meta">vippsbutikken · hele perioden · brutto</span></div>
-                    <Tile title="produkttopp" corner="salgsrapport">
+                    <Tile title="Produkttopp" corner="salgsrapport">
                       <HBar data={vp.slice(0,12).map(p=>({label:`${p.navn} · ${p.antall} stk`, value:p.belop}))} color="var(--accent)" height={20}/>
                     </Tile>
                   </>
@@ -1350,7 +1423,7 @@ function Okonomi({ kpis, charts }) {
         <KPI label="Betalende medlemmer" value={charts.pricing.filter(p=>p.monthly>0).reduce((s,p)=>s+p.count,0)} delta={`av ${t.activeMembers} aktive`} accent="coral"/>
       </div>
       <div className="section-h">Inntekt pr. medlemstype</div>
-      <Tile title="pricing breakdown" corner="mrr">
+      <Tile title="Inntekt per medlemstype" corner="mrr">
         <table className="t">
           <thead><tr><th>Medlemstype</th><th className="num">Antall</th><th className="num">Pris/mnd</th><th className="num">MRR</th><th className="num">Andel</th></tr></thead>
           <tbody>
