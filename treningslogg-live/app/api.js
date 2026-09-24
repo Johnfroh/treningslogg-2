@@ -2,18 +2,16 @@
 // Inkapsulerer all kommunikasjon med Apps Script-backenden.
 // Brukes av mobile.jsx i stedet for localStorage.
 //
-// Konfigurasjon:
-//   1. Sett ENDPOINT til din Apps Script Web App URL.
-//   2. Sett TOKEN til samme verdi som SHARED_TOKEN i Code.gs.
+// Nøkkelen mot Apps Script ligger IKKE her: proxyen (functions/api.js)
+// legger den på fra Cloudflare-miljøet, så den aldri når nettleseren.
 
 window.TL_API = (function () {
   // ─── Konfigurasjon ──────────────────────────────────────────────
   // Vi proxyer Apps Script-kall via /api så det blir same-origin —
   // ellers blokkerer iOS PWA standalone-mode cross-origin-requestene
   // til script.google.com. Proxy-en ligger i functions/api.js og
-  // forwarder query-params + body uendret til Apps Script.
+  // forwarder query-params + body til Apps Script med nøkkelen lagt på.
   const ENDPOINT = '/api';
-  const TOKEN    = 'bjj-Hk8nQ2wT-2026';
 
   // Lokal lese-cache (raskere åpning, ikke source of truth).
   const CACHE_KEY = 'treningslogg-cache-v1';
@@ -38,7 +36,6 @@ window.TL_API = (function () {
     const base = (typeof window !== 'undefined') ? window.location.origin : 'http://localhost';
     const url = new URL(ENDPOINT, base);
     url.searchParams.set('action', action);
-    url.searchParams.set('token', TOKEN);
     url.searchParams.set('_ts', Date.now().toString());
     if (extraParams) {
       Object.entries(extraParams).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -56,7 +53,7 @@ window.TL_API = (function () {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, token: TOKEN }),
+      body: JSON.stringify(body),
       cache: 'no-store',
     });
     if (!res.ok) throw new Error('POST ' + body.action + ' failed: ' + res.status);

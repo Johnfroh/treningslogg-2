@@ -15,11 +15,27 @@
  */
 
 // ─── Konfigurasjon ─────────────────────────────────────────────────
-// Delt token mellom frontend og Apps Script. Må være identisk med
-// TOKEN i app/api.js og API_TOKEN i fotball/app-core.js.
-// Tokenet er andre forsvarslinje — primærbeskyttelsen er Cloudflare
-// Access foran løft.app. (Roadmap: flytt til Cloudflare env-variabel.)
-const SHARED_TOKEN = 'bjj-Hk8nQ2wT-2026';
+// Nøkkelen mellom Cloudflare-proxyen og Apps Script ligger IKKE i koden.
+// Repoet er offentlig, så en nøkkel her er en nøkkel for alle. Den ligger i
+// Script Properties (Prosjektinnstillinger → Skriptegenskaper) under navnet
+// SHARED_TOKEN, og samme verdi i Cloudflare Pages som APPS_SCRIPT_TOKEN.
+// Nettleseren ser den aldri — proxyen legger den på.
+// Lag/bytt nøkkel: kjør _lagNyNokkel() fra editoren.
+// Mangler nøkkelen, avvises ALLE kall (trygg standard).
+function sharedToken_() {
+  return PropertiesService.getScriptProperties().getProperty('SHARED_TOKEN') || '';
+}
+
+// Kjør manuelt fra editoren. Lager en ny tilfeldig nøkkel, lagrer den i
+// Script Properties og skriver den i loggen, så du kan lime den inn i
+// Cloudflare (APPS_SCRIPT_TOKEN). Den gamle nøkkelen slutter å virke
+// umiddelbart — appene er nede til Cloudflare har fått den nye.
+function _lagNyNokkel() {
+  const nokkel = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty('SHARED_TOKEN', nokkel);
+  Logger.log('Ny nøkkel lagret i Script Properties. Kopier denne til Cloudflare som APPS_SCRIPT_TOKEN:');
+  Logger.log(nokkel);
+}
 
 const SHEET_NAMES = {
   sessions: 'sessions',
@@ -124,7 +140,8 @@ function handle(e, method) {
     const action = params.action || body.action;
     const token  = params.token  || body.token;
 
-    if (token !== SHARED_TOKEN) {
+    const forventet = sharedToken_();
+    if (!forventet || token !== forventet) {
       return json({ ok: false, error: 'unauthorized' });
     }
 
@@ -528,8 +545,37 @@ function _setupAttendanceMemberId() {
 // ─── Dashboard (/dashboard) ────────────────────────────────────────
 
 function dashList() {
-  return { members: dashReadMembers(), meta: dashGetMeta(), live: dashLiveOppmote(),
+  return { members: dashReadMembers().map(dashMaskMember_), meta: dashGetMeta(), live: dashLiveOppmote(),
     departed: dashDepartedStats() };
+}
+
+// ─── Personvern: maskering av mindreårige ──────────────────────────
+// Barn sendes kun som «Fornavn E.», uten kontakt, adresse og fødselsdato.
+// Dette skjer HER, før data forlater serveren — maskMember() i
+// dashboard/api.js er bare en ekstra vakt. Belte, gradering og oppmøte
+// beholdes. Samme regel for hvem som er mindreårig som i api.js.
+function dashIsMinor_(m) {
+  return m.minor === true || m.kategori === 'Junior' || m.kategori === 'Knøtte'
+    || (m.alder != null && m.alder !== '' && Number(m.alder) < 16);
+}
+function dashKortNavn_(fornavn, etternavn, navn) {
+  const deler = String(navn || '').trim().split(/\s+/).filter(Boolean);
+  const f = String(fornavn || '').trim() || deler[0] || 'Medlem';
+  const e = String(etternavn || '').trim() || (deler.length > 1 ? deler[deler.length - 1] : '');
+  return (f + (e ? ' ' + e.charAt(0).toUpperCase() + '.' : '')).trim();
+}
+function dashMaskMember_(m) {
+  if (!dashIsMinor_(m)) return m;
+  const kort = dashKortNavn_(m.fornavn, m.etternavn, m.navn);
+  return Object.assign({}, m, {
+    minor: true,
+    fornavn: kort.split(' ')[0],
+    etternavn: '',
+    navn: kort,
+    epost: '', mobil: '', adresse: '', postnr: '', poststed: '',
+    fodselsdato: null,
+    foresatte: [],
+  });
 }
 
 // Per-medlem deltagelse fra attendance↔sessions, nøklet på memberId.
@@ -1131,8 +1177,8 @@ function dashDepartedStats() {
   const perYear = {};
   let fra = '';
   // Radene sendes med, ikke bare summene: rapporten skal kunne liste HVEM som
-  // sluttet i en valgt periode, ikke bare hvor mange. Mindreårige maskeres av
-  // api.js på lesesiden, som ellers.
+  // sluttet i en valgt periode, ikke bare hvor mange. Barn sendes som
+  // «Fornavn E.», som i dashMaskMember_.
   const liste = [];
   rows.forEach(r => {
     const d = ymd(r.sluttet);
@@ -1140,8 +1186,10 @@ function dashDepartedStats() {
     const y = d.slice(0, 4);
     perYear[y] = (perYear[y] || 0) + 1;
     if (!fra || d < fra) fra = d;
+    const kat = String(r.kategori || '');
+    const barn = kat === 'Junior' || kat === 'Knøtte';
     liste.push({
-      id: String(r.id), navn: String(r.navn || ''), kategori: String(r.kategori || ''),
+      id: String(r.id), navn: barn ? dashKortNavn_('', '', r.navn) : String(r.navn || ''), kategori: kat,
       innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: d,
     });
   });

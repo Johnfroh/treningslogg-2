@@ -16,15 +16,15 @@ Hver gang `Code.gs` endres i repoet, MÅ du:
    manuelt fra editor-dropdownen (f.eks. `_setupBmSheets`).
 6. Test: åpne appen og verifiser at lasting og lagring virker.
 
-`SHARED_TOKEN` i repoets Code.gs er nå synkronisert med klient-koden, så
-innliming overskriver ikke lenger tokenet med en plassholder.
+Nøkkelen (`SHARED_TOKEN`) ligger i Script Properties, ikke i Code.gs, så
+innliming rører den ikke.
 
 ## Deploy første gang (15 minutter)
 
 1. Lag eller åpne Sheets-fila som skal være database (se `../SHEETS-MAL.md` for struktur).
 2. **Extensions** → **Apps Script**.
 3. Slett standard `Code.gs`-innholdet og lim inn `Code.gs` fra denne mappa.
-4. Endre `SHARED_TOKEN` på linje 23 til noe ingen vil gjette. Husk denne — du skal bruke samme verdi i `app/api.js`.
+4. Kjør `_lagNyNokkel` fra dropdownen. Kopier nøkkelen fra loggen inn i Cloudflare Pages som `APPS_SCRIPT_TOKEN` (type Secret).
 5. Lagre (disk-ikon eller Cmd+S).
 6. **Run** → velg funksjonen `_testSetupSheets` → **Run**. Aksepter tilganger første gang. Alle nødvendige ark blir opprettet med riktige headers.
 7. **Deploy** → **New deployment**.
@@ -55,7 +55,7 @@ Apps Script bruker versjonering. Hver gang du endrer `Code.gs`:
 
 | Symptom | Årsak | Løsning |
 |---|---|---|
-| `unauthorized` | Token mismatch | Sjekk at `SHARED_TOKEN` i Code.gs matcher `TOKEN` i app/api.js og `API_TOKEN` i fotball/app-core.js |
+| `unauthorized` | Nøkkel mangler/ulik | `SHARED_TOKEN` i Script Properties må være lik `APPS_SCRIPT_TOKEN` i Cloudflare Pages. Bytt begge med `_lagNyNokkel()` |
 | `unknown action: …` | Gammel kode deployet | Du har limt inn ny kode, men ikke deployet ny versjon (se ⚠️ øverst) |
 | `Authorization is required` | Første kjøring | Run `_testSetupSheets` manuelt fra editoren og aksepter tilganger |
 | CORS-feil i konsollen | Ingen — Apps Script-deployments med "Anyone" støtter CORS | Sjekk at deployment er Web app, ikke API executable |

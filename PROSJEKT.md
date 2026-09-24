@@ -178,7 +178,7 @@ Cloudflare Zero Trust Access, to applikasjoner:
 
 Login: One-Time PIN via e-post, 1 måned session. Default-deny — adresser som ikke står på listen får ikke engang en PIN.
 
-`SHARED_TOKEN` i Apps Script er andre forsvarslinje, ikke eneste forsvar. Står i klartekst i `app/api.js` og `fotball/app-core.js` (klient-kode) og må matche `SHARED_TOKEN` i `Code.gs`. Repo-versjonen av Code.gs har riktig verdi for å unngå at innliming overskriver tokenet.
+Nøkkelen mot Apps Script ligger kun i Script Properties (`SHARED_TOKEN`) og Cloudflare Pages (`APPS_SCRIPT_TOKEN`). Proxyen legger den på; frontend og repo har den ikke. Innliming av Code.gs rører ikke Script Properties, så nøkkelen overlever oppdateringer.
 
 ---
 

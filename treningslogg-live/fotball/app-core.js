@@ -33,13 +33,11 @@ function ico(name){ return '<svg viewBox="0 0 24 24" fill="none" stroke="current
 
 /* ---------- API-klient ---------- */
 var API_URL   = '/fotball/api';
-var API_TOKEN = 'bjj-Hk8nQ2wT-2026';
 var USER      = '';  // single-user nå; fylles ut når flere brukere kommer på
 
 function apiGet(action, extra){
   var u = new URL(API_URL, location.origin);
   u.searchParams.set('action', action);
-  u.searchParams.set('token',  API_TOKEN);
   u.searchParams.set('_ts',    Date.now().toString());
   if (extra) Object.keys(extra).forEach(function(k){ u.searchParams.set(k, extra[k]); });
   return fetch(u.toString(), { cache: 'no-store' }).then(function(r){
@@ -51,7 +49,6 @@ function apiGet(action, extra){
   });
 }
 function apiPost(body){
-  body.token = API_TOKEN;
   return fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },

@@ -41,8 +41,15 @@ Send gjerne fila med SendUserFile samtidig.
 
 - Produksjon deployer fra `main`; arbeid skjer på feature-branch og
   brukeren merger PR selv. Minn brukeren på merge når endringer skal testes live.
-- `SHARED_TOKEN` i Code.gs skal være identisk med `TOKEN` i `app/api.js`
-  og `API_TOKEN` i `fotball/app-core.js`. Ikke gjeninnfør plassholder.
+- **Repoet er offentlig.** Nøkkelen mot Apps Script står ALDRI i koden:
+  den ligger i Script Properties (`SHARED_TOKEN`) og i Cloudflare Pages
+  (`APPS_SCRIPT_TOKEN`, type Secret). Proxyen (`functions/_lib/proxy.js`)
+  legger den på — frontend sender ingen nøkkel. Bytt med `_lagNyNokkel()`.
+- Tilgang håndheves i proxyen, ikke i frontend: `/fotball/api` slipper bare
+  `bm*`, `/api` avviser økonomi og krever styre-e-post for handlingene i
+  `STYRE_HANDLINGER` (`functions/api.js`). Nye handlinger som skriver
+  felles data eller er styre-only skal inn der. Barn maskeres i Code.gs
+  (`dashMaskMember_`) før data sendes.
 - Lint: `eslint treningslogg-live/ functions/` (flat-config i repo-rot,
   ingen npm install nødvendig). 0 errors før commit.
 - Grupper i datamodellen: `junior / gi / nogi / åpen matte / taktisk / damer`

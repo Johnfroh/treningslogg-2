@@ -212,6 +212,7 @@ module.exports = [
       globals: {
         SpreadsheetApp: 'readonly',
         ScriptApp: 'readonly',
+        PropertiesService: 'readonly',
         ContentService: 'readonly',
         Logger: 'readonly',
         Utilities: 'readonly',
