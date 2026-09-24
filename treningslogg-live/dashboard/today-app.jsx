@@ -21,7 +21,7 @@ const TD_UTSETT_DAGER = 30;
 // skade, en eksamen eller en ferie — en telefon holder. Over åtte uker er
 // det sjelden et oppmøteproblem lenger, men et medlemskap som må avklares,
 // og da er det en annen samtale og en annen liste.
-const TD_BORTE_UKER = 8;
+const TD_BORTE_UKER = 8;   // speiles av DASH_BORTE_UKER i Code.gs (ukesnapshot)
 // Hvor mange rader en liste viser før «Vis alle». Seks rader er omtrent det
 // man rekker å gjøre noe med i én økt.
 const TD_MAKS_RADER = 6;

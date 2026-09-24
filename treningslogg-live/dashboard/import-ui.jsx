@@ -3,7 +3,8 @@
 const { useState: useSi } = React;
 
 function ImportModal({ onClose }){
-  const { members, actions } = useMembers();
+  const { members, actions, loadError } = useMembers();
+  const [bekreft, setBekreft] = useSi(false);
   const [busy, setBusy] = useSi(false);
   const [err, setErr] = useSi('');
   const [parsed, setParsed] = useSi(null);   // { members, format }
@@ -15,7 +16,9 @@ function ImportModal({ onClose }){
 
   async function handleFile(file){
     if(!file) return;
-    setErr(''); setBusy(true); setParsed(null); setDiff(null);
+    if(loadError){ setErr('Registeret kunne ikke lastes, så importen er sperret. Last siden på nytt og prøv igjen.'); return; }
+    if(!Array.isArray(members)){ setErr('Registeret lastes fortsatt — vent et øyeblikk og prøv igjen.'); return; }
+    setErr(''); setBusy(true); setParsed(null); setDiff(null); setBekreft(false);
     try {
       const res = await window.parseMemberFile(file);
       if(!res.members.length) throw new Error('Fant ingen medlemmer i fila.');
@@ -28,13 +31,16 @@ function ImportModal({ onClose }){
   async function apply(){
     setBusy(true);
     try {
-      const summary = await actions.importRoster(parsed.members);
+      const summary = await actions.importRoster(parsed.members, storAvgang && bekreft);
       setDone(summary);
     } catch(e){ setErr(e.message || 'Import feilet.'); }
     setBusy(false);
   }
 
   const hasBelt = parsed && /Belte-CSV/.test(parsed.format);
+  // Samme grense som dashImportRoster i Code.gs.
+  const antFor = (members || []).length;
+  const storAvgang = !!diff && antFor >= 10 && diff.removed.length / antFor > 0.2;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -106,9 +112,21 @@ function ImportModal({ onClose }){
                 : <>Belter og graderingshistorikk <strong>beholdes</strong> for de {diff.matched.length} som matcher. Bare kontakt- og medlemsinfo oppdateres.</>}
             </div>
 
+            {storAvgang && (
+              <div className="import-err">
+                <strong>{diff.removed.length} av {antFor} medlemmer forsvinner.</strong> Det er som regel feil fil
+                (ett parti eller en filtrert eksport). De som fjernes mister belte og graderingshistorikk.
+                <label style={{display:'flex', gap:8, alignItems:'center', marginTop:8}}>
+                  <input type="checkbox" checked={bekreft} onChange={e=>setBekreft(e.target.checked)}/>
+                  Jeg har sjekket fila — de har faktisk sluttet
+                </label>
+              </div>
+            )}
+            {err && <div className="import-err">{err}</div>}
+
             <div className="modal-foot">
-              <button className="btn ghost" onClick={()=>{ setParsed(null); setDiff(null); }}>Velg en annen fil</button>
-              <button className="btn primary" onClick={apply}>Bruk import ({parsed.members.length} medlemmer)</button>
+              <button className="btn ghost" onClick={()=>{ setParsed(null); setDiff(null); setErr(''); }}>Velg en annen fil</button>
+              <button className="btn primary" disabled={busy || !!loadError || (storAvgang && !bekreft)} onClick={apply}>Bruk import ({parsed.members.length} medlemmer)</button>
             </div>
           </div>
         )}

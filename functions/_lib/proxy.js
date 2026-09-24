@@ -38,13 +38,17 @@ export async function readRequest(request) {
   return { url, bodyText, action, contentType: request.headers.get('Content-Type') };
 }
 
-export async function forwardToAppsScript(req, method, env) {
+// bruker: innlogget e-post fra Cloudflare Access (whoIs), eller ''. Sendes
+// som _bruker og er det Apps Script lagrer som «endret av» — en verdi
+// klienten selv sender under samme navn blir alltid fjernet først.
+export async function forwardToAppsScript(req, method, env, bruker) {
   const token = env && env.APPS_SCRIPT_TOKEN;
   if (!token) {
     return jsonResponse({ ok: false, error: 'APPS_SCRIPT_TOKEN mangler i Cloudflare-miljøet' }, 500);
   }
   const upstream = new URL(appsScriptUrl(env));
-  req.url.searchParams.forEach((v, k) => { if (k !== 'token') upstream.searchParams.set(k, v); });
+  req.url.searchParams.forEach((v, k) => { if (k !== 'token' && k !== '_bruker') upstream.searchParams.set(k, v); });
+  if (bruker) upstream.searchParams.set('_bruker', String(bruker).toLowerCase());
   // Code.gs leser query-token før body-token, så denne vinner uansett hva
   // klienten har lagt i body.
   upstream.searchParams.set('token', token);

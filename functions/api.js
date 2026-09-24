@@ -28,9 +28,11 @@ export async function onRequest(context) {
   if (BARE_VIA_OKONOMI.test(req.action)) {
     return jsonResponse({ ok: false, error: 'forbidden' }, 403);
   }
-  if (STYRE_HANDLINGER.has(req.action)) {
-    const who = await whoIs(request, env);
-    if (!who.isStyre) return jsonResponse({ ok: false, error: 'forbidden: kun styret' }, 403);
+  // Skriving: slå opp hvem det er, både for styre-sjekken og for «endret av».
+  let who = null;
+  if (request.method === 'POST' || STYRE_HANDLINGER.has(req.action)) who = await whoIs(request, env);
+  if (STYRE_HANDLINGER.has(req.action) && !(who && who.isStyre)) {
+    return jsonResponse({ ok: false, error: 'forbidden: kun styret' }, 403);
   }
-  return forwardToAppsScript(req, request.method, env);
+  return forwardToAppsScript(req, request.method, env, who && who.email);
 }
