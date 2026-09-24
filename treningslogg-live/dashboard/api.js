@@ -11,10 +11,10 @@
 // når frontend med annet enn fornavn — uansett hva som ligger lagret.
 
 window.DASH_API = (function () {
-  // Samme proxy/token som trener-appen (app/api.js). Proxyen ligger i
-  // functions/api.js og forwarder uendret til Apps Script.
+  // Samme proxy som trener-appen (app/api.js). Proxyen ligger i
+  // functions/api.js og legger på nøkkelen mot Apps Script — den står
+  // aldri i nettleseren. Styre-handlinger sjekkes der, ikke bare her.
   const ENDPOINT = '/api';
-  const TOKEN = 'bjj-Hk8nQ2wT-2026';
 
   // Driftsterskler for «I dag»-listene. Sannheten ligger i dash_settings
   // (Sheets); dette er kun det dashboardet faller tilbake på når Sheets ikke
@@ -53,7 +53,6 @@ window.DASH_API = (function () {
     const base = (typeof window !== 'undefined') ? window.location.origin : 'http://localhost';
     const url = new URL(ENDPOINT, base);
     url.searchParams.set('action', action);
-    url.searchParams.set('token', TOKEN);
     url.searchParams.set('_ts', Date.now().toString());
     if (extra) Object.entries(extra).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
@@ -68,7 +67,7 @@ window.DASH_API = (function () {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, token: TOKEN }),
+      body: JSON.stringify(body),
       cache: 'no-store',
     });
     if (!res.ok) throw await httpFeil('POST ' + body.action, res);
@@ -82,7 +81,7 @@ window.DASH_API = (function () {
   const OK_ENDPOINT = 'okonomi';
   async function okGet(action) {
     const res = await fetch(OK_ENDPOINT + '?action=' + encodeURIComponent(action)
-      + '&token=' + encodeURIComponent(TOKEN) + '&_ts=' + Date.now(), { cache: 'no-store' });
+      + '&_ts=' + Date.now(), { cache: 'no-store' });
     if (res.status === 403) throw new Error('forbidden');
     if (!res.ok) throw await httpFeil('GET ' + action, res);
     const json = await res.json();
@@ -93,7 +92,7 @@ window.DASH_API = (function () {
     const res = await fetch(OK_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, token: TOKEN }),
+      body: JSON.stringify(body),
       cache: 'no-store',
     });
     if (res.status === 403) throw new Error('forbidden');

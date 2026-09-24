@@ -12,7 +12,10 @@ const { useState: useDp, useEffect: useDpEffect } = React;
 
 // Importkildene, i den rekkefølgen de henger sammen i praksis.
 const DP_KILDER = [
-  { key:'roster',  navn:'Medlemmer',    meta:'rosterImportedAt',
+  // skriveStyre: alle ser ferskheten, men bare styret kan importere —
+  // importen overskriver registeret og graderingshistorikken, og /api
+  // avviser den for andre (functions/api.js).
+  { key:'roster',  navn:'Medlemmer',    meta:'rosterImportedAt', skriveStyre:true,
     fil:'Spond-eksport (.xlsx / .csv)', teller:m=>m.rosterCount && m.rosterCount+' medl.' },
   { key:'oppmote', navn:'Oppmøte',      meta:'attendanceImportedAt',
     fil:'Spond ukesoppmøte (.xlsx)', teller:()=>'' },
@@ -86,7 +89,9 @@ function ImportOversikt({ meta, isStyre }){
                      : <span style={{color:'var(--coral)'}}>aldri importert</span>}
                 </td>
                 <td style={{textAlign:'right', whiteSpace:'nowrap'}}>
-                  <button className="btn outline sm" onClick={()=>setApen(k.key)}>Importer</button>
+                  {k.skriveStyre && !isStyre
+                    ? <span className="dim" style={{fontSize:11.5}}>Kun styret</span>
+                    : <button className="btn outline sm" onClick={()=>setApen(k.key)}>Importer</button>}
                   {k.key==='oppmote' &&
                     <button className="btn ghost sm" style={{marginLeft:6}} onClick={()=>setApen('rydd')}>Rydd opp</button>}
                 </td>
