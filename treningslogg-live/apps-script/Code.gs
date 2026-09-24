@@ -131,6 +131,7 @@ function doPost(e) {
 }
 
 function handle(e, method) {
+  let laas = null;
   try {
     const params = (e && e.parameter) || {};
     let body = {};
@@ -139,10 +140,24 @@ function handle(e, method) {
     }
     const action = params.action || body.action;
     const token  = params.token  || body.token;
+    // Innlogget e-post, satt av Cloudflare-proxyen fra Access — ikke av
+    // nettleseren. Dette er «endret av» i innstillinger og oppfølging.
+    const bruker = String(params._bruker || '');
 
     const forventet = sharedToken_();
     if (!forventet || token !== forventet) {
       return json({ ok: false, error: 'unauthorized' });
+    }
+
+    // All skriving går som POST. Flere skrivehandlinger tømmer et ark og
+    // skriver det på nytt (import, innstillinger, avgang), så to samtidige
+    // skriv kan slette hverandres rader. Låsen tar dem én om gangen.
+    if (method === 'POST') {
+      laas = LockService.getScriptLock();
+      if (!laas.tryLock(25000)) {
+        laas = null;
+        return json({ ok: false, error: 'Opptatt med en annen lagring — prøv igjen om litt' });
+      }
     }
 
     switch (action) {
@@ -164,7 +179,7 @@ function handle(e, method) {
       case 'dashList':          return json({ ok: true, data: dashList() });
       case 'dashGrade':         return json({ ok: true, data: dashGrade(body.events) });
       case 'dashUndoLast':      return json({ ok: true, data: dashUndoLast(body.memberId) });
-      case 'dashImportRoster':  return json({ ok: true, data: dashImportRoster(body.members) });
+      case 'dashImportRoster':  return json({ ok: true, data: dashImportRoster(body.members, body.bekreftStorAvgang === true) });
       case 'rosterLite':        return json({ ok: true, data: rosterLite() });
       case 'reconcileAttendance': return json({ ok: true, data: reconcileAttendance() });
       case 'dashUnmatched':     return json({ ok: true, data: dashUnmatchedAttendance() });
@@ -180,14 +195,14 @@ function handle(e, method) {
       case 'dashImportOkonomi': return json({ ok: true, data: dashImportOkonomi(body.months) });
       // Innstillinger, snapshots, hendelser og oppfølging (/dashboard)
       case 'dashSettingsGet':   return json({ ok: true, data: dashSettingsGet() });
-      case 'dashSettingsSet':   return json({ ok: true, data: dashSettingsSet(body.values, body.av) });
+      case 'dashSettingsSet':   return json({ ok: true, data: dashSettingsSet(body.values, bruker) });
       case 'dashSnapshotsList': return json({ ok: true, data: dashSnapshotsList() });
       case 'dashSnapshotNow':   return json({ ok: true, data: dashSnapshotNow() });
       case 'dashEventsList':    return json({ ok: true, data: dashEventsList() });
       case 'dashEventAdd':      return json({ ok: true, data: dashEventAdd(body.event) });
       case 'dashEventDelete':   return json({ ok: true, data: dashEventDelete(body.id) });
       case 'dashFollowupList':  return json({ ok: true, data: dashFollowupList() });
-      case 'dashFollowupAdd':   return json({ ok: true, data: dashFollowupAdd(body.row) });
+      case 'dashFollowupAdd':   return json({ ok: true, data: dashFollowupAdd(Object.assign({}, body.row, { av: bruker })) });
       case 'dashVippsList':     return json({ ok: true, data: dashVippsList() });
       case 'dashVippsImport':   return json({ ok: true, data: dashVippsImport(body) });
 
@@ -196,6 +211,8 @@ function handle(e, method) {
     }
   } catch (err) {
     return json({ ok: false, error: String((err && err.message) || err) });
+  } finally {
+    if (laas) laas.releaseLock();
   }
 }
 
@@ -860,7 +877,9 @@ function dashLiveOppmote() {
     if (wk) {
       weekly[wk] = (weekly[wk] || 0) + cnt;
       sessionWeekly[wk] = (sessionWeekly[wk] || 0) + 1;
-      const grp = String(s.group || '').trim() || 'ukjent';
+      // Kanonisk gruppe, som i kalenderen — ellers blir gamle økter med
+      // «grunnleggende» e.l. egne «grupper» og faller ut av gruppefilteret.
+      const grp = dashNormGroup_(s.group, s.title);
       const gw = gruppeWeekly[grp] || (gruppeWeekly[grp] = {});
       const cell = gw[wk] || (gw[wk] = { okter: 0, oppmote: 0 });
       cell.okter++; cell.oppmote += cnt;
@@ -1082,8 +1101,24 @@ function dashUpdateCurrent(id, cur) {
 
 // Full overskriving av register + graderingslogg fra klientens sammenslåtte
 // liste (klienten har gjort diff/merge og bevart historikk for matchede).
-function dashImportRoster(members) {
+// Vern: forsvinner mer enn 20 % av et register på minst 10, er det mye
+// oftere feil fil (ett parti, filtrert eksport) enn ekte avgang. Da avvises
+// importen til brukeren har bekreftet i importvinduet — ellers ville
+// registeret og graderingshistorikken bli overskrevet.
+const DASH_STOR_AVGANG_ANDEL = 0.2;
+function dashImportRoster(members, bekreftStorAvgang) {
   if (!Array.isArray(members)) throw new Error('members må være array');
+  if (!members.length) throw new Error('Importen er tom — registeret er ikke endret.');
+  if (!bekreftStorAvgang) {
+    const naa = {};
+    members.forEach(m => { if (m && m.id) naa[String(m.id)] = true; });
+    const forrige = dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS).filter(r => r.id);
+    const borte = forrige.filter(r => !naa[String(r.id)]).length;
+    if (forrige.length >= 10 && borte / forrige.length > DASH_STOR_AVGANG_ANDEL) {
+      throw new Error('Stor avgang: ' + borte + ' av ' + forrige.length
+        + ' medlemmer ville blitt fjernet. Sjekk at fila er hele medlemslista, og bekreft i importvinduet om det stemmer.');
+    }
+  }
   // Før registeret overskrives: noter hvem som forsvant, og fjern dem som er
   // tilbake. Dette er eneste sted vi kan se det — etterpå er de borte.
   const avgang = dashTrackDepartures(members);
@@ -1356,10 +1391,8 @@ function dashSettingsGet() {
 }
 
 // Skriver bare nøkler som finnes i DASH_SETTING_DEFAULTS.
-// Tilgangsstyringen er frontend-side i denne omgangen: bare styre ser
-// lagre-knappen. Apps Script kjenner ikke den innloggede Access-brukeren
-// (headere når ikke fram gjennom proxyen), så «av» er det klienten oppgir
-// og kan ikke brukes som bevis på hvem som endret hva.
+// Bare styret slipper gjennom (functions/api.js, STYRE_HANDLINGER). «av» er
+// e-posten proxyen leste fra Cloudflare Access — ikke noe klienten oppgir.
 function dashSettingsSet(values, av) {
   if (!values || typeof values !== 'object') throw new Error('values må være objekt');
   const cur = dashSettingsGet();
@@ -1411,6 +1444,19 @@ function dashLastMondays_(n, naa) {
   }
   return out;
 }
+// «Borte»-grensen i «I dag» — speiler TD_BORTE_UKER i today-app.jsx.
+const DASH_BORTE_UKER = 8;
+
+// Økter siden en dato, talt i hele kalendermåneder fra og med datoens måned.
+// Speiler okterSidenGradering() i dashboard-shared.jsx.
+function dashOkterSiden_(mnd, fraIso) {
+  if (!mnd) return 0;
+  const fraYm = /^\d{4}-\d{2}-\d{2}$/.test(String(fraIso || '')) ? String(fraIso).slice(0, 7) : '';
+  let n = 0;
+  Object.keys(mnd).forEach(ym => { if (!fraYm || ym >= fraYm) n += mnd[ym]; });
+  return n;
+}
+
 // Fire uker som slutter endOffset uker før slutten av serien — speiler sum4().
 function dashSum4_(arr, endOffset) {
   return arr.slice(arr.length - endOffset - 4, arr.length - endOffset)
@@ -1435,8 +1481,13 @@ function dashKategoriFraType_(t) {
 // bruker, ellers forteller historikken noe annet enn skjermen:
 //   aktive / per_kategori / per_belte / intro_aktive → mergeLiveKpis()
 //     i daylight-app.jsx (parkerte medlemskap filtreres bort)
-//   stille / graderingsklare / fallende → today-app.jsx (regnes på HELE
-//     registeret, ikke bare de aktive — akkurat som i frontend)
+//   stille / graderingsklare / fallende → Today() i today-app.jsx (regnes
+//     på HELE registeret, ikke bare de aktive — akkurat som i frontend):
+//     · stille: uten introkurs, mellom stilleUker og DASH_BORTE_UKER
+//       (de som er borte lenger er en egen liste i «I dag», ikke «stille»)
+//     · graderingsklare: økter SIDEN SIST GRADERING (okterSidenGradering()
+//       i dashboard-shared.jsx, månedsbøtter), ikke alle oppmøter noensinne
+//     · fallende: uten introkurs, og uten dem som står i stille ELLER borte
 //   fallende → memberTrendRows() i dashboard-shared.jsx
 // Samme speiling som for gruppene (dashNormGroup_): endrer du én side,
 // endre den andre.
@@ -1463,25 +1514,33 @@ function dashSnapshotCompute_(naa) {
     perBelte[belt] = (perBelte[belt] || 0) + 1;
   });
 
-  const stille = members.filter(m => {
-    const d = dagerSiden(m.oppmote && m.oppmote.sisteOppmote);
-    return d != null && d >= cfg.stilleUker * 7;
+  const utenIntro = members.filter(m => m.kategori !== 'Introkurs');
+  const sistSett = m => dagerSiden(m.oppmote && m.oppmote.sisteOppmote);
+  const stille = utenIntro.filter(m => {
+    const d = sistSett(m);
+    return d != null && d >= cfg.stilleUker * 7 && d < DASH_BORTE_UKER * 7;
   });
+  const borte = utenIntro.filter(m => {
+    const d = sistSett(m);
+    return d != null && d >= DASH_BORTE_UKER * 7;
+  });
+  const mm = live.memberMonthly || {};
   const graderingsklare = members.filter(m => {
     const g = m.grading && m.grading.current;
     if (!g || g.belt === 'Sort') return false;
-    const ck = (m.oppmote && m.oppmote.checkins) || 0;
     const md = dagerSiden(g.since);
-    return ck >= cfg.gradMinOppmote && md != null && md >= cfg.gradMinMnd * 30;
+    if (md == null || md < cfg.gradMinMnd * 30) return false;
+    return dashOkterSiden_(mm[m.id], g.since) >= cfg.gradMinOppmote;
   });
 
   const uker = dashLastMondays_(26, nu);
   const mw = live.memberWeekly || {};
-  const stilleIds = {}; stille.forEach(m => { stilleIds[m.id] = true; });
-  const iRegisteret = {}; members.forEach(m => { iRegisteret[m.id] = true; });
+  const utelatt = {};
+  stille.concat(borte).forEach(m => { utelatt[m.id] = true; });
+  const iLista = {}; utenIntro.forEach(m => { iLista[m.id] = true; });
   let fallende = 0;
   Object.keys(mw).forEach(id => {
-    if (!iRegisteret[id] || stilleIds[id]) return;
+    if (!iLista[id] || utelatt[id]) return;
     const serie = uker.map(w => mw[id][w] || 0);
     const last4 = dashSum4_(serie, 0), prev4 = dashSum4_(serie, 4);
     if (last4 < prev4 && prev4 >= cfg.fallendeMinPrev4) fallende++;
@@ -1538,7 +1597,13 @@ function dashSnapshotNow() { return dashTakeSnapshot_(); }
 
 // Trigger-håndtak. Ikke gi denne understrek-suffiks — Apps Script kaller
 // trigger-funksjoner ved navn.
-function dashSnapshotWeekly() { return dashTakeSnapshot_(); }
+// Tar samme lås som skrivekallene i handle(), så en import som pågår
+// mandag kl. 06 ikke kolliderer med snapshotet.
+function dashSnapshotWeekly() {
+  const laas = LockService.getScriptLock();
+  laas.waitLock(60000);
+  try { return dashTakeSnapshot_(); } finally { laas.releaseLock(); }
+}
 
 // Kjør manuelt én gang fra editoren. Fjerner en eventuell eksisterende
 // trigger for samme funksjon først, så gjentatte kjøringer ikke stabler opp

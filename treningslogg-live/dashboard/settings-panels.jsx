@@ -8,11 +8,8 @@
    tall som gjaldt. Nå ligger de i dash_settings (Sheets) og leses av alle.
 
    Tilgang: ALLE kan se verdiene — det er selve poenget at tersklene er
-   synlige. Bare styre (isStyre) får lagre. Det er frontend-gating: Apps
-   Script ser ikke den innloggede Access-brukeren, så et direkte kall mot
-   /api med riktig token kan fortsatt skrive. Arket ligger bak Cloudflare
-   Access, så det er godt nok i denne omgangen; ekte serverside-sjekk hører
-   sammen med en egen skjermet rute (slik økonomi har).
+   synlige. Bare styre (isStyre) ser lagre-knappen, og proxyen
+   (functions/api.js, STYRE_HANDLINGER) avviser lagring fra andre.
 
    Bruker globale useMembers, HENDELSE_TYPER, HENDELSE_FARGE, fmtN, fmtDate. */
 const { useState: useSt, useEffect: useStEffect } = React;

@@ -195,7 +195,9 @@ window.DASH_API = (function () {
     grade(events) { return post({ action: 'dashGrade', events }); },
     undoLast(memberId) { return post({ action: 'dashUndoLast', memberId }); },
     // members: ferdig sammenslått register (full, umaskert — lagres bak Access).
-    importRoster(members) { return post({ action: 'dashImportRoster', members }); },
+    importRoster(members, bekreftStorAvgang) {
+      return post({ action: 'dashImportRoster', members, bekreftStorAvgang: bekreftStorAvgang === true });
+    },
     // Oppmøte-avstemming (identitetsbro mot dash_members).
     reconcileAttendance() { return post({ action: 'reconcileAttendance' }); },
     unmatchedAttendance() { return get('dashUnmatched'); },

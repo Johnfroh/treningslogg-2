@@ -71,6 +71,10 @@ function MembersProvider({ children }) {
   const [events, setEvents] = React.useState(null);
   const [followup, setFollowup] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
+  // Feilmelding når registeret ikke kunne lastes. Da er members [] — og en
+  // import mot et tomt register ville gjort alle til «nye» med hvitt belte.
+  // Importen sperres så lenge denne er satt.
+  const [loadError, setLoadError] = React.useState('');
 
   const reload = React.useCallback(() => {
     setLoading(true);
@@ -102,10 +106,12 @@ function MembersProvider({ children }) {
         setSettings(innst);
         setEvents(hendelser || []);
         setFollowup(oppfolging || []);
+        setLoadError('');
       });
     })
       .catch(e => {
         console.warn('[dashboard] kunne ikke laste data:', e.message);
+        setLoadError(e.message || 'ukjent feil');
         setMembers([]);
         setOkonomi({ months: {}, keys: [] });
       })
@@ -159,8 +165,13 @@ function MembersProvider({ children }) {
     overridesCount() { return 0; },
 
     // ---- månedlig register-import ----
-    importRoster(incoming) {
-      const cur = members || [];
+    // bekreftStorAvgang: brukeren har sett og godtatt at mange forsvinner
+    // (backend avviser ellers importen — se dashImportRoster i Code.gs).
+    importRoster(incoming, bekreftStorAvgang) {
+      if (loadError || !Array.isArray(members)) {
+        return Promise.reject(new Error('Registeret er ikke lastet — last siden på nytt før du importerer.'));
+      }
+      const cur = members;
       const { matched, added, removed } = diffRoster(cur, incoming);
       const matchMap = new Map(matched.map(x => [x.incoming, x.existing]));
       const usedIds = new Set();
@@ -178,7 +189,7 @@ function MembersProvider({ children }) {
         const oppmote = ex ? ex.oppmote : (im.oppmote || { checkins: 0, invitert: null, pct: null, sisteOppmote: null });
         result.push({ ...im, id, grading, oppmote });
       }
-      return DASH_API.importRoster(result).then(reload)
+      return DASH_API.importRoster(result, bekreftStorAvgang).then(reload)
         .then(() => ({ added: added.length, updated: matched.length, removed: removed.length, total: result.length }));
     },
     rosterActive() { return true; },
@@ -236,7 +247,7 @@ function MembersProvider({ children }) {
     importedCount() { return (okonomi && okonomi.keys) ? okonomi.keys.length : 0; },
   };
 
-  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, departed, access, loading,
+  return React.createElement(MembersCtx.Provider, { value: { members, byId, actions, okonomi, okonomiActions, meta, live, departed, access, loading, loadError,
       settings, events, followup } }, children);
 }
 

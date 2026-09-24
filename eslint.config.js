@@ -213,6 +213,7 @@ module.exports = [
         SpreadsheetApp: 'readonly',
         ScriptApp: 'readonly',
         PropertiesService: 'readonly',
+        LockService: 'readonly',
         ContentService: 'readonly',
         Logger: 'readonly',
         Utilities: 'readonly',

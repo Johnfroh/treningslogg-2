@@ -31,5 +31,5 @@ export async function onRequest(context) {
   if (!who.isStyre) return jsonResponse({ ok: false, error: 'forbidden' }, 403);
   if (!TILLATT.test(req.action)) return jsonResponse({ ok: false, error: 'ukjent økonomi-handling' }, 400);
 
-  return forwardToAppsScript(req, request.method, env);
+  return forwardToAppsScript(req, request.method, env, who.email);
 }
