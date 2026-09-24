@@ -116,7 +116,7 @@ module.exports = [
         HBar: 'readonly', Spark: 'readonly', Donut: 'readonly',
         CohortBar: 'readonly',
         MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
-        lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly',
+        lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly', innmeldinger: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
         okterSidenGradering: 'readonly', SPARK_SOYLE_GRENSE: 'readonly',
         DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',

@@ -259,8 +259,12 @@ function mergeLiveKpis(kpis, members, departed){
   // grunnlaget løfter vi innmeldingstallet opp til kohorten: det er et gulv vi
   // vet er sant, og det retter særlig inneværende år, som grunnlaget ble
   // frosset midt inne i. Tidligere år beholder sitt historiske tall.
+  // Innmeldinger pr. år = nåværende + de som har sluttet siden sporingen
+  // startet (innmeldinger()). Fortsatt et gulv for år før sporingen.
   const signups={...(kpis.signupsPerYear||{})};
-  Object.keys(cohort).forEach(y=>{ if(cohort[y] > (signups[y]||0)) signups[y]=cohort[y]; });
+  const innPerAar={};
+  innmeldinger(members, departed).forEach(m=>{ const y=m.innmeldingsdato.slice(0,4); innPerAar[y]=(innPerAar[y]||0)+1; });
+  Object.keys(innPerAar).forEach(y=>{ if(innPerAar[y] > (signups[y]||0)) signups[y]=innPerAar[y]; });
   // Avgang: det statiske grunnlaget stopper der kpis.json ble laget. Alt som er
   // registrert i dash_departed etter det legges oppå. Radene er nøklet på
   // medlems-id, så en ny import teller ikke de samme personene på nytt.

@@ -101,6 +101,27 @@ const sum4 = (arr, endOffset) => arr.slice(arr.length - endOffset - 4, arr.lengt
 // bare det ene stedet dette ut, og et nytt sted ville fort ha regnet litt
 // annerledes. `medlem` er det maskerte registeret-objektet, eller null for
 // oppmøte som ikke er koblet til et medlem.
+// Alle innmeldinger vi kjenner: nåværende medlemmer + de som har sluttet
+// (dash_departed). Registeret alene har bare dem som fortsatt er medlem, så
+// «nye medlemmer» bakover i tid ble for lavt. Nøkkel id+dato: en som meldte
+// seg inn, sluttet og kom tilbake, har to innmeldinger — begge er ekte.
+// Avganger før sporingen startet finnes ikke, så tall langt bakover er
+// fortsatt et gulv.
+function innmeldinger(members, departed) {
+  const sett = {};
+  const ut = [];
+  const legg = (id, dato, kategori) => {
+    if (!/^\d{4}-\d{2}-\d{2}/.test(String(dato || ''))) return;
+    const k = id + '|' + String(dato).slice(0, 10);
+    if (sett[k]) return;
+    sett[k] = true;
+    ut.push({ id, innmeldingsdato: String(dato).slice(0, 10), kategori: kategori || '' });
+  };
+  (members || []).forEach(m => legg(m.id, m.innmeldingsdato, m.kategori));
+  ((departed && departed.rows) || []).forEach(r => legg(r.id, r.innmeldingsdato, r.kategori));
+  return ut;
+}
+
 function memberTrendRows(live, members, weeks) {
   const mw = (live && live.memberWeekly) || null;
   if (!mw) return [];
@@ -497,6 +518,7 @@ window.useMemberOpen = useMemberOpen;
 window.MemberLink = MemberLink;
 window.lastMondays = lastMondays;
 window.sum4 = sum4;
+window.innmeldinger = innmeldinger;
 window.memberTrendRows = memberTrendRows;
 window.HBar = HBar;
 window.Spark = Spark;

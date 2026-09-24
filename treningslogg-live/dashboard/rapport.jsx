@@ -400,7 +400,8 @@ const MR_RENDER = {
   },
   sluttet(d){
     const rader=d.sluttet.map(r=>
-      `<tr><td>${mrEsc(mrDagMnd(r.sluttet))}</td><td><strong>${mrEsc(mrNavn(r))}</strong></td>` +
+      `<tr><td>${mrEsc(mrDagMnd(r.sluttet))}</td><td><strong>${mrEsc(mrNavn(r))}</strong>` +
+      (r.gjeninnmeldt ? ` <span class="dim">· tilbake ${mrEsc(mrDagMnd(r.gjeninnmeldt))}</span>` : '') + `</td>` +
       `<td class="dim">${mrEsc(r.kategori||'')}</td>` +
       `<td class="num dim">${mrEsc(r.innmeldingsdato? mrSiden(r.innmeldingsdato).replace(' siden',''):'—')}</td></tr>`).join('');
     const note=d.sluttetFra
@@ -583,11 +584,11 @@ const MR_TABELL = {
       mrDagerSiden(r.sistGradert), r.okterSiden, r.avkortet?'ja':'nei'].concat(r.trend)),
   }),
   sluttet: d => ({
-    kolonner:['Registrert sluttet','Navn','Kategori','Innmeldt','Dager som medlem'],
+    kolonner:['Registrert sluttet','Navn','Kategori','Innmeldt','Dager som medlem','Meldt seg inn igjen'],
     rader:d.sluttet.map(r=>{
       const inn=mrDato(r.innmeldingsdato), ut=mrDato(r.sluttet);
       const dager=(inn && ut)? Math.round((new Date(ut)-new Date(inn))/86400000) : '';
-      return [ut, mrNavn(r), r.kategori||'', inn, dager];
+      return [ut, mrNavn(r), r.kategori||'', inn, dager, mrDato(r.gjeninnmeldt)||''];
     }),
   }),
   okonomi: d => ({
