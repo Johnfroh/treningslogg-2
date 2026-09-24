@@ -61,6 +61,8 @@ function ImportModal({ onClose }){
               <div className="muted" style={{fontSize:13, lineHeight:1.7}}>
                 <strong style={{color:'var(--green)'}}>{done.added}</strong> nye · <strong style={{color:'var(--blue)'}}>{done.updated}</strong> oppdatert · <strong style={{color:'var(--coral)'}}>{done.removed}</strong> fjernet<br/>
                 Registeret har nå <strong>{done.total}</strong> medlemmer.
+                {done.gjeninnmeldt>0 && <><br/><strong>{done.gjeninnmeldt}</strong> har meldt seg inn igjen
+                  {done.beltGjenopprettet>0 && <> — belte og graderingshistorikk hentet tilbake for {done.beltGjenopprettet}</>}.</>}
               </div>
             </div>
             <div className="modal-foot"><button className="btn primary" onClick={onClose}>Ferdig</button></div>
@@ -101,7 +103,7 @@ function ImportModal({ onClose }){
             )}
             {diff.removed.length>0 && (
               <div className="import-list">
-                <button className="il-head" onClick={()=>setShowRemoved(v=>!v)}>{showRemoved?'▾':'▸'} Fjernes — mister beltehistorikk ({diff.removed.length})</button>
+                <button className="il-head" onClick={()=>setShowRemoved(v=>!v)}>{showRemoved?'▾':'▸'} Fjernes — registreres som sluttet, beltehistorikken arkiveres ({diff.removed.length})</button>
                 {showRemoved && <div className="il-body">{diff.removed.map((m,i)=><span key={i} className="il-name gone">{m.navn}</span>)}</div>}
               </div>
             )}
@@ -115,7 +117,7 @@ function ImportModal({ onClose }){
             {storAvgang && (
               <div className="import-err">
                 <strong>{diff.removed.length} av {antFor} medlemmer forsvinner.</strong> Det er som regel feil fil
-                (ett parti eller en filtrert eksport). De som fjernes mister belte og graderingshistorikk.
+                (ett parti eller en filtrert eksport). De som fjernes registreres som sluttet i dag.
                 <label style={{display:'flex', gap:8, alignItems:'center', marginTop:8}}>
                   <input type="checkbox" checked={bekreft} onChange={e=>setBekreft(e.target.checked)}/>
                   Jeg har sjekket fila — de har faktisk sluttet

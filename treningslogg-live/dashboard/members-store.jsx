@@ -189,8 +189,10 @@ function MembersProvider({ children }) {
         const oppmote = ex ? ex.oppmote : (im.oppmote || { checkins: 0, invitert: null, pct: null, sisteOppmote: null });
         result.push({ ...im, id, grading, oppmote });
       }
-      return DASH_API.importRoster(result, bekreftStorAvgang).then(reload)
-        .then(() => ({ added: added.length, updated: matched.length, removed: removed.length, total: result.length }));
+      return DASH_API.importRoster(result, bekreftStorAvgang)
+        .then(svar => reload().then(() => svar || {}))
+        .then(svar => ({ added: added.length, updated: matched.length, removed: removed.length, total: result.length,
+          gjeninnmeldt: svar.gjeninnmeldt || 0, beltGjenopprettet: svar.beltGjenopprettet || 0 }));
     },
     rosterActive() { return true; },
     clearRoster() { return reload(); },

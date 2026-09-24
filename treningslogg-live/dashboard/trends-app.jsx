@@ -123,12 +123,12 @@ function oktSerie(live, r, gruppe) {
 }
 const sumSerie = (serie) => serie.reduce((s, e) => s + e[1], 0);
 
-// Nye medlemskap i perioden, pr. måned. Registeret har bare NÅVÆRENDE
-// medlemmer, så tall bakover i tid er et gulv: de som meldte seg inn og
-// sluttet igjen er borte. Det står i tooltipen på kortet.
-function nyeSerie(members, r) {
+// Nye medlemskap i perioden, pr. måned — nåværende medlemmer pluss dem som
+// har sluttet siden avgangssporingen startet (innmeldinger()). Før det er
+// tallet fortsatt et gulv. Det står i tooltipen på kortet.
+function nyeSerie(members, r, departed) {
   const per = {};
-  (members || []).forEach(m => {
+  innmeldinger(members, departed).forEach(m => {
     const d = m.innmeldingsdato;
     if (!iRange(d, r)) return;
     const k = String(d).slice(0, 7);
@@ -349,8 +349,8 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   const serieC = useTrMemo(() => (rc ? ukeserie(kpis, live, rc, gruppe) : null), [kpis, live, rc, gruppe]);
   const okt = useTrMemo(() => oktSerie(live, r, gruppe), [live, r, gruppe]);
   const oktC = useTrMemo(() => (rc ? oktSerie(live, rc, gruppe) : null), [live, rc, gruppe]);
-  const nye = useTrMemo(() => nyeSerie(members, r), [members, r]);
-  const nyeC = useTrMemo(() => (rc ? nyeSerie(members, rc) : null), [members, rc]);
+  const nye = useTrMemo(() => nyeSerie(members, r, departed), [members, r, departed]);
+  const nyeC = useTrMemo(() => (rc ? nyeSerie(members, rc, departed) : null), [members, rc, departed]);
 
   const sumOkt = s => s.reduce((a, e) => a + e[1].okter, 0);
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
@@ -380,7 +380,9 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   const INTRO_MIN_FOR_PROSENT = 5;
   const introTall = (rr) => {
     if (!rr) return null;
-    const inn = (members || []).filter(m => iRange(m.innmeldingsdato, rr));
+    // Med dem som har sluttet: en introdeltaker som aldri fortsatte står
+    // ikke i registeret lenger, men skal telle i «av».
+    const inn = innmeldinger(members, departed).filter(m => iRange(m.innmeldingsdato, rr));
     if (!inn.length) return null;
     return { fast: inn.filter(m => m.kategori !== 'Introkurs').length, av: inn.length };
   };
@@ -420,7 +422,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
           onKlikk={til('tr-gruppe')} serie={okt.map(e => [e[0], e[1].okter])} />
         <TrendKort label="Nye medlemskap" verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
           forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
-          hint="Innmeldingsdato i registeret. Registeret har bare nåværende medlemmer, så tall bakover i tid er et gulv — de som meldte seg inn og sluttet igjen er ikke med."
+          hint="Innmeldingsdato for nåværende medlemmer og for dem som har sluttet siden avgangssporingen startet. Før det er tallet et gulv — de som meldte seg inn og sluttet igjen da, er ikke med."
           onKlikk={til('tr-kohort')} serie={nye} />
         <TrendKort label="Intro → fast"
           verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}

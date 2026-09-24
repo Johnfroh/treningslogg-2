@@ -104,9 +104,12 @@ const DASH_VIPPS_COLS = ['month','stream','brutto','gebyr','netto','antall','upd
 const DASH_VIPPS_PROD_COLS = ['navn','antall','belop','updatedAt'];
 // dash_meta: nøkkel/verdi for import-metadata (sist importert, antall …).
 const DASH_META_COLS = ['key','value'];
-// dash_departed: én rad per medlem som har falt ut av registeret. 'sluttet' er
-// datoen importen først savnet dem — ikke nødvendigvis datoen de faktisk sluttet.
-const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt'];
+// dash_departed: én rad per AVGANG (ikke per person). 'sluttet' er datoen
+// importen først savnet dem — ikke nødvendigvis datoen de faktisk sluttet.
+// 'gjeninnmeldt' settes når personen dukker opp igjen; raden blir stående,
+// så avgangen fortsatt teller i churn for det året. Slutter de igjen, blir
+// det en ny rad.
+const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt','gjeninnmeldt'];
 // dash_settings: nøkkel/verdi for driftsterskler + hvem som endret sist.
 const DASH_SETTINGS_COLS = ['key','value','oppdatert','av'];
 // dash_snapshots: én rad pr. ISO-uke. Kun aggregater — ingen navn, ingen
@@ -438,6 +441,16 @@ function dashMemberIndex() {
   const rows = dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS)
     .filter(o => o.id !== '' && o.id != null);
   const byId = {}, bySlug = {}, byNavn = {};
+  // Tidligere medlemmer først, så nåværende overskriver ved navnelikhet. Da
+  // kobles gammelt oppmøte fortsatt til riktig person etter at de har
+  // sluttet, i stedet for å bli «umatchet» og falle ut av historikken.
+  dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).forEach(o => {
+    if (!o.id) return;
+    const id = String(o.id);
+    byId[id] = true;
+    const navn = String(o.navn || '');
+    if (navn) { bySlug[dashSlug(navn)] = id; byNavn[navn.toLowerCase().trim()] = id; }
+  });
   rows.forEach(o => {
     const id = String(o.id);
     byId[id] = true;
@@ -892,6 +905,12 @@ function dashLiveOppmote() {
   const idx = dashMemberIndex();
   const roster = {};
   rosterLite().forEach(m => { roster[m.id] = m; });
+  // Kategorien de hadde da de sluttet. Uten denne havnet oppmøtet til alle
+  // som har sluttet på «Ukjent» — også bakover i tid, så kurvene endret seg.
+  const tidligereKat = {};
+  dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).forEach(r => {
+    if (r.id && r.kategori) tidligereKat[String(r.id)] = String(r.kategori);
+  });
   // «Mest dedikerte» = nåværende medlemmer, talt fra faktiske oppmøte-rader.
   // Umatchede navn (typisk tidligere medlemmer) holdes utenfor leaderboarden,
   // men telles som unmatched (med mindre de er merket som sluttet).
@@ -929,7 +948,7 @@ function dashLiveOppmote() {
     // Ukeserier for trendene i dashboardet — kun register-koblede oppmøter.
     const wkm = ISO_DATE.test(date) ? dashMonday(date) : '';
     if (wkm) {
-      const kat = (rm && rm.kategori) || 'Ukjent';
+      const kat = (rm && rm.kategori) || tidligereKat[id] || 'Ukjent';
       const kw = kategoriWeekly[kat] || (kategoriWeekly[kat] = {});
       kw[wkm] = (kw[wkm] || 0) + 1;
       const mwk = memberWeekly[id] || (memberWeekly[id] = {});
@@ -940,7 +959,9 @@ function dashLiveOppmote() {
       if (!attFrom || date < attFrom) attFrom = date;
     }
   });
-  const leaderboard = Object.keys(byMember).map(k => byMember[k])
+  // Bare nåværende medlemmer — de som har sluttet er med i kurvene, men ikke
+  // på toppen (og uten registeroppslag ville barn stått med fullt navn).
+  const leaderboard = Object.keys(byMember).filter(k => roster[k]).map(k => byMember[k])
     .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
 
   return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched,
@@ -1119,16 +1140,49 @@ function dashImportRoster(members, bekreftStorAvgang) {
         + ' medlemmer ville blitt fjernet. Sjekk at fila er hele medlemslista, og bekreft i importvinduet om det stemmer.');
     }
   }
-  // Før registeret overskrives: noter hvem som forsvant, og fjern dem som er
+  // Beltehistorikk for dem som IKKE er med i denne importen, leses før
+  // arket tømmes. Den skrives tilbake (arkivet), så den finnes hvis de
+  // melder seg inn igjen. Klienten sender bare historikk for nåværende
+  // medlemmer — uten dette ble alle som sluttet nullstilt for godt.
+  const iImporten = {};
+  members.forEach(m => { if (m && m.id) iImporten[String(m.id)] = true; });
+  const iRegisteret = {};
+  dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS).forEach(r => { if (r.id) iRegisteret[String(r.id)] = true; });
+  const arkiv = {};   // memberId → [rad, …] i DASH_GRADING_COLS-rekkefølge
+  dashRows(SHEET_NAMES.dashGrading, DASH_GRADING_COLS).forEach(r => {
+    const id = String(r.memberId || '');
+    if (!id || iRegisteret[id]) return;   // nåværende medlemmer: klienten har fasiten
+    (arkiv[id] || (arkiv[id] = [])).push(DASH_GRADING_COLS.map(c =>
+      (c === 'date' ? ymd(r[c]) : (r[c] == null ? '' : r[c]))));
+  });
+
+  // Før registeret overskrives: noter hvem som forsvant, og hvem som er
   // tilbake. Dette er eneste sted vi kan se det — etterpå er de borte.
   const avgang = dashTrackDepartures(members);
+  // Graderingene til dem som faller ut NÅ, arkiveres også.
+  const forrigeHist = dashReadGradingGrouped();
+  Object.keys(iRegisteret).forEach(id => {
+    if (iImporten[id] || !forrigeHist[id]) return;
+    arkiv[id] = forrigeHist[id].map(r => DASH_GRADING_COLS.map(c =>
+      (c === 'date' ? ymd(r[c]) : (r[c] == null ? '' : r[c]))));
+  });
   dashClear(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS);
   dashClear(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
   const now = new Date().toISOString();
   const mRows = [];
   const gRows = [];
+  let gjenopprettet = 0;
   members.forEach(m => {
-    const g = m.grading || {};
+    let g = m.grading || {};
+    // Gjeninnmeldt: klienten kjenner dem ikke (de var ikke i registeret) og
+    // sender en blank historikk. Finnes det et arkiv, er det fasiten — med
+    // mindre fila selv har belter (Belte-CSV), da vinner fila.
+    const gammel = arkiv[String(m.id)];
+    if (gammel && !iRegisteret[String(m.id)] && !m.beltImport && dashErBlankGrading_(g)) {
+      g = dashGradingFraArkiv_(gammel);
+      gjenopprettet++;
+    }
+    if (gammel) delete arkiv[String(m.id)];   // er med i importen — ikke arkiv lenger
     const cur = g.current || { belt: 'Hvit', stripes: 0, since: '' };
     const rowObj = {
       id: m.id, fornavn: m.fornavn || '', etternavn: m.etternavn || '', navn: m.navn || '',
@@ -1150,16 +1204,39 @@ function dashImportRoster(members, bekreftStorAvgang) {
         e.by == null ? '' : String(e.by), String(e.note || ''), Number(e._seq || 0), now]);
     });
   });
+  // Arkivet (de som har sluttet) skrives tilbake etter de nåværende.
+  Object.keys(arkiv).forEach(id => { arkiv[id].forEach(r => gRows.push(r)); });
   if (mRows.length) sheet(SHEET_NAMES.dashMembers).getRange(2, 1, mRows.length, DASH_MEMBER_COLS.length).setValues(mRows);
   if (gRows.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gRows.length, DASH_GRADING_COLS.length).setValues(gRows);
   dashSetMeta({ rosterImportedAt: now, rosterCount: members.length });
   return { total: members.length, gradingEvents: gRows.length,
-    sluttet: avgang.sluttet, gjeninnmeldt: avgang.gjeninnmeldt };
+    sluttet: avgang.sluttet, gjeninnmeldt: avgang.gjeninnmeldt, beltGjenopprettet: gjenopprettet };
+}
+
+// Historikk som bare består av innmeldingen (hvitt belte) — det klienten
+// sender for et medlem den ikke kjente fra før.
+function dashErBlankGrading_(g) {
+  const h = (g && g.history) || [];
+  return h.every(e => String(e.kind || '') === 'innmelding');
+}
+
+// Arkivrader → samme form som klienten sender (current + history).
+function dashGradingFraArkiv_(rader) {
+  const i = c => DASH_GRADING_COLS.indexOf(c);
+  const history = rader.map(r => ({
+    id: String(r[i('eventId')] || ''), date: ymd(r[i('date')]), kind: String(r[i('kind')] || ''),
+    belt: String(r[i('belt')] || 'Hvit'), stripes: Number(r[i('stripes')] || 0),
+    by: r[i('by')] === '' || r[i('by')] == null ? null : String(r[i('by')]),
+    note: String(r[i('note')] || ''), _seq: Number(r[i('seq')] || 0),
+  })).sort((a, b) => a.date === b.date ? a._seq - b._seq : String(a.date).localeCompare(String(b.date)));
+  const siste = history[history.length - 1] || { belt: 'Hvit', stripes: 0, date: '' };
+  return { current: { belt: siste.belt, stripes: siste.stripes, since: siste.date }, history: history };
 }
 
 // Sammenlign forrige register med det som nå importeres:
-//   · id som fantes før, men ikke nå  → føres inn i dash_departed
-//   · id som står i dash_departed og er tilbake → fjernes derfra igjen
+//   · id som fantes før, men ikke nå  → ny rad i dash_departed
+//   · id med åpen avgang som er tilbake → raden får gjeninnmeldt-dato
+//     (den slettes ikke — avgangen skjedde, og skal telle i historikken)
 // «sluttet» er datoen importen først savnet dem. Er registeret gammelt, blir
 // hele etterslepet datert til denne importen — det er så presist vi kan komme
 // når Spond-eksporten bare inneholder nåværende medlemmer.
@@ -1176,32 +1253,34 @@ function dashTrackDepartures(members) {
   // betyr ikke at alle har sluttet.
   if (!forrige.length) return { sluttet: 0, gjeninnmeldt: 0 };
 
-  const tidligere = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
-  const beholdt = [];
-  let gjeninnmeldt = 0;
-  tidligere.forEach(r => {
-    if (naa.has(String(r.id))) gjeninnmeldt++;   // meldt seg inn igjen
-    else beholdt.push([String(r.id), String(r.navn || ''), String(r.kategori || ''),
-      r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', ymd(r.sluttet) || '',
-      r.updatedAt ? String(r.updatedAt) : '']);
-  });
-
-  const alleredeFort = {};
-  beholdt.forEach(r => { alleredeFort[r[0]] = true; });
   const now = new Date().toISOString();
   const idag = now.slice(0, 10);
+  const tidligere = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
+  const beholdt = [];
+  const aapen = {};            // id → har en avgang uten gjeninnmelding
+  let gjeninnmeldt = 0;
+  tidligere.forEach(r => {
+    const id = String(r.id);
+    const rad = [id, String(r.navn || ''), String(r.kategori || ''),
+      r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', ymd(r.sluttet) || '',
+      r.updatedAt ? String(r.updatedAt) : '', r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : ''];
+    if (!rad[6] && naa.has(id)) { rad[6] = idag; rad[5] = now; gjeninnmeldt++; }  // tilbake
+    if (!rad[6]) aapen[id] = true;
+    beholdt.push(rad);
+  });
+
   let sluttet = 0;
   forrige.forEach(m => {
-    if (naa.has(m.id) || alleredeFort[m.id]) return;
-    beholdt.push([m.id, m.navn, m.kategori, m.innmeldingsdato, idag, now]);
+    if (naa.has(m.id) || aapen[m.id]) return;
+    beholdt.push([m.id, m.navn, m.kategori, m.innmeldingsdato, idag, now, '']);
     sluttet++;
   });
 
+  const sh = sheet(SHEET_NAMES.dashDeparted);
+  // Eldre ark mangler kolonnen gjeninnmeldt i overskriften — skriv den på nytt.
+  sh.getRange(1, 1, 1, DASH_DEPARTED_COLS.length).setValues([DASH_DEPARTED_COLS]);
   dashClear(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS);
-  if (beholdt.length) {
-    sheet(SHEET_NAMES.dashDeparted)
-      .getRange(2, 1, beholdt.length, DASH_DEPARTED_COLS.length).setValues(beholdt);
-  }
+  if (beholdt.length) sh.getRange(2, 1, beholdt.length, DASH_DEPARTED_COLS.length).setValues(beholdt);
   return { sluttet: sluttet, gjeninnmeldt: gjeninnmeldt };
 }
 
@@ -1211,6 +1290,7 @@ function dashDepartedStats() {
   const rows = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
   const perYear = {};
   let fra = '';
+  let gjeninnmeldt = 0;
   // Radene sendes med, ikke bare summene: rapporten skal kunne liste HVEM som
   // sluttet i en valgt periode, ikke bare hvor mange. Barn sendes som
   // «Fornavn E.», som i dashMaskMember_.
@@ -1223,13 +1303,18 @@ function dashDepartedStats() {
     if (!fra || d < fra) fra = d;
     const kat = String(r.kategori || '');
     const barn = kat === 'Junior' || kat === 'Knøtte';
+    const tilbake = r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : '';
+    if (tilbake) gjeninnmeldt++;
     liste.push({
       id: String(r.id), navn: barn ? dashKortNavn_('', '', r.navn) : String(r.navn || ''), kategori: kat,
-      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: d,
+      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: d, gjeninnmeldt: tilbake,
     });
   });
   liste.sort(function (a, b) { return b.sluttet.localeCompare(a.sluttet); });
-  return { perYear: perYear, total: rows.length, fra: fra, rows: liste.slice(0, 500) };
+  // total = antall avganger (også de som senere kom tilbake). Radene brukes
+  // også til innmeldinger bakover i tid, så grensen er romslig.
+  return { perYear: perYear, total: liste.length, gjeninnmeldt: gjeninnmeldt, fra: fra,
+    rows: liste.slice(0, 3000) };
 }
 
 // Legg til graderingshendelser (klienten har resolvert belte/striper pr. medlem).
