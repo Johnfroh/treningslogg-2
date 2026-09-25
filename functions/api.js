@@ -15,6 +15,7 @@ const BARE_VIA_OKONOMI = /^(dashOkonomi|dashImportOkonomi|dashVipps)/;
 
 const STYRE_HANDLINGER = new Set([
   'dashImportRoster',   // overskriver hele registeret + graderingshistorikken
+  'dashImportUtmeldinger', // erstatter grunnlaget for churn
   'dashSettingsSet',
   'dashSnapshotNow',
   'dashEventAdd',

@@ -229,6 +229,14 @@ function MembersProvider({ children }) {
         .then(r => { setEvents(list => (list || []).filter(e => e.id !== id)); return r; });
     },
     // Oppfølging er en logg: hver handling legges til, ingenting overskrives.
+    importUtmeldinger(personer) {
+      if (loadError || !Array.isArray(members)) {
+        return Promise.reject(new Error('Registeret er ikke lastet — last siden på nytt før du importerer.'));
+      }
+      return krevApi('importUtmeldinger')
+        .then(() => DASH_API.importUtmeldinger(personer))
+        .then(svar => reload().then(() => svar || {}));
+    },
     addFollowup(row) {
       return krevApi('addFollowup')
         .then(() => DASH_API.addFollowup({ ...row, av: access.email || '' })).then(rad => {

@@ -236,7 +236,7 @@ function buildRapportData(fra, til, ctx){
   // --- Sluttet i perioden ---
   const dep=c.departed||null;
   const sluttet=((dep && dep.rows) || [])
-    .filter(r => MR_ISO.test(r.sluttet||'') && iPeriode(r.sluttet.slice(0,7)))
+    .filter(r => !r.naavaerende && MR_ISO.test(r.sluttet||'') && iPeriode(r.sluttet.slice(0,7)))
     .sort((a,b)=> String(b.sluttet).localeCompare(String(a.sluttet)));
   const sluttetFra=(dep && dep.fra) || '';
 

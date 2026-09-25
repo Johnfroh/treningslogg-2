@@ -23,6 +23,10 @@ const DP_KILDER = [
     fil:'Spond betalinger (.xlsx)', teller:m=>m.okonomiMonths && m.okonomiMonths+' mnd' },
   { key:'vipps',   navn:'Vipps-utsalg', meta:'vippsImportedAt', styre:true,
     fil:'Vipps oppgjør + salgsrapport', teller:()=>'' },
+  // Grunnlaget for churn og «nye medlemmer». Én rad pr. person; nåværende
+  // medlemmer holdes utenfor churn (Code.gs, dashDepartedStats).
+  { key:'utmeldinger', navn:'Tidligere medlemmer', meta:'utmeldingerImportedAt', skriveStyre:true,
+    fil:'Spond utmeldinger (.csv / .xlsx)', teller:m=>m.utmeldingerCount && m.utmeldingerCount+' pers.' },
 ];
 
 function dpDager(v){
@@ -109,6 +113,7 @@ function ImportOversikt({ meta, isStyre }){
       {apen==='rydd'    && <CleanupModal onClose={()=>setApen(null)} onDone={()=>{}}/>}
       {apen==='okonomi' && <OkonomiImportModal onClose={()=>setApen(null)}/>}
       {apen==='vipps'   && <VippsImportModal onClose={()=>setApen(null)} onSaved={()=>{}}/>}
+      {apen==='utmeldinger' && <UtmeldingerImportModal onClose={()=>setApen(null)}/>}
     </div>
   );
 }
