@@ -137,6 +137,8 @@ module.exports = [
         VippsImportModal: 'readonly', parseVippsOppgjor: 'readonly',
         parseVippsSalgsrapport: 'readonly', parseVippsFile: 'readonly',
         VIPPS_STREAM_LABEL: 'readonly',
+        // utmeldinger-import.jsx
+        UtmeldingerImportModal: 'readonly', parseUtmeldinger: 'readonly',
         // attendance-import.jsx
         parseAttendanceFile: 'readonly', AttendanceImportModal: 'readonly',
         // cleanup-modal.jsx

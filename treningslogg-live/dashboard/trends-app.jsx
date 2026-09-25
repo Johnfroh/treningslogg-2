@@ -123,9 +123,8 @@ function oktSerie(live, r, gruppe) {
 }
 const sumSerie = (serie) => serie.reduce((s, e) => s + e[1], 0);
 
-// Nye medlemskap i perioden, pr. måned — nåværende medlemmer pluss dem som
-// har sluttet siden avgangssporingen startet (innmeldinger()). Før det er
-// tallet fortsatt et gulv. Det står i tooltipen på kortet.
+// Nye medlemmer i perioden, pr. måned — én pr. person, datert med FØRSTE
+// innmelding (innmeldinger()). Gjeninnmeldte telles ikke på nytt.
 function nyeSerie(members, r, departed) {
   const per = {};
   innmeldinger(members, departed).forEach(m => {
@@ -358,6 +357,18 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   const oktC = useTrMemo(() => (rc ? oktSerie(live, rc, gruppe) : null), [live, rc, gruppe]);
   const nye = useTrMemo(() => nyeSerie(members, r, departed), [members, r, departed]);
   const nyeC = useTrMemo(() => (rc ? nyeSerie(members, rc, departed) : null), [members, rc, departed]);
+  // Hva de nye består av: er de fortsatt på introkurs, eller allerede borte?
+  // Uten dette ser tallet høyt ut i introkurs-måneder.
+  const nyeSammensetning = useTrMemo(() => {
+    const iReg = {}; (members || []).forEach(m => { iReg[m.id] = m; });
+    let intro = 0, borte = 0;
+    innmeldinger(members, departed).filter(p => iRange(p.innmeldingsdato, r)).forEach(p => {
+      const m = iReg[p.id];
+      if (!m) borte++;
+      else if (m.kategori === 'Introkurs') intro++;
+    });
+    return { intro, borte };
+  }, [members, departed, r]);
 
   const sumOkt = s => s.reduce((a, e) => a + e[1].okter, 0);
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
@@ -428,9 +439,13 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
         <TrendKort label="Økter holdt" verdi={okt.length ? sumOkt(okt) : null} forrige={oktC && oktC.length ? sumOkt(oktC) : null}
           farge="green" hint="Økter logget i trener-appen eller importert fra Spond-oppmøte. Finnes bare for Sheets-æraen."
           onKlikk={til('tr-gruppe')} serie={okt.map(e => [e[0], e[1].okter])} />
-        <TrendKort label="Nye medlemskap" verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
+        <TrendKort label="Nye medlemmer" verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
           forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
-          hint="Innmeldingsdato for nåværende medlemmer og for dem som har sluttet siden avgangssporingen startet. Før det er tallet et gulv — de som meldte seg inn og sluttet igjen da, er ikke med."
+          hint={'Personer som meldte seg inn for første gang i perioden — én gang pr. person, også om Spond har gitt dem nye medlemskap senere. '
+            + (departed && departed.spond ? 'Tar med dem som har sluttet igjen (fra importen av tidligere medlemmer).'
+              : 'Uten importerte tidligere medlemmer mangler de som meldte seg inn og sluttet før sporingen startet.')}
+          under={(nyeSammensetning.intro || nyeSammensetning.borte)
+            ? `${nyeSammensetning.intro} på introkurs nå · ${nyeSammensetning.borte} sluttet igjen` : null}
           onKlikk={til('tr-kohort')} serie={nye} />
         <TrendKort label="Intro → fast"
           verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}

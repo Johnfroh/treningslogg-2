@@ -106,10 +106,14 @@ const DASH_VIPPS_PROD_COLS = ['navn','antall','belop','updatedAt'];
 const DASH_META_COLS = ['key','value'];
 // dash_departed: én rad per AVGANG (ikke per person). 'sluttet' er datoen
 // importen først savnet dem — ikke nødvendigvis datoen de faktisk sluttet.
-// 'gjeninnmeldt' settes når personen dukker opp igjen; raden blir stående,
-// så avgangen fortsatt teller i churn for det året. Slutter de igjen, blir
-// det en ny rad.
-const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt','gjeninnmeldt'];
+// 'gjeninnmeldt' settes når personen dukker opp igjen. Slutter de igjen,
+// blir det en ny rad.
+// 'kilde': 'spond' = fra Spond-eksporten av tidligere medlemmer (én rad pr.
+// person, ekte deaktiveringsdato — se dashImportUtmeldinger), ellers sporet
+// av medlemsimporten (dashTrackDepartures).
+// Den som er medlem i dag, holdes utenfor churn uansett rad (dashDepartedStats)
+// — gjeninnmelding er ofte feilføring eller bytte av medlemskap i Spond.
+const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt','gjeninnmeldt','kilde'];
 // dash_settings: nøkkel/verdi for driftsterskler + hvem som endret sist.
 const DASH_SETTINGS_COLS = ['key','value','oppdatert','av'];
 // dash_snapshots: én rad pr. ISO-uke. Kun aggregater — ingen navn, ingen
@@ -205,6 +209,7 @@ function handle(e, method) {
       case 'dashEventAdd':      return json({ ok: true, data: dashEventAdd(body.event) });
       case 'dashEventDelete':   return json({ ok: true, data: dashEventDelete(body.id) });
       case 'dashFollowupList':  return json({ ok: true, data: dashFollowupList() });
+      case 'dashImportUtmeldinger': return json({ ok: true, data: dashImportUtmeldinger(body.personer) });
       case 'dashFollowupAdd':   return json({ ok: true, data: dashFollowupAdd(Object.assign({}, body.row, { av: bruker })) });
       case 'dashVippsList':     return json({ ok: true, data: dashVippsList() });
       case 'dashVippsImport':   return json({ ok: true, data: dashVippsImport(body) });
@@ -1252,69 +1257,133 @@ function dashTrackDepartures(members) {
   // Første import noensinne: ingenting å sammenligne med, og et tomt register
   // betyr ikke at alle har sluttet.
   if (!forrige.length) return { sluttet: 0, gjeninnmeldt: 0 };
+  const forrigeIds = {};
+  forrige.forEach(m => { forrigeIds[m.id] = true; });
 
   const now = new Date().toISOString();
   const idag = now.slice(0, 10);
   const tidligere = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
   const beholdt = [];
-  const aapen = {};            // id → har en avgang uten gjeninnmelding
   let gjeninnmeldt = 0;
   tidligere.forEach(r => {
     const id = String(r.id);
-    const rad = [id, String(r.navn || ''), String(r.kategori || ''),
-      r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', ymd(r.sluttet) || '',
-      r.updatedAt ? String(r.updatedAt) : '', r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : ''];
-    if (!rad[6] && naa.has(id)) { rad[6] = idag; rad[5] = now; gjeninnmeldt++; }  // tilbake
-    if (!rad[6]) aapen[id] = true;
+    const rad = dashDepartedRad_(r);
+    // Tilbake — men bare hvis de IKKE var i forrige register (da ville
+    // det vært en gammel avgang for noen som allerede var medlem).
+    if (!rad[6] && naa.has(id) && !forrigeIds[id]) { rad[6] = idag; rad[5] = now; gjeninnmeldt++; }
     beholdt.push(rad);
   });
 
+  // Alle som stod i forrige register og mangler nå, har sluttet — også om
+  // de har eldre avganger fra før (da var de jo medlem igjen i mellomtiden).
   let sluttet = 0;
   forrige.forEach(m => {
-    if (naa.has(m.id) || aapen[m.id]) return;
-    beholdt.push([m.id, m.navn, m.kategori, m.innmeldingsdato, idag, now, '']);
+    if (naa.has(m.id)) return;
+    beholdt.push([m.id, m.navn, m.kategori, m.innmeldingsdato, idag, now, '', 'import']);
     sluttet++;
   });
 
+  dashSkrivDeparted_(beholdt);
+  return { sluttet: sluttet, gjeninnmeldt: gjeninnmeldt };
+}
+
+// Én dash_departed-rad (objekt fra dashRows) → array i kolonnerekkefølge.
+function dashDepartedRad_(r) {
+  return [String(r.id), String(r.navn || ''), String(r.kategori || ''),
+    r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', r.sluttet ? ymd(r.sluttet) : '',
+    r.updatedAt ? String(r.updatedAt) : '', r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : '',
+    String(r.kilde || '')];
+}
+
+function dashSkrivDeparted_(rader) {
   const sh = sheet(SHEET_NAMES.dashDeparted);
-  // Eldre ark mangler kolonnen gjeninnmeldt i overskriften — skriv den på nytt.
+  // Eldre ark mangler nyere kolonner i overskriften — skriv den på nytt.
   sh.getRange(1, 1, 1, DASH_DEPARTED_COLS.length).setValues([DASH_DEPARTED_COLS]);
   dashClear(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS);
-  if (beholdt.length) sh.getRange(2, 1, beholdt.length, DASH_DEPARTED_COLS.length).setValues(beholdt);
-  return { sluttet: sluttet, gjeninnmeldt: gjeninnmeldt };
+  if (rader.length) sh.getRange(2, 1, rader.length, DASH_DEPARTED_COLS.length).setValues(rader);
+}
+
+// Import av Spond-eksporten «tidligere medlemmer» (styre). Klienten har slått
+// sammen radene til én pr. person: første innmelding, siste deaktivering
+// (tom hvis Spond ikke har dato). Spond-radene erstatter tidligere
+// Spond-import; sporede rader beholdes bare for personer som ikke er i fila
+// (fila er fasit der den finnes). Nåværende medlemmer tas med, så vi vet når
+// de meldte seg inn første gang — men de holdes utenfor churn i statistikken.
+function dashImportUtmeldinger(personer) {
+  if (!Array.isArray(personer) || !personer.length) throw new Error('Fila inneholder ingen personer.');
+  const now = new Date().toISOString();
+  const iFila = {};
+  const nye = [];
+  personer.forEach(p => {
+    const id = String((p && p.id) || '');
+    if (!id || iFila[id]) return;
+    iFila[id] = true;
+    const d = v => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+    nye.push([id, String(p.navn || '').slice(0, 120), String(p.kategori || ''), d(p.innmeldingsdato),
+      d(p.sluttet), now, '', 'spond']);
+  });
+  const sporet = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS)
+    .filter(r => r.id && String(r.kilde || '') !== 'spond' && !iFila[String(r.id)])
+    .map(dashDepartedRad_);
+  dashSkrivDeparted_(nye.concat(sporet));
+  dashSetMeta({ utmeldingerImportedAt: now, utmeldingerCount: nye.length });
+  return { personer: nye.length, sporetBeholdt: sporet.length };
 }
 
 // Avgang pr. år, samlet fra dash_departed. Frontend legger dette oppå det
 // historiske grunnlaget i kpis.json, som stopper der den fila ble laget.
+// Churn teller PERSONER som har sluttet og ikke er medlem i dag:
+//   · den som står i registeret nå, holdes utenfor (naavaerende) — uansett
+//     hvor mange ganger Spond har dem som deaktivert
+//   · rader med gjeninnmeldt holdes utenfor av samme grunn
+//   · flere rader for samme person (sporet + Spond) telles én gang
+// Radene sendes likevel med (flagget), fordi innmeldingsdatoen deres sier
+// når nåværende medlemmer meldte seg inn FØRSTE gang — ellers telles de
+// som «nye» hver gang Spond gir dem nytt medlemskap.
 function dashDepartedStats() {
   const rows = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id);
+  const iRegisteret = {};
+  dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS).forEach(r => { if (r.id) iRegisteret[String(r.id)] = true; });
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  // Siste avgang pr. person som teller (ikke nåværende, ikke gjeninnmeldt).
+  const teller = {};
+  rows.forEach(r => {
+    const id = String(r.id);
+    if (iRegisteret[id] || r.gjeninnmeldt) return;
+    const d = r.sluttet ? ymd(r.sluttet) : '';
+    const f = teller[id];
+    if (!f || (ISO.test(d) && (!ISO.test(f) || d > f))) teller[id] = d;
+  });
   const perYear = {};
   let fra = '';
-  let gjeninnmeldt = 0;
-  // Radene sendes med, ikke bare summene: rapporten skal kunne liste HVEM som
-  // sluttet i en valgt periode, ikke bare hvor mange. Barn sendes som
-  // «Fornavn E.», som i dashMaskMember_.
-  const liste = [];
-  rows.forEach(r => {
-    const d = ymd(r.sluttet);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    const y = d.slice(0, 4);
-    perYear[y] = (perYear[y] || 0) + 1;
+  Object.keys(teller).forEach(id => {
+    const d = teller[id];
+    if (!ISO.test(d)) return;           // Spond uten dato: teller i total, ikke pr. år
+    perYear[d.slice(0, 4)] = (perYear[d.slice(0, 4)] || 0) + 1;
     if (!fra || d < fra) fra = d;
+  });
+  let naavaerende = 0;
+  let spond = false;
+  // Radene sendes med, ikke bare summene: rapporten skal kunne liste HVEM som
+  // sluttet i en valgt periode. Barn sendes som «Fornavn E.», som i
+  // dashMaskMember_.
+  const liste = rows.map(r => {
+    const id = String(r.id);
     const kat = String(r.kategori || '');
     const barn = kat === 'Junior' || kat === 'Knøtte';
-    const tilbake = r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : '';
-    if (tilbake) gjeninnmeldt++;
-    liste.push({
-      id: String(r.id), navn: barn ? dashKortNavn_('', '', r.navn) : String(r.navn || ''), kategori: kat,
-      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: d, gjeninnmeldt: tilbake,
-    });
+    const d = r.sluttet ? ymd(r.sluttet) : '';
+    const ute = !!(iRegisteret[id] || r.gjeninnmeldt);
+    if (ute) naavaerende++;
+    if (String(r.kilde || '') === 'spond') spond = true;
+    return {
+      id: id, navn: barn ? dashKortNavn_('', '', r.navn) : String(r.navn || ''), kategori: kat,
+      innmeldingsdato: r.innmeldingsdato ? ymd(r.innmeldingsdato) : '', sluttet: ISO.test(d) ? d : '',
+      gjeninnmeldt: r.gjeninnmeldt ? ymd(r.gjeninnmeldt) : '', naavaerende: ute,
+    };
   });
-  liste.sort(function (a, b) { return b.sluttet.localeCompare(a.sluttet); });
-  // total = antall avganger (også de som senere kom tilbake). Radene brukes
-  // også til innmeldinger bakover i tid, så grensen er romslig.
-  return { perYear: perYear, total: liste.length, gjeninnmeldt: gjeninnmeldt, fra: fra,
-    rows: liste.slice(0, 3000) };
+  liste.sort(function (a, b) { return String(b.sluttet).localeCompare(String(a.sluttet)); });
+  return { perYear: perYear, total: Object.keys(teller).length, holdtUtenfor: naavaerende, fra: fra,
+    spond: spond, rows: liste.slice(0, 3000) };
 }
 
 // Legg til graderingshendelser (klienten har resolvert belte/striper pr. medlem).

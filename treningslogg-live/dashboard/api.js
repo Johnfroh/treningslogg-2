@@ -218,6 +218,8 @@ window.DASH_API = (function () {
     addEvent(event) { return post({ action: 'dashEventAdd', event }); },
     deleteEvent(id) { return post({ action: 'dashEventDelete', id }); },
     addFollowup(row) { return post({ action: 'dashFollowupAdd', row }); },
+    // Spond-eksporten av tidligere medlemmer, slått sammen til én pr. person.
+    importUtmeldinger(personer) { return post({ action: 'dashImportUtmeldinger', personer }); },
     // Kalender + øktlogging (samme backend-handlinger som trener-appen).
     fetchCalendar() { return get('dashCalendar'); },
     createSession(payload) { return post({ action: 'createSession', payload }); },

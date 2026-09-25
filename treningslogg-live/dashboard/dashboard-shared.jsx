@@ -101,25 +101,25 @@ const sum4 = (arr, endOffset) => arr.slice(arr.length - endOffset - 4, arr.lengt
 // bare det ene stedet dette ut, og et nytt sted ville fort ha regnet litt
 // annerledes. `medlem` er det maskerte registeret-objektet, eller null for
 // oppmøte som ikke er koblet til et medlem.
-// Alle innmeldinger vi kjenner: nåværende medlemmer + de som har sluttet
-// (dash_departed). Registeret alene har bare dem som fortsatt er medlem, så
-// «nye medlemmer» bakover i tid ble for lavt. Nøkkel id+dato: en som meldte
-// seg inn, sluttet og kom tilbake, har to innmeldinger — begge er ekte.
-// Avganger før sporingen startet finnes ikke, så tall langt bakover er
-// fortsatt et gulv.
+// Én innmelding pr. PERSON: nåværende medlemmer + de som har sluttet
+// (dash_departed), med den FØRSTE innmeldingsdatoen vi kjenner. Spond gir ny
+// innmeldingsdato hver gang noen bytter eller fornyer medlemskap, så uten
+// dette ble gjeninnmeldte talt som nye. Kategorien er dagens for medlemmer,
+// ellers den de hadde da de sluttet. Uten importerte utmeldinger mangler
+// de som sluttet før sporingen, så tall langt bakover er da et gulv.
 function innmeldinger(members, departed) {
-  const sett = {};
-  const ut = [];
-  const legg = (id, dato, kategori) => {
-    if (!/^\d{4}-\d{2}-\d{2}/.test(String(dato || ''))) return;
-    const k = id + '|' + String(dato).slice(0, 10);
-    if (sett[k]) return;
-    sett[k] = true;
-    ut.push({ id, innmeldingsdato: String(dato).slice(0, 10), kategori: kategori || '' });
+  const per = {};
+  const legg = (id, dato, kategori, foretrekk) => {
+    if (!id || !/^\d{4}-\d{2}-\d{2}/.test(String(dato || ''))) return;
+    const d = String(dato).slice(0, 10);
+    const p = per[id];
+    if (!p) { per[id] = { id, innmeldingsdato: d, kategori: kategori || '' }; return; }
+    if (d < p.innmeldingsdato) p.innmeldingsdato = d;
+    if (foretrekk && kategori) p.kategori = kategori;
   };
-  (members || []).forEach(m => legg(m.id, m.innmeldingsdato, m.kategori));
-  ((departed && departed.rows) || []).forEach(r => legg(r.id, r.innmeldingsdato, r.kategori));
-  return ut;
+  ((departed && departed.rows) || []).forEach(r => legg(r.id, r.innmeldingsdato, r.kategori, false));
+  (members || []).forEach(m => legg(m.id, m.innmeldingsdato, m.kategori, true));
+  return Object.values(per);
 }
 
 function memberTrendRows(live, members, weeks) {

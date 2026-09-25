@@ -261,17 +261,23 @@ function mergeLiveKpis(kpis, members, departed){
   // frosset midt inne i. Tidligere år beholder sitt historiske tall.
   // Innmeldinger pr. år = nåværende + de som har sluttet siden sporingen
   // startet (innmeldinger()). Fortsatt et gulv for år før sporingen.
-  const signups={...(kpis.signupsPerYear||{})};
+  // Med importerte utmeldinger (departed.spond) er grunnlaget komplett, og
+  // innmeldinger pr. år regnes helt herfra — én pr. person. Uten dem løftes
+  // det statiske tallet bare der vi vet det er for lavt.
   const innPerAar={};
   innmeldinger(members, departed).forEach(m=>{ const y=m.innmeldingsdato.slice(0,4); innPerAar[y]=(innPerAar[y]||0)+1; });
-  Object.keys(innPerAar).forEach(y=>{ if(innPerAar[y] > (signups[y]||0)) signups[y]=innPerAar[y]; });
+  const spond=!!(departed && departed.spond);
+  const signups= spond ? innPerAar : {...(kpis.signupsPerYear||{})};
+  if(!spond) Object.keys(innPerAar).forEach(y=>{ if(innPerAar[y] > (signups[y]||0)) signups[y]=innPerAar[y]; });
   // Avgang: det statiske grunnlaget stopper der kpis.json ble laget. Alt som er
   // registrert i dash_departed etter det legges oppå. Radene er nøklet på
   // medlems-id, så en ny import teller ikke de samme personene på nytt.
-  const deact={...(kpis.deactPerYear||{})};
+  // Med importerte utmeldinger erstatter de det statiske grunnlaget (som
+  // talte medlemskap, ikke personer, og tok med dem som er tilbake).
   const dPer=(departed && departed.perYear) || {};
-  Object.keys(dPer).forEach(y=>{ deact[y]=(deact[y]||0)+dPer[y]; });
-  const deaktivertTot=(kpis.totals.deactivated||0)+((departed && departed.total)||0);
+  const deact= spond ? {...dPer} : {...(kpis.deactPerYear||{})};
+  if(!spond) Object.keys(dPer).forEach(y=>{ deact[y]=(deact[y]||0)+dPer[y]; });
+  const deaktivertTot= spond ? departed.total : (kpis.totals.deactivated||0)+((departed && departed.total)||0);
   return {
     ...kpis,
     byKategori, byKjonn, byBelt, byAgeBucket, byPostnr,
@@ -1083,7 +1089,7 @@ function KohortSeksjon({ kpis, charts, departed }) {
       </Tile>
 
       <div className="grid-3" style={{marginTop:16}}>
-        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
+        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.spond ? `personer · ${departed.holdtUtenfor||0} tilbake holdt utenfor` : departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
         <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
         <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
       </div>
@@ -1092,7 +1098,9 @@ function KohortSeksjon({ kpis, charts, departed }) {
       <Tile title="Deaktiveringer per år" corner="annual">
         <HBar data={Object.entries(kpis.deactPerYear).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({label:k, value:v}))} color="#C45838" height={22}/>
         <div className="dim" style={{fontSize:11, marginTop:12, lineHeight:1.6}}>
-          {departed && departed.fra
+          {departed && departed.spond
+            ? <>Avgang kommer fra Spond-eksporten av tidligere medlemmer (Data → Tidligere medlemmer), én gang pr. person. Den som er medlem i dag, telles ikke som sluttet. Nye avganger mellom eksportene fanges av medlemsimporten.</>
+            : departed && departed.fra
             ? <>Fra {fmtDate(departed.fra)} registreres avgang automatisk: hver medlemsimport noterer hvem som er falt ut siden forrige gang. Årene før det kommer fra det historiske grunnlaget.</>
             : <>Avgang før i dag kommer fra det historiske grunnlaget. Fra nå av noterer hver medlemsimport hvem som er falt ut siden forrige import.</>}
         </div>
