@@ -194,25 +194,32 @@ function Kontrollstripe({ q, onEndre }) {
     { key: 'c', label: 'Sammenlign med', valg: SAMMENLIGN },
     { key: 'g', label: 'Gruppe', valg: grupper },
   ];
+  // «Alt» har ingen forrige periode — da er sammenligningen av. Valget
+  // huskes (vises ikke som aktivt), så det gjelder igjen ved neste periode.
+  const utenSammenligning = q.p === 'alt';
   return (
     <div className="kstripe">
-      {felt.map(f => (
-        <div className="kstripe-felt" key={f.key}>
-          <span className="kstripe-lbl">{f.label}</span>
-          {smal ? (
-            <select value={q[f.key]} onChange={e => onEndre(f.key, e.target.value)}>
-              {f.valg.map(v => <option key={v.id} value={v.id}>{v.navn}</option>)}
-            </select>
-          ) : (
-            <span className="chips">
-              {f.valg.map(v => (
-                <button key={v.id} className={'chip' + (q[f.key] === v.id ? ' active' : '')}
-                  onClick={() => onEndre(f.key, v.id)}>{v.navn}</button>
-              ))}
-            </span>
-          )}
-        </div>
-      ))}
+      {felt.map(f => {
+        const av = f.key === 'c' && utenSammenligning;
+        return (
+          <div className="kstripe-felt" key={f.key} style={av ? { opacity: 0.45 } : undefined}
+            title={av ? 'Velg 4 uker, semester eller 12 mnd for å sammenligne' : undefined}>
+            <span className="kstripe-lbl">{f.label}{av && ' — ikke for «Alt»'}</span>
+            {smal ? (
+              <select value={q[f.key]} disabled={av} onChange={e => onEndre(f.key, e.target.value)}>
+                {f.valg.map(v => <option key={v.id} value={v.id}>{v.navn}</option>)}
+              </select>
+            ) : (
+              <span className="chips">
+                {f.valg.map(v => (
+                  <button key={v.id} className={'chip' + (!av && q[f.key] === v.id ? ' active' : '')}
+                    disabled={av} onClick={() => onEndre(f.key, v.id)}>{v.navn}</button>
+                ))}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -403,7 +410,8 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
 
       <div className="dim" style={{ fontSize: 11.5, margin: '2px 2px 14px', lineHeight: 1.6 }}>
         Viser <strong>{r.navn}</strong>{r.fra ? ` (${r.fra} → ${r.til})` : ''} for {gruppeNavn}
-        {rc ? <> — sammenlignet med <strong>{rc.navn}</strong> ({rc.fra} → {rc.til}).</> : ' — uten sammenligning.'}
+        {rc ? <> — sammenlignet med <strong>{rc.navn}</strong> ({rc.fra} → {rc.til}).</>
+          : (q.p || '4u') === 'alt' ? ' — uten sammenligning (velg en kortere periode for å sammenligne).' : ' — uten sammenligning.'}
         {kunSheets && ' Gruppefiltrering finnes bare for økter som ligger i Sheets (logget i appen eller importert) — Spond-historikken er gruppert på klassenavn, ikke gruppe.'}
       </div>
 
