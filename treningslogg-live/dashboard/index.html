@@ -358,6 +358,10 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 
 /* register table */
 .reg-table th { padding:11px 12px; }
+.reg-table th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+.reg-table th.sortable:hover, .reg-table th.sortable.on { color:var(--ink, inherit); }
+.reg-table th .sort-arrow { margin-left:4px; font-size:9px; opacity:.35; }
+.reg-table th.sortable.on .sort-arrow { opacity:1; color:var(--accent); }
 .reg-table td { padding:9px 12px; vertical-align:middle; }
 .reg-table input[type=checkbox] { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
 .reg-table tr.rowsel td { background:var(--accent-bg); }

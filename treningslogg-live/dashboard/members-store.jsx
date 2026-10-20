@@ -126,7 +126,39 @@ function MembersProvider({ children }) {
     return map;
   }, [members]);
 
-  // Bygg graderingshendelser fra gjeldende state, send til backend, last på nytt.
+  // Antall graderingsskrivinger underveis. En bakgrunnsoppfrisking som kommer
+  // tilbake mens en ny skriving fortsatt pågår, ville overskrevet den lokale
+  // endringen med gammel data — derfor brukes svaret bare når denne er 0.
+  const pendingWrites = React.useRef(0);
+
+  // Hent kun medlemmer/oppmøte på nytt (ikke økonomi, innstillinger osv.) —
+  // det er alt en gradering endrer.
+  const refreshMembers = React.useCallback(() => {
+    if (pendingWrites.current > 0) return Promise.resolve();
+    return DASH_API.fetchDash().then(dash => {
+      if (pendingWrites.current > 0) return;
+      setMembers(dash.members);
+      setMeta(dash.meta || {});
+      setLive(dash.live || null);
+    }).catch(e => console.warn('[dashboard] oppfrisking feilet:', e.message));
+  }, []);
+
+  // Skriv til backend i bakgrunnen. UI-et er allerede oppdatert lokalt, så
+  // brukeren slipper å vente på Apps Script. Feiler skrivingen, hentes
+  // sannheten fra Sheets igjen og brukeren får beskjed.
+  function syncWrite(call) {
+    pendingWrites.current++;
+    return call()
+      .then(() => { pendingWrites.current--; return refreshMembers(); })
+      .catch(e => {
+        pendingWrites.current--;
+        alert('Endringen ble ikke lagret: ' + (e && e.message || 'ukjent feil') + '\nListen lastes på nytt.');
+        return reload();
+      });
+  }
+
+  // Bygg graderingshendelser fra gjeldende state, oppdater lokalt med en gang,
+  // og send til backend i bakgrunnen.
   function applyGrading(ids, makeEvent) {
     const events = [];
     ids.forEach(id => {
@@ -137,7 +169,21 @@ function MembersProvider({ children }) {
       events.push({ memberId: id, kind: ev.kind, belt: ev.belt, stripes: ev.stripes, date: ev.date, by: ev.by || null, note: ev.note || '' });
     });
     if (!events.length) return Promise.resolve();
-    return DASH_API.grade(events).then(reload);
+    // Samme regel som dashGrade i Code.gs: siste hendelse blir gjeldende belte.
+    const evById = {};
+    events.forEach(ev => { evById[ev.memberId] = ev; });
+    setMembers(list => (list || []).map(m => {
+      const ev = evById[m.id];
+      if (!ev) return m;
+      const seq = m.grading.history.reduce((mx, h) => Math.max(mx, h._seq || 0), 0) + 1;
+      const date = ev.date || todayISO();
+      // Samme rekkefølge som backend leverer: dato, så sekvens.
+      const history = [...m.grading.history, { id: 'tmp_' + seq, date, belt: ev.belt, stripes: ev.stripes,
+        by: ev.by, note: ev.note, kind: ev.kind, _seq: seq }]
+        .sort((x, y) => x.date === y.date ? (x._seq || 0) - (y._seq || 0) : String(x.date).localeCompare(String(y.date)));
+      return { ...m, grading: { current: { belt: ev.belt, stripes: ev.stripes, since: date }, history } };
+    }));
+    return syncWrite(() => DASH_API.grade(events));
   }
 
   const actions = {
@@ -157,7 +203,24 @@ function MembersProvider({ children }) {
         return { kind: k, belt, stripes, date: date || todayISO(), by, note };
       });
     },
-    undoLast(id) { return DASH_API.undoLast(id).then(reload); },
+    undoLast(id) {
+      // Lokal speiling av dashUndoLast: fjern siste ikke-innmelding, og la
+      // den nest siste (etter dato, så rekkefølge) bli gjeldende.
+      setMembers(list => (list || []).map(m => {
+        if (m.id !== id) return m;
+        const hist = m.grading.history.slice().sort((a, b) =>
+          a.date === b.date ? (a._seq || 0) - (b._seq || 0) : String(a.date).localeCompare(String(b.date)));
+        let i = -1, best = -1;
+        m.grading.history.forEach((h, j) => { if (h.kind !== 'innmelding' && (h._seq || 0) >= best) { best = h._seq || 0; i = j; } });
+        if (i === -1) return m;
+        const fjernet = m.grading.history[i];
+        const rest = hist.filter(h => h !== fjernet);
+        const cur = rest.length ? rest[rest.length - 1] : { belt: 'Hvit', stripes: 0, date: '' };
+        return { ...m, grading: { current: { belt: cur.belt, stripes: cur.stripes, since: cur.date },
+          history: m.grading.history.filter(h => h !== fjernet) } };
+      }));
+      return syncWrite(() => DASH_API.undoLast(id));
+    },
     // Backend er kilde til sannhet — ingen lokale «endringer» å markere/angre.
     isEdited() { return false; },
     resetMember() {},
