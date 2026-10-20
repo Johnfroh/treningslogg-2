@@ -95,6 +95,15 @@ function Register(){
 
   const openMember = members.find(m=>m.id===openId);
 
+  // Oppmøtedataene i Sheets starter på live.attFrom. Er medlemmet gradert før
+  // det, er «Siden gradering» alt vi har data for — ikke alt de har trent.
+  // Merkes «≥», som i rapporten.
+  const attFrom = (live && live.attFrom) || '';
+  const attFromYm = /^\d{4}-\d{2}-\d{2}$/.test(attFrom) ? attFrom.slice(0,7) : '';
+  const avkortet = since => !!(attFromYm && (!since || String(since).slice(0,7) < attFromYm));
+  const sidenTitle = 'Oppmøter registrert etter forrige gradering — samme tall som «I dag» og rapporten bruker.'
+    + (attFrom ? ` Oppmøtedataene starter ${fmtDate(attFrom)}; tall merket ≥ er et minimum.` : '');
+
   return (
     <div>
       {/* KPI strip */}
@@ -158,7 +167,7 @@ function Register(){
               {sortTh('navn','Navn')}
               {sortTh('belte','Belte')}
               {sortTh('sist','Sist gradert')}
-              {sortTh('siden','Siden gradering','num','Oppmøter registrert etter forrige gradering — samme tall som «I dag» og rapporten bruker')}
+              {sortTh('siden','Siden gradering','num',sidenTitle)}
               {sortTh('oppmote','Oppmøter','num')}
               <th style={{width:40}}></th>
             </tr>
@@ -185,7 +194,9 @@ function Register(){
                         </div>}
                   </td>
                   <td className="muted" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>{fmtDate(g.since)}</td>
-                  <td className="num" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>
+                  <td className="num" onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}
+                      title={avkortet(g.since) ? `Gradert før oppmøtedataene starter (${fmtDate(attFrom)}) — det ekte tallet er høyere` : undefined}>
+                    {avkortet(g.since) && <span className="muted" style={{marginRight:2}}>≥</span>}
                     <span style={{fontWeight:600}}>{fmtN(okterSidenGradering(live, m.id, g.since))}</span>
                   </td>
                   {/* Nøytral farge: aksentfarge på et tall leses som «dette er
@@ -201,7 +212,10 @@ function Register(){
           </tbody>
         </table>
       </div>
-      <div className="muted" style={{fontSize:11,marginTop:8}}>{filtered.length} av {members.length} medlemmer</div>
+      <div className="muted" style={{fontSize:11,marginTop:8}}>
+        {filtered.length} av {members.length} medlemmer
+        {attFrom && <> · Oppmøtedata fra {fmtDate(attFrom)} — «≥» betyr gradert før det, så tallet er et minimum</>}
+      </div>
 
       {/* Bulk action bar */}
       {selIds.length>0 && (
