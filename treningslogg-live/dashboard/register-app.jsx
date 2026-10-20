@@ -13,12 +13,17 @@ function beltRank(belt){
   return 100 + 0.001 + m.order * 0.01;
 }
 
+// Sorteringsnøkler. Første klikk gir «naturlig» retning (navn A→Å, tall og
+// belter høy→lav); neste klikk på samme kolonne snur den.
+const SORT_DEFAULT_DIR = { navn:'asc', belte:'desc', sist:'desc', siden:'desc', oppmote:'desc' };
+
 function Register(){
   const { members, actions, live } = useMembers();
   const [q, setQ] = useS('');
   const [kat, setKat] = useS('Alle');
   const [beltFilter, setBeltFilter] = useS('Alle');
   const [sort, setSort] = useS('belte');
+  const [dir, setDir] = useS('desc');
   const [sel, setSel] = useS(()=>new Set());
   const [editId, setEditId] = useS(null);
   const [openId, setOpenId] = useS(null);
@@ -37,18 +42,39 @@ function Register(){
       if(q.trim()){ const s=q.toLowerCase(); if(!m.navn.toLowerCase().includes(s) && !(m.epost||'').toLowerCase().includes(s)) return false; }
       return true;
     });
-    r.sort((a,b)=>{
+    const siden = {};
+    if(sort==='siden') r.forEach(m=>{ siden[m.id]=okterSidenGradering(live, m.id, m.grading.current.since); });
+    // Stigende sammenligning; retningen snus til slutt. Navn er alltid
+    // tie-breaker A→Å, uansett retning.
+    const cmp = (a,b)=>{
       if(sort==='navn') return a.navn.localeCompare(b.navn,'nb');
-      if(sort==='oppmote') return b.oppmote.checkins-a.oppmote.checkins;
-      if(sort==='sist') return (b.grading.current.since||'').localeCompare(a.grading.current.since||'');
-      // belte (default): highest belt first, then stripes, then name
-      const d = beltRank(b.grading.current.belt)-beltRank(a.grading.current.belt);
+      if(sort==='oppmote') return a.oppmote.checkins-b.oppmote.checkins;
+      if(sort==='siden') return siden[a.id]-siden[b.id];
+      if(sort==='sist') return (a.grading.current.since||'').localeCompare(b.grading.current.since||'');
+      // belte: belte, så striper
+      const d = beltRank(a.grading.current.belt)-beltRank(b.grading.current.belt);
       if(d) return d;
-      if(b.grading.current.stripes!==a.grading.current.stripes) return b.grading.current.stripes-a.grading.current.stripes;
-      return a.navn.localeCompare(b.navn,'nb');
-    });
+      return a.grading.current.stripes-b.grading.current.stripes;
+    };
+    const sign = dir==='asc' ? 1 : -1;
+    r.sort((a,b)=> sign*cmp(a,b) || a.navn.localeCompare(b.navn,'nb'));
     return r;
-  },[members,q,kat,beltFilter,sort]);
+  },[members,live,q,kat,beltFilter,sort,dir]);
+
+  function sortBy(key){
+    if(key===sort) setDir(d=>d==='asc'?'desc':'asc');
+    else { setSort(key); setDir(SORT_DEFAULT_DIR[key]); }
+  }
+  // Klikkbar kolonneoverskrift med pil for aktiv sortering. Kalles som
+  // funksjon (ikke <SortTh/>) så React ikke remounter cellen hver render.
+  function sortTh(k, children, className, title){
+    const on = sort===k;
+    return (
+      <th key={k} className={'sortable'+(on?' on':'')+(className?' '+className:'')} title={title} onClick={()=>sortBy(k)}>
+        {children}<span className="sort-arrow">{on ? (dir==='asc'?'▲':'▼') : '↕'}</span>
+      </th>
+    );
+  }
 
   // derived header counts
   const stats = useM(()=>{
@@ -98,12 +124,16 @@ function Register(){
             <option value="Voksenbelter">Voksenbelter</option>
             <option value="Juniorbelter">Juniorbelter</option>
           </select>
-          <select className="mini-select" value={sort} onChange={e=>setSort(e.target.value)}>
+          <select className="mini-select" value={sort} onChange={e=>{ setSort(e.target.value); setDir(SORT_DEFAULT_DIR[e.target.value]); }}>
             <option value="belte">Sorter: Belte</option>
             <option value="navn">Sorter: Navn</option>
-            <option value="oppmote">Sorter: Oppmøte</option>
             <option value="sist">Sorter: Sist gradert</option>
+            <option value="siden">Sorter: Siden gradering</option>
+            <option value="oppmote">Sorter: Oppmøter</option>
           </select>
+          <button className="btn outline sm" title="Snu sorteringsrekkefølgen" onClick={()=>setDir(d=>d==='asc'?'desc':'asc')}>
+            {dir==='asc' ? '↑ Lav → høy' : '↓ Høy → lav'}
+          </button>
           <div className="export-wrap">
             <button className="btn outline sm" onClick={()=>setExportOpen(v=>!v)}>Eksporter ▾</button>
             {exportOpen && (
@@ -125,11 +155,11 @@ function Register(){
           <thead>
             <tr>
               <th style={{width:34}}><input type="checkbox" checked={allSelected} onChange={toggleAll}/></th>
-              <th>Navn</th>
-              <th>Belte</th>
-              <th>Sist gradert</th>
-              <th className="num" title="Oppmøter registrert etter forrige gradering — samme tall som «I dag» og rapporten bruker">Siden gradering</th>
-              <th className="num">Oppmøter</th>
+              {sortTh('navn','Navn')}
+              {sortTh('belte','Belte')}
+              {sortTh('sist','Sist gradert')}
+              {sortTh('siden','Siden gradering','num','Oppmøter registrert etter forrige gradering — samme tall som «I dag» og rapporten bruker')}
+              {sortTh('oppmote','Oppmøter','num')}
               <th style={{width:40}}></th>
             </tr>
           </thead>
