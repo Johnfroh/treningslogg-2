@@ -70,6 +70,9 @@ const SHEET_NAMES = {
   dashEvents: 'dash_events',
   // Oppfølgingslogg for radene i «I dag» (kontaktet / utsatt / notat).
   dashFollowup: 'dash_followup',
+  // Spond-historikk fra før Sheets-æraen, kun for nåværende medlemmer.
+  // Legges inn manuelt (Fil → Importer) og leses bare — se dashAttHistorikk_.
+  dashAttHistorikk: 'dash_att_historikk',
 };
 
 const SESSION_COLS = ['id','date','time','group','trainer','title','content','tags','attendance','createdAt','updatedAt'];
@@ -114,6 +117,8 @@ const DASH_META_COLS = ['key','value'];
 // Den som er medlem i dag, holdes utenfor churn uansett rad (dashDepartedStats)
 // — gjeninnmelding er ofte feilføring eller bytte av medlemskap i Spond.
 const DASH_DEPARTED_COLS = ['id','navn','kategori','innmeldingsdato','sluttet','updatedAt','gjeninnmeldt','kilde'];
+// dash_att_historikk: én rad pr. person pr. økt fra gamle Spond-eksporter.
+const DASH_ATT_HIST_COLS = ['memberId','memberName','date','time','title'];
 // dash_settings: nøkkel/verdi for driftsterskler + hvem som endret sist.
 const DASH_SETTINGS_COLS = ['key','value','oppdatert','av'];
 // dash_snapshots: én rad pr. ISO-uke. Kun aggregater — ingen navn, ingen
@@ -613,6 +618,33 @@ function dashMaskMember_(m) {
   });
 }
 
+// Historiske oppmøter (dash_att_historikk). Spond-eksporten har bare med dem
+// som fortsatt er medlemmer, så radene brukes KUN til tellingen pr. medlem
+// (oppmøter totalt og siden gradering) — ikke til økter, trender eller
+// trener-appen, der de som har sluttet ville manglet og kurvene blitt feil.
+// Bare datoer før `foer` (første ordinære oppmøte i Sheets) telles, så en
+// overlappende eksport aldri dobbelttelles. Fanen opprettes ikke her:
+// mangler den, er alt som før.
+function dashAttHistorikk_(foer, idx) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.dashAttHistorikk);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, DASH_ATT_HIST_COLS.length).getValues().map(r => ({
+    memberId: String(r[0] || '').trim() || dashResolveMemberId(r[1], idx),
+    date: ymd(r[2]),
+  })).filter(r => r.memberId && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && (!foer || r.date < foer));
+}
+
+// Første dato med ordinært oppmøte (attendance koblet til en datert økt).
+function dashAttFoerste_(attRows, sById) {
+  let fra = '';
+  attRows.forEach(a => {
+    const s = sById[a.sessionId];
+    const d = s ? String(s.date || '') : '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (!fra || d < fra)) fra = d;
+  });
+  return fra;
+}
+
 // Per-medlem deltagelse fra attendance↔sessions, nøklet på memberId.
 // Brukes til å vise oppmøte + siste økter (med innhold) på medlemsprofilen.
 function dashAttendanceByMember() {
@@ -621,7 +653,8 @@ function dashAttendanceByMember() {
   sessions.forEach(s => { sById[s.id] = s; });
   const idx = dashMemberIndex();
   const byId = {};
-  readAttendance().forEach(a => {
+  const attRows = readAttendance();
+  attRows.forEach(a => {
     const id = a.memberId || dashResolveMemberId(a.memberName, idx);
     if (!id) return;
     const s = sById[a.sessionId];
@@ -630,6 +663,13 @@ function dashAttendanceByMember() {
     e.checkins++;
     if (date > e.sist) e.sist = date;
     if (s) e._s.push({ date: s.date, group: s.group, title: s.title });
+  });
+  // Historikken teller med i totalen. Den er eldre enn alt i Sheets, så «sist»
+  // og «siste økter» påvirkes ikke.
+  dashAttHistorikk_(dashAttFoerste_(attRows, sById), idx).forEach(h => {
+    const e = byId[h.memberId] || (byId[h.memberId] = { checkins: 0, sist: '', _s: [] });
+    e.checkins++;
+    if (h.date > e.sist) e.sist = h.date;
   });
   Object.keys(byId).forEach(id => {
     const e = byId[id];
@@ -964,6 +1004,16 @@ function dashLiveOppmote() {
       if (!attFrom || date < attFrom) attFrom = date;
     }
   });
+  // Spond-historikk: bare inn i memberMonthly («siden gradering»), ikke i
+  // kurvene over. attFrom flyttes så langt tilbake som historikken går, slik
+  // at «≥»-merkingen bare gjelder dem som er gradert før det.
+  dashAttHistorikk_(dashAttFoerste_(attRows, sById), idx).forEach(h => {
+    const mm = memberMonthly[h.memberId] || (memberMonthly[h.memberId] = {});
+    const ym = h.date.slice(0, 7);
+    mm[ym] = (mm[ym] || 0) + 1;
+    if (!attFrom || h.date < attFrom) attFrom = h.date;
+  });
+
   // Bare nåværende medlemmer — de som har sluttet er med i kurvene, men ikke
   // på toppen (og uten registeroppslag ville barn stått med fullt navn).
   const leaderboard = Object.keys(byMember).filter(k => roster[k]).map(k => byMember[k])
