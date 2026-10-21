@@ -26,6 +26,49 @@ const TD_BORTE_UKER = 8;   // speiles av DASH_BORTE_UKER i Code.gs (ukesnapshot)
 // man rekker å gjøre noe med i én økt.
 const TD_MAKS_RADER = 6;
 
+// ✉ på en rad åpner Gmail med ferdig utfylt e-post — ingenting sendes før man
+// selv trykker Send. authuser velger klubbkontoen hvis man er logget inn på
+// flere Gmail-kontoer i nettleseren (er man ikke logget inn, ber Gmail om det).
+const TD_EPOST_FRA = 'bodojiujitsu@gmail.com';
+// Maler pr. liste. {fornavn} og {siden} («4 uker siden») flettes inn.
+// «Borte» deler liste-nøkkel med «Stille», så malene velges med egen nøkkel.
+const TD_EPOST_MALER = {
+  stille: [
+    { navn:'Savner deg', emne:'Vi savner deg på matta!', tekst:
+`Hei {fornavn}!
+
+Det er {siden} vi så deg på trening sist, og vi merker at du mangler. Ingen press – bare en påminnelse om at døra står åpen, og at det blir godt å se deg igjen når det passer.
+
+Timeplanen finner du i Spond. Ta gjerne med en treningskompis.
+
+Hilsen oss i Bodø Jiu Jitsu` },
+    { navn:'Kom tilbake', emne:'Bli med på en økt denne uka?', tekst:
+`Hei {fornavn}!
+
+Lenge siden sist! Vi hadde blitt glade for å se deg på matta igjen denne uka. Etter en pause er det helt greit å ta det rolig – si fra til treneren, så tilpasser vi økta.
+
+Alle økter ligger i Spond. Håper vi ses!
+
+Hilsen Bodø Jiu Jitsu` },
+    { navn:'Alt ok?', emne:'Alt bra med deg?', tekst:
+`Hei {fornavn}!
+
+Det er {siden} sist vi så deg på trening, så vi ville bare høre hvordan det går. Er det skade, mye jobb eller studier – eller noe ved treningen vi kan gjøre bedre? Svar gjerne på denne e-posten. Vi setter pris på alle tilbakemeldinger.
+
+Hilsen Bodø Jiu Jitsu` },
+  ],
+  borte: [
+    { navn:'Avklare medlemskap', emne:'Medlemskapet ditt i Bodø Jiu Jitsu', tekst:
+`Hei {fornavn}!
+
+Det er {siden} sist vi så deg på trening, og vi går gjennom medlemslista. Vil du fortsette som medlem, eller vil du melde deg ut? Begge deler er helt greit – vi vil bare ikke at du skal betale for noe du ikke bruker. Trenger du en pause, si fra, så finner vi en løsning.
+
+Svar på denne e-posten, så ordner vi resten.
+
+Hilsen styret i Bodø Jiu Jitsu` },
+  ],
+};
+
 function tdDaysSince(iso){
   if(!iso) return null;
   const t = new Date(iso).getTime();
@@ -48,6 +91,21 @@ function tdName(m){ return m.navn || m.fornavn || 'Medlem'; }
 function tdToday(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function tdFlett(tekst, m){
+  return tekst
+    .replace(/\{fornavn\}/g, m.fornavn || String(tdName(m)).split(/\s+/)[0])
+    .replace(/\{siden\}/g, tdRelSince(m.oppmote && m.oppmote.sisteOppmote));
+}
+// encodeURIComponent, ikke URLSearchParams: den gjør mellomrom til «+», som
+// Gmail kan vise som plusstegn i teksten.
+function tdGmailUrl(m, mal){
+  const q = {
+    authuser: TD_EPOST_FRA, view: 'cm', fs: '1',
+    to: m.epost, su: tdFlett(mal.emne, m), body: tdFlett(mal.tekst, m),
+  };
+  return 'https://mail.google.com/mail/?' + Object.keys(q)
+    .map(k => k + '=' + encodeURIComponent(q[k])).join('&');
 }
 function tdPlussDager(n){
   const d = new Date(); d.setDate(d.getDate() + n);
@@ -89,9 +147,21 @@ function tdSkjulteIder(followup, liste){
 // Én synlig knapp for det man gjør ni av ti ganger, resten i en ⋯-meny.
 // Tre knapper ved siden av hverandre brøt teksten på smale skjermer, og
 // «Utsett 30 d» over to linjer ser ut som to knapper.
-function TodayHandlinger({ member, liste, onHandling, busy, hovedNavn, hovedNotat }){
+function TodayHandlinger({ member, liste, onHandling, busy, hovedNavn, hovedNotat, maler }){
   const [notatAapen, setNotatAapen] = useTd(false);
   const [menyAapen, setMenyAapen] = useTd(false);
+  const [epostAapen, setEpostAapen] = useTd(false);
+  // Barn har ingen e-post her (maskert i Code.gs/api.js) — de kontaktes via
+  // foresatte i Spond, ikke herfra.
+  const epostGrunn = member.minor ? 'Mindreårig — kontakt foresatte via Spond'
+    : !member.epost ? 'Ingen e-post registrert' : '';
+  // Gmail åpnes før lagringen, i samme klikk — ellers stopper popup-blokkeren
+  // fanen. Raden markeres som kontaktet med malnavnet som notat.
+  const sendEpost = mal => {
+    setEpostAapen(false);
+    window.open(tdGmailUrl(member, mal), '_blank', 'noopener');
+    onHandling(member.id, liste, { status:'kontaktet', notat: 'E-post: ' + mal.navn });
+  };
   const [tekst, setTekst] = useTd('');
   const stopp = e => e.stopPropagation();
   const hoved = () => onHandling(member.id, liste,
@@ -102,8 +172,20 @@ function TodayHandlinger({ member, liste, onHandling, busy, hovedNavn, hovedNota
         <button className="btn ghost xs nowrap" disabled={busy}
           title={`Skjuler raden i ${TD_KONTAKTET_DAGER} dager. Treffer medlemmet fortsatt kriteriet etterpå, kommer den tilbake.`}
           onClick={hoved}>✓ {hovedNavn || 'Kontaktet'}</button>
+        {maler && maler.length > 0 && (
+          <button className="btn ghost xs nowrap" disabled={busy || !!epostGrunn} aria-label="Send e-post"
+            title={epostGrunn || `Åpner Gmail (${TD_EPOST_FRA}) med ferdig tekst. Raden markeres som kontaktet.`}
+            onClick={()=>{ setMenyAapen(false); setEpostAapen(v=>!v); }}>✉</button>
+        )}
         <button className="btn ghost xs nowrap" disabled={busy} aria-label="Flere valg"
-          title="Flere valg" onClick={()=>setMenyAapen(v=>!v)}>⋯</button>
+          title="Flere valg" onClick={()=>{ setEpostAapen(false); setMenyAapen(v=>!v); }}>⋯</button>
+        {epostAapen && (
+          <div className="rad-meny" onMouseLeave={()=>setEpostAapen(false)}>
+            {maler.map(mal => (
+              <button key={mal.navn} disabled={busy} title={mal.emne} onClick={()=>sendEpost(mal)}>{mal.navn}</button>
+            ))}
+          </div>
+        )}
         {menyAapen && (
           <div className="rad-meny" onMouseLeave={()=>setMenyAapen(false)}>
             <button disabled={busy} onClick={()=>{ setMenyAapen(false);
@@ -131,7 +213,7 @@ function TodayHandlinger({ member, liste, onHandling, busy, hovedNavn, hovedNota
 }
 
 function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skjulte, onHandling, busy,
-  hovedNavn, hovedNotat, sammenfoldet }){
+  hovedNavn, hovedNotat, sammenfoldet, maler }){
   const [visSkjulte, setVisSkjulte] = useTd(false);
   const [visAlle, setVisAlle] = useTd(false);
   const synlige = rows.filter(m => !skjulte[m.id]);
@@ -167,9 +249,9 @@ function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skju
                       </div>
                     </td>
                     <td className="num dim" style={{whiteSpace:'nowrap'}}>{meta(m)}</td>
-                    <td style={{textAlign:'right', width:150}}>
+                    <td style={{textAlign:'right', width: maler ? 180 : 150}}>
                       <TodayHandlinger member={m} liste={liste} onHandling={onHandling} busy={busy}
-                        hovedNavn={hovedNavn} hovedNotat={hovedNotat}/>
+                        hovedNavn={hovedNavn} hovedNotat={hovedNotat} maler={maler}/>
                     </td>
                   </tr>
                 );
@@ -316,6 +398,7 @@ function Today({ members, live, thresholds }){
         title="Stille medlemmer" hint={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte · ferskeste først`} accent="coral"
         liste="stille" rows={stille} meta={m => tdRelSince(m.oppmote.sisteOppmote)}
         empty="Ingen stille medlemmer over terskelen — eller oppmøtedata mangler ennå."
+        maler={TD_EPOST_MALER.stille}
         skjulte={skjultStille} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
@@ -323,6 +406,7 @@ function Today({ members, live, thresholds }){
         liste="stille" rows={borte} meta={m => tdRelSince(m.oppmote.sisteOppmote)}
         empty="Ingen har vært borte så lenge."
         hovedNavn="Avklart" hovedNotat="Medlemskap til avklaring"
+        maler={TD_EPOST_MALER.borte}
         sammenfoldet
         skjulte={skjultStille} onHandling={handling} busy={busy} onOpen={openMember}/>
 
