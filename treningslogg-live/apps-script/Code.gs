@@ -1185,6 +1185,9 @@ const DASH_STOR_AVGANG_ANDEL = 0.2;
 function dashImportRoster(members, bekreftStorAvgang) {
   if (!Array.isArray(members)) throw new Error('members må være array');
   if (!members.length) throw new Error('Importen er tom — registeret er ikke endret.');
+  // Navnebytte: samme person under nytt navn får sin gamle id tilbake, så
+  // oppmøter, belter og oppfølging henger med (og ingen «slutter»).
+  const navnebytte = dashNavnebytteVedImport_(members);
   if (!bekreftStorAvgang) {
     const naa = {};
     members.forEach(m => { if (m && m.id) naa[String(m.id)] = true; });
@@ -1237,6 +1240,11 @@ function dashImportRoster(members, bekreftStorAvgang) {
       g = dashGradingFraArkiv_(gammel);
       gjenopprettet++;
     }
+    // Navnebytte: klienten kjente dem ikke igjen og sendte blank historikk.
+    if (navnebytte[String(m.id)] && !m.beltImport && dashErBlankGrading_(g) && forrigeHist[String(m.id)]) {
+      g = dashGradingFraArkiv_(forrigeHist[String(m.id)].map(r => DASH_GRADING_COLS.map(c =>
+        (c === 'date' ? ymd(r[c]) : (r[c] == null ? '' : r[c])))));
+    }
     if (gammel) delete arkiv[String(m.id)];   // er med i importen — ikke arkiv lenger
     const cur = g.current || { belt: 'Hvit', stripes: 0, since: '' };
     const rowObj = {
@@ -1265,7 +1273,143 @@ function dashImportRoster(members, bekreftStorAvgang) {
   if (gRows.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gRows.length, DASH_GRADING_COLS.length).setValues(gRows);
   dashSetMeta({ rosterImportedAt: now, rosterCount: members.length });
   return { total: members.length, gradingEvents: gRows.length,
-    sluttet: avgang.sluttet, gjeninnmeldt: avgang.gjeninnmeldt, beltGjenopprettet: gjenopprettet };
+    sluttet: avgang.sluttet, gjeninnmeldt: avgang.gjeninnmeldt, beltGjenopprettet: gjenopprettet,
+    navnebytte: Object.keys(navnebytte).length };
+}
+
+// ─── Navnebytte ────────────────────────────────────────────────────
+// id er en slug av navnet, så et nytt navn i Spond gir ny id. Uten dette
+// ble personen registrert som sluttet, og oppmøter og belter ble liggende
+// igjen på den gamle id-en. Barn er maskert i klienten (kun «Fornavn E.»,
+// ingen e-post), så bare backenden kan kjenne dem igjen.
+
+// Første del av fornavnet («Tilde Gabrielsson» → «tilde»).
+function dashForsteNavn_(navn) {
+  return dashSlug(navn).split('-')[0] || '';
+}
+
+// Ved import: en ny id som ikke fantes i registeret, og en gammel id som
+// forsvinner, er samme person når fødselsdato, innmeldingsdato og første
+// fornavn er like — og paret er entydig. Den nye får den gamle id-en.
+// Returnerer { gammelId: true } for dem som ble flyttet.
+function dashNavnebytteVedImport_(members) {
+  const naa = {};
+  members.forEach(m => { if (m && m.id) naa[String(m.id)] = true; });
+  const nokkel = (fodt, innm, navn) => {
+    const f = fodt ? ymd(fodt) : '', i = innm ? ymd(innm) : '', n = dashForsteNavn_(navn);
+    return f && i && n ? f + '|' + i + '|' + n : '';
+  };
+  const borte = {};   // nøkkel → [gammel id, …]
+  dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS).forEach(r => {
+    const id = String(r.id || '');
+    if (!id || naa[id]) return;
+    const k = nokkel(r.fodselsdato, r.innmeldingsdato, r.fornavn || r.navn);
+    if (k) (borte[k] || (borte[k] = [])).push(id);
+  });
+  const nye = {};     // nøkkel → [medlem, …]
+  members.forEach(m => {
+    if (!m || !m.id) return;
+    const k = nokkel(m.fodselsdato, m.innmeldingsdato, m.fornavn || m.navn);
+    if (k && borte[k]) (nye[k] || (nye[k] = [])).push(m);
+  });
+  const flyttet = {};
+  Object.keys(nye).forEach(k => {
+    if (nye[k].length !== 1 || borte[k].length !== 1) return;
+    nye[k][0].id = borte[k][0];
+    flyttet[borte[k][0]] = true;
+  });
+  return flyttet;
+}
+
+// Navnebytter som allerede har skjedd: en «sluttet»-rad fra importen der id-en
+// ikke er i registeret, og ett nåværende medlem med samme innmeldingsdato og
+// første fornavn. (dash_departed har ikke fødselsdato.) Bare oppslag.
+function dashFinnNavnebytter_() {
+  const naa = dashRows(SHEET_NAMES.dashMembers, DASH_MEMBER_COLS).filter(r => r.id);
+  const iRegisteret = {};
+  naa.forEach(r => { iRegisteret[String(r.id)] = true; });
+  const par = [];
+  const sett = {};
+  dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).forEach(d => {
+    const fra = String(d.id || '');
+    if (!fra || iRegisteret[fra] || sett[fra] || String(d.kilde || '') !== 'import' || d.gjeninnmeldt) return;
+    const innm = d.innmeldingsdato ? ymd(d.innmeldingsdato) : '';
+    const fornavn = dashForsteNavn_(d.navn);
+    if (!innm || !fornavn) return;
+    const treff = naa.filter(m => (m.innmeldingsdato ? ymd(m.innmeldingsdato) : '') === innm
+      && dashForsteNavn_(m.fornavn || m.navn) === fornavn);
+    if (treff.length !== 1) return;
+    sett[fra] = true;
+    par.push({ fra: fra, fraNavn: String(d.navn || ''), til: String(treff[0].id), tilNavn: String(treff[0].navn || '') });
+  });
+  return par;
+}
+
+// Flytt alt som hører til fraId over på tilId: oppmøter, Spond-historikk,
+// oppfølging og tidligere avganger. «Sluttet»-raden importen laget ved
+// navnebyttet slettes (personen sluttet aldri). Belter: har tilId egen
+// historikk, beholdes den, og fraId-arkivet fjernes; ellers flyttes det.
+// Det gamle navnet lagres som alias, så eldre Spond-filer treffer riktig.
+function dashSlaSammenMedlem_(fraId, tilId, fraNavn) {
+  fraId = String(fraId || ''); tilId = String(tilId || '');
+  if (!fraId || !tilId || fraId === tilId) throw new Error('fraId og tilId kreves og må være ulike');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const flytt = (navn, cols, kol) => {
+    const sh = ss.getSheetByName(navn);
+    if (!sh || sh.getLastRow() < 2) return 0;
+    const c = cols.indexOf(kol) + 1;
+    const rng = sh.getRange(2, c, sh.getLastRow() - 1, 1);
+    const vals = rng.getValues();
+    let n = 0;
+    vals.forEach(r => { if (String(r[0]) === fraId) { r[0] = tilId; n++; } });
+    if (n) rng.setValues(vals);
+    return n;
+  };
+  const oppmoter = flytt(SHEET_NAMES.attendance, ATTENDANCE_COLS, 'memberId');
+  const historikk = flytt(SHEET_NAMES.dashAttHistorikk, DASH_ATT_HIST_COLS, 'memberId');
+  const oppfolging = flytt(SHEET_NAMES.dashFollowup, DASH_FOLLOWUP_COLS, 'memberId');
+
+  const rader = dashRows(SHEET_NAMES.dashDeparted, DASH_DEPARTED_COLS).filter(r => r.id).map(dashDepartedRad_);
+  const beholdt = rader.filter(r => !(r[0] === fraId && r[7] === 'import'));
+  beholdt.forEach(r => { if (r[0] === fraId) r[0] = tilId; });
+  if (beholdt.length !== rader.length) dashSkrivDeparted_(beholdt);
+
+  const gRader = dashRows(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
+  const tilHarBelte = gRader.some(r => String(r.memberId) === tilId);
+  const harFra = gRader.some(r => String(r.memberId) === fraId);
+  const gNye = [];
+  gRader.forEach(r => {
+    if (String(r.memberId) === fraId) { if (tilHarBelte) return; r.memberId = tilId; }
+    gNye.push(DASH_GRADING_COLS.map(c => (c === 'date' ? ymd(r[c]) : (r[c] == null ? '' : r[c]))));
+  });
+  if (harFra) {
+    dashClear(SHEET_NAMES.dashGrading, DASH_GRADING_COLS);
+    if (gNye.length) sheet(SHEET_NAMES.dashGrading).getRange(2, 1, gNye.length, DASH_GRADING_COLS.length).setValues(gNye);
+  }
+
+  if (fraNavn) {
+    let aliases = {};
+    try { aliases = JSON.parse(dashGetMeta().attendanceAliases || '{}'); } catch (e) { aliases = {}; }
+    aliases[String(fraNavn).trim().toLowerCase()] = tilId;
+    dashSetMeta({ attendanceAliases: JSON.stringify(aliases) });
+  }
+  return { fra: fraId, til: tilId, oppmoter: oppmoter, historikk: historikk, oppfolging: oppfolging,
+    avgangerFjernet: rader.length - beholdt.length };
+}
+
+// Kjør fra editoren: viser navnebytter som ikke er slått sammen (endrer ingenting).
+function _finnNavnebytter() {
+  const par = dashFinnNavnebytter_();
+  Logger.log(par.length ? par.map(p => p.fraNavn + ' (' + p.fra + ') → ' + p.tilNavn + ' (' + p.til + ')').join('\n')
+    : 'Ingen navnebytter funnet.');
+  return par;
+}
+
+// Kjør fra editoren etter _finnNavnebytter: slår sammen parene den fant.
+function _slaSammenNavnebytter() {
+  const svar = dashFinnNavnebytter_().map(p => dashSlaSammenMedlem_(p.fra, p.til, p.fraNavn));
+  Logger.log(svar.length ? JSON.stringify(svar, null, 1) : 'Ingen navnebytter funnet.');
+  return svar;
 }
 
 // Historikk som bare består av innmeldingen (hvitt belte) — det klienten
