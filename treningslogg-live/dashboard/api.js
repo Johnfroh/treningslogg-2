@@ -43,6 +43,24 @@ window.DASH_API = (function () {
     return new Error(hva + ' feilet: ' + res.status + hint);
   }
 
+  // «Failed to fetch» betyr at nettleseren ikke fikk noe svar i det hele
+  // tatt. Her er det nesten alltid utløpt Cloudflare Access-innlogging:
+  // /api sendes videre til innloggingssiden på et annet domene, og
+  // nettleseren stopper det. Ett nytt forsøk dekker et kortvarig nettbrudd;
+  // feiler det igjen, sier meldingen hva brukeren faktisk skal gjøre.
+  async function nettFetch(url, init) {
+    try {
+      return await fetch(url, init);
+    } catch {
+      await new Promise(r => setTimeout(r, 800));
+      try {
+        return await fetch(url, init);
+      } catch {
+        throw new Error('fikk ikke kontakt med serveren — innloggingen har trolig gått ut. Last siden på nytt (Ctrl/Cmd+R) og logg inn igjen.');
+      }
+    }
+  }
+
   async function getJSON(path) {
     const res = await fetch(path, { cache: 'no-store' });
     if (!res.ok) throw new Error(path + ' feilet: ' + res.status);
@@ -55,7 +73,7 @@ window.DASH_API = (function () {
     url.searchParams.set('action', action);
     url.searchParams.set('_ts', Date.now().toString());
     if (extra) Object.entries(extra).forEach(([k, v]) => url.searchParams.set(k, v));
-    const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
+    const res = await nettFetch(url.toString(), { method: 'GET', cache: 'no-store' });
     if (!res.ok) throw await httpFeil('GET ' + action, res);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'ukjent feil');
@@ -64,7 +82,7 @@ window.DASH_API = (function () {
 
   async function post(body) {
     // text/plain unngår CORS-preflight; Apps Script parser body manuelt.
-    const res = await fetch(ENDPOINT, {
+    const res = await nettFetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body),
