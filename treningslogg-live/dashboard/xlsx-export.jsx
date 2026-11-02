@@ -39,7 +39,8 @@ function xeZip(filer){
 
   filer.forEach(f => {
     const navn = enc.encode(f.navn);
-    const data = enc.encode(f.innhold);
+    // Tekst kodes som UTF-8; binærfiler (logoen) sendes inn som Uint8Array.
+    const data = f.innhold instanceof Uint8Array ? f.innhold : enc.encode(f.innhold);
     const crc = xeCrc32(data);
     // Lokal header: signatur, versjon 2.0, ingen flagg, metode 0 (stored),
     // null-dato (Excel bryr seg ikke), crc, størrelser, navnelengde.
@@ -95,8 +96,11 @@ function xeArknavn(navn, brukt){
   return n;
 }
 
-/* ark: [{ navn, kolonner:[...], rader:[[...]] }] → Blob */
-function byggXlsx(ark){
+/* ark: [{ navn, kolonner:[...], rader:[[...]] }] → Blob
+   forside (valgfri): { logo: Uint8Array (png) | null, linjer: ['Tittel', 'Periode', …] }
+   → egen første fane med klubblogo og tittel. Tabellfanene får ikke logo:
+   der må rad 1 være overskrifter, ellers slutter filter og sortering å virke. */
+function byggXlsx(ark, forside){
   const enc = new TextEncoder();
   const strenger = [], strIdx = {};
   const sIdx = s => {
@@ -151,12 +155,64 @@ function byggXlsx(ark){
   });
 
   const nsRel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const ekstra = [];
+  if (forside) {
+    const harLogo = !!(forside.logo && forside.logo.length);
+    // Logoen dekker rad 1–10; teksten starter på rad 12.
+    const start = harLogo ? 12 : 1;
+    const rader = (forside.linjer || []).map((t, i) => {
+      const r = start + i;
+      return `<row r="${r}"><c r="A${r}"${i === 0 ? ' s="2"' : ''} t="s"><v>${sIdx(t)}</v></c></row>`;
+    }).join('');
+    const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${nsRel}">` +
+      '<sheetViews><sheetView showGridLines="0" tabSelected="1" workbookViewId="0"/></sheetViews>' +
+      '<sheetFormatPr defaultRowHeight="15"/>' +
+      '<cols><col min="1" max="1" width="60" customWidth="1"/></cols>' +
+      `<sheetData>${rader}</sheetData>` +
+      (harLogo ? '<drawing r:id="rId1"/>' : '') +
+      '</worksheet>';
+    sheets.forEach(sh => { sh.ikkeValgt = true; });
+    sheets.unshift({ navn: xeArknavn('Forside', brukt), xml, logo: harLogo });
+    if (harLogo) {
+      const emu = 1645920; // 1,8 tommer
+      ekstra.push(
+        { navn: 'xl/worksheets/_rels/sheet1.xml.rels', innhold:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          `<Relationship Id="rId1" Type="${nsRel}/drawing" Target="../drawings/drawing1.xml"/>` +
+          '</Relationships>' },
+        { navn: 'xl/drawings/drawing1.xml', innhold:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ' +
+          `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${nsRel}">` +
+          '<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>95250</xdr:rowOff></xdr:from>' +
+          `<xdr:ext cx="${emu}" cy="${emu}"/>` +
+          '<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Klubblogo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
+          '<xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
+          `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>` +
+          '</xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>' },
+        { navn: 'xl/drawings/_rels/drawing1.xml.rels', innhold:
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          `<Relationship Id="rId1" Type="${nsRel}/image" Target="../media/klubblogo.png"/>` +
+          '</Relationships>' },
+        { navn: 'xl/media/klubblogo.png', innhold: forside.logo },
+      );
+    }
+  }
+  // Med forside er det forsiden som er valgt fane, ikke første tabell.
+  sheets.forEach(sh => { if (sh.ikkeValgt) sh.xml = sh.xml.replace(' tabSelected="1"', ''); });
+  const harBilde = ekstra.length > 0;
+
   const filer = [
     { navn: '[Content_Types].xml', innhold:
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
       '<Default Extension="xml" ContentType="application/xml"/>' +
+      (harBilde ? '<Default Extension="png" ContentType="image/png"/>' +
+        '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : '') +
       '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
       sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
       '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>' +
@@ -204,14 +260,27 @@ function byggXlsx(ark){
       // xml:space bevarer ledende/etterfølgende mellomrom.
       strenger.map(s => `<si><t xml:space="preserve">${xeEsc(s)}</t></si>`).join('') +
       '</sst>' },
-  ].concat(sheets.map((s, i) => ({ navn: `xl/worksheets/sheet${i+1}.xml`, innhold: s.xml })));
+  ].concat(sheets.map((s, i) => ({ navn: `xl/worksheets/sheet${i+1}.xml`, innhold: s.xml })), ekstra);
 
   void enc;
   return xeZip(filer);
 }
 
-function lastNedXlsx(filnavn, ark){
-  const blob = byggXlsx(ark);
+// Klubblogoen som PNG-bytes, hentet én gang. null hvis den ikke kan hentes —
+// da blir forsiden uten logo i stedet for at eksporten feiler.
+let xeLogoLover = null;
+function hentKlubblogo(){
+  if (!xeLogoLover) {
+    xeLogoLover = fetch('/klubblogo.png', { cache: 'force-cache' })
+      .then(r => r.ok ? r.arrayBuffer() : null)
+      .then(b => b ? new Uint8Array(b) : null)
+      .catch(() => null);
+  }
+  return xeLogoLover;
+}
+
+function lastNedXlsx(filnavn, ark, forside){
+  const blob = byggXlsx(ark, forside);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filnavn;
@@ -219,4 +288,4 @@ function lastNedXlsx(filnavn, ark){
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 }
 
-Object.assign(window, { byggXlsx, lastNedXlsx, xeZip, xeCrc32, xeKol, xeSerial, xeArknavn });
+Object.assign(window, { byggXlsx, lastNedXlsx, hentKlubblogo, xeZip, xeCrc32, xeKol, xeSerial, xeArknavn });
