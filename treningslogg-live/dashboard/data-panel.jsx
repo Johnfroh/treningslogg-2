@@ -135,11 +135,14 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
   const [feil, setFeil]=useDp('');
 
   // Øktene og Vipps-tallene hentes ikke av useMembers — de er egne ruter.
+  // hentForsok øker ved «Prøv igjen», så effekten kjører på nytt.
+  const [hentForsok, setHentForsok]=useDp(0);
   useDpEffect(()=>{
     if(typeof DASH_API.fetchCalendar !== 'function'){ setFeil('Kalender-ruten mangler — last siden på nytt (Ctrl/Cmd+F5).'); return; }
+    setFeil('');
     DASH_API.fetchCalendar().then(c => setSessions((c && c.sessions) || []))
       .catch(err => setFeil('Kunne ikke hente øktene: ' + err.message));
-  }, []);
+  }, [hentForsok]);
   useDpEffect(()=>{
     if(!isStyre || typeof DASH_API.fetchVipps !== 'function'){ setVipps({months:[]}); return; }
     DASH_API.fetchVipps().then(setVipps).catch(()=>setVipps({months:[]}));
@@ -191,7 +194,10 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
 
   return (
     <div className="dlg-body">
-      {feil && <div style={{fontSize:12, color:'var(--coral)', marginBottom:12}}>{feil}</div>}
+      {feil && <div style={{fontSize:12, color:'var(--coral)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+        <span>{feil}</span>
+        <button className="btn ghost" style={{fontSize:12, padding:'4px 10px'}} onClick={()=>setHentForsok(n=>n+1)}>Prøv igjen</button>
+      </div>}
 
       <div style={{fontSize:11, textTransform:'uppercase', letterSpacing:'.12em', color:'var(--text-mut)', marginBottom:7}}>Forhåndsvalg</div>
       <div style={{display:'flex', gap:8, flexWrap:'wrap', marginBottom:16}}>
