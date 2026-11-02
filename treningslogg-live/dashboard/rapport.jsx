@@ -197,6 +197,10 @@ function mrSamle(okter, nokkel, oppmoteAv){
    ikke vite hvordan beltefordelingen så ut i mars. Panelet grupperer etter
    dette, så et datofilter aldri ser ut til å gjelde noe det ikke gjelder. */
 const RAPPORT_SEKSJONER = [
+  { key:'hoydepkt', gruppe:'Medlemsbrev', navn:'Måneden i tall', periode:true },
+  { key:'topp',     gruppe:'Medlemsbrev', navn:'Topp oppmøte',                 periode:true },
+  { key:'fremgang', gruppe:'Medlemsbrev', navn:'Størst fremgang i oppmøte',    periode:true },
+  { key:'gratulerer',gruppe:'Medlemsbrev',navn:'Gratulerer med graderingen',   periode:true },
   { key:'tall',     gruppe:'Aktivitet',  navn:'Nøkkeltall',                    periode:true },
   { key:'okttyper', gruppe:'Aktivitet',  navn:'Oppmøte pr. økttype',           periode:true },
   { key:'ukedager', gruppe:'Aktivitet',  navn:'Aktivitet pr. ukedag',          periode:true },
@@ -223,6 +227,9 @@ const RAPPORT_PRESETS = [
   { key:'aar', navn:'Årsrapport', periode:'iaar',
     hint:'Hittil i år · medlemmer, aktivitet og økonomi',
     seksjoner:['tall','okttyper','ukedager','sammens','belter','geografi','gradert','okonomi','pris'] },
+  { key:'medlem', navn:'Medlemsoppdatering', periode:'forrige',
+    hint:'Forrige måned · topp oppmøte, graderinger og fremgang — til medlemmene',
+    seksjoner:['hoydepkt','topp','fremgang','gratulerer','ukedager'] },
   { key:'striper', navn:'Stripeliste', periode:'denne',
     hint:'Alle som får striper · antall og tid siden forrige',
     seksjoner:['striper'] },
@@ -307,6 +314,9 @@ function buildRapportData(fra, til, ctx){
   const medTallF=okterF.filter(s => oppmoteAv(s)!=null);
   const oppmoterF=medTallF.reduce((n,s)=> n+oppmoteAv(s), 0);
 
+  const attFrom=(live && live.attFrom) || '';
+  const attFromYm=MR_ISO.test(attFrom) ? attFrom.slice(0,7) : '';
+
   // --- Unike innom matta ---
   const sumMnd=(id,ms)=> ms.reduce((n,ym)=> n+mrMnd(live,id,ym), 0);
   const mndF=mrMndListe(fFra, fTil);
@@ -315,6 +325,25 @@ function buildRapportData(fra, til, ctx){
     if(sumMnd(m.id,mnd)>0) unike++;
     if(sumMnd(m.id,mndF)>0) unikeF++;
   });
+
+  // --- Medlemsbrev: topp oppmøte og fremgang ---
+  // Samme kilde som «innom matta» (oppmøte pr. medlem pr. måned), så tallene
+  // henger sammen. Topplista tar med alle som står likt med nr. 10.
+  const TOPP_N=10, TOPP_MAKS=15;
+  const pr=list.map(m=>({ id:m.id, navn:mrNavn(m), kategori:m.kategori,
+    belte:mrBelteTekst(m), na:sumMnd(m.id,mnd), forr:sumMnd(m.id,mndF) }));
+  const sortTopp=pr.filter(r=>r.na>0).sort((a,b)=> b.na-a.na || a.navn.localeCompare(b.navn,'nb'));
+  const grense=sortTopp.length>=TOPP_N ? sortTopp[TOPP_N-1].na : 0;
+  const topp=sortTopp.filter((r,i)=> i<TOPP_N || r.na===grense).slice(0,TOPP_MAKS);
+  // Fremgang: flere økter enn forrige periode. Krever minst 4 økter nå, så
+  // «fra 0 til 2» ikke topper lista over folk som faktisk har bygd en vane.
+  // Har oppmøtedataene ikke startet før forrige periode, er sammenligningen
+  // ikke til å stole på — da vises ingen fremgangsliste.
+  const FREM_MIN=Math.max(4, 2*antMnd);
+  const forrigeDekket=!attFromYm || attFromYm<=fFra;
+  const fremgang=forrigeDekket ? pr.filter(r=> r.na>=FREM_MIN && r.na-r.forr>=2)
+    .map(r=>({ ...r, diff:r.na-r.forr }))
+    .sort((a,b)=> b.diff-a.diff || b.na-a.na).slice(0,TOPP_N) : [];
 
   // --- Oppfølging (øyeblikksbilde) ---
   const intro=list.filter(m=>{
@@ -351,8 +380,6 @@ function buildRapportData(fra, til, ctx){
 
   // Trendkolonner: de tre siste månedene i perioden (færre om perioden er kort).
   const trendMnd=mnd.slice(-3);
-  const attFrom=(live && live.attFrom) || '';
-  const attFromYm=MR_ISO.test(attFrom) ? attFrom.slice(0,7) : '';
   const aktivitet=list.map(m=>{
     const sist=mrSistGradert(m);
     const sortBelte=((m.grading && m.grading.current && m.grading.current.belt)||'')==='Sort';
@@ -410,6 +437,7 @@ function buildRapportData(fra, til, ctx){
     unike, unikeForrige: unikeF,
     okterForrige: okterF.length, oppmoterForrige: oppmoterF,
     snittForrige: medTallF.length ? oppmoterF/medTallF.length : 0,
+    topp, fremgang, fremMin: FREM_MIN, forrigeDekket,
     intro, stille, sluttet, sluttetFra,
     striper, utenStriper,
     gradert, aktivitet, overTerskel, trendMnd,
@@ -464,6 +492,52 @@ const MR_RENDER = {
       `<td class="num">${mrNf(g.oppmoter)}</td><td class="num">${g.snitt.toFixed(1)}</td></tr>`).join('');
     return mrSeksjon('Pr. gruppe','',
       `<table><thead><tr><th>Gruppe</th><th class="num">Økter</th><th class="num">Oppmøter</th><th class="num">Snitt</th></tr></thead><tbody>${rader}</tbody></table>`);
+  },
+  hoydepkt(d){
+    const belter=d.gradert.filter(g=>g.kind==='belte').length;
+    const striper=d.gradert.length-belter;
+    const kort=(v,l)=>`<div class="kpi"><div class="kv">${v}</div><div class="kl">${l}</div></div>`;
+    return `<div class="sec"><div class="kpis" style="grid-template-columns:repeat(5,1fr)">
+      ${kort(mrNf(d.okter.length),'økter på matta')}
+      ${kort(mrNf(d.oppmoterTot),'oppmøter')}
+      ${kort(mrNf(d.unike),'ulike utøvere')}
+      ${kort(mrNf(belter),'nye belter')}
+      ${kort(mrNf(striper),'nye striper')}
+    </div></div>`;
+  },
+  topp(d){
+    if(!d.topp.length) return mrSeksjon('Topp oppmøte','',mrTom('Ingen registrert oppmøte i perioden.'));
+    const max=Math.max(1, d.topp[0].na);
+    let plass=0, forrige=null;
+    const rader=d.topp.map((r,i)=>{
+      if(r.na!==forrige){ plass=i+1; forrige=r.na; }
+      return `<tr><td class="num dim" style="width:34px">${plass}.</td><td><strong>${mrEsc(r.navn)}</strong></td>` +
+        `<td class="dim">${mrEsc(r.belte)}</td>` +
+        `<td style="width:34%"><span class="bt" style="display:block"><span class="bf" style="width:${Math.round(r.na/max*100)}%;background:var(--accent)"></span></span></td>` +
+        `<td class="num">${r.na}</td></tr>`;
+    }).join('');
+    return mrSeksjon('Topp oppmøte', 'flest økter i '+d.periodeNavn,
+      `<table><thead><tr><th></th><th>Navn</th><th>Belte</th><th></th><th class="num">Økter</th></tr></thead><tbody>${rader}</tbody></table>`);
+  },
+  fremgang(d){
+    if(!d.forrigeDekket) return mrSeksjon('Størst fremgang','',mrTom('Oppmøtedataene går ikke langt nok tilbake til å sammenligne med forrige periode.'));
+    if(!d.fremgang.length) return mrSeksjon('Størst fremgang','',mrTom('Ingen med tydelig økning denne gangen.'));
+    const rader=d.fremgang.map(r=>
+      `<tr><td><strong>${mrEsc(r.navn)}</strong></td><td class="dim">${mrEsc(r.belte)}</td>` +
+      `<td class="num dim">${r.forr}</td><td class="num">${r.na}</td><td class="num up">+${r.diff}</td></tr>`).join('');
+    return mrSeksjon('Størst fremgang', 'flere økter enn '+d.forrigeNavn,
+      `<table><thead><tr><th>Navn</th><th>Belte</th><th class="num">${mrEsc(d.forrigeNavn)}</th><th class="num">${mrEsc(d.periodeNavn)}</th><th class="num">Økning</th></tr></thead><tbody>${rader}</tbody></table>` +
+      `<div class="note">Med på lista: minst ${d.fremMin} økter i perioden og minst 2 flere enn i perioden før.</div>`);
+  },
+  gratulerer(d){
+    if(!d.gradert.length) return mrSeksjon('Gratulerer!','',mrTom('Ingen graderinger i perioden.'));
+    const belter=d.gradert.filter(g=>g.kind==='belte'), striper=d.gradert.filter(g=>g.kind!=='belte');
+    const liste=(arr,tekst)=> arr.map(g=>
+      `<tr><td><strong>${mrEsc(g.navn)}</strong></td><td>${mrEsc(tekst(g))}</td><td class="num dim">${mrEsc(mrDagMnd(g.dato))}</td></tr>`).join('');
+    const blokk=(tittel,arr,tekst)=> arr.length? `<h3 style="margin-top:14px">${tittel}</h3><table><tbody>${liste(arr,tekst)}</tbody></table>` : '';
+    return mrSeksjon('Gratulerer!', 'graderinger i '+d.periodeNavn,
+      blokk('Nytt belte', belter, g=>g.belt+'belte') +
+      blokk('Ny stripe', striper, g=>g.belt+' · '+g.stripes+(g.stripes===1?' stripe':' striper')));
   },
   okttyper(d){
     if(!d.typeListe.length) return mrSeksjon('Oppmøte pr. økttype','',mrTom('Ingen økter i perioden.'));
@@ -710,6 +784,24 @@ const MR_TABELL = {
     kolonner:['Gruppe','Økter','Oppmøter','Snitt pr. økt'],
     rader:d.gruppeListe.map(g=>[g.gruppe, g.okter, g.oppmoter, mrRund1(g.snitt)]),
   }),
+  hoydepkt: d => ({
+    kolonner:['Måneden i tall','Antall'],
+    rader:[['Økter på matta', d.okter.length], ['Oppmøter', d.oppmoterTot], ['Ulike utøvere', d.unike],
+      ['Nye belter', d.gradert.filter(g=>g.kind==='belte').length],
+      ['Nye striper', d.gradert.filter(g=>g.kind!=='belte').length]],
+  }),
+  topp: d => ({
+    kolonner:['Navn','Kategori','Belte','Økter'],
+    rader:d.topp.map(r=>[r.navn, r.kategori||'', (r.belte||'').replace(/[●○]/g,'').trim(), r.na]),
+  }),
+  fremgang: d => ({
+    kolonner:['Navn','Kategori','Økter forrige periode','Økter nå','Økning'],
+    rader:d.fremgang.map(r=>[r.navn, r.kategori||'', r.forr, r.na, r.diff]),
+  }),
+  gratulerer: d => ({
+    kolonner:['Dato','Navn','Type','Belte','Striper'],
+    rader:d.gradert.map(g=>[mrDato(g.dato), g.navn, g.kind==='belte'?'nytt belte':'stripe', g.belt||'', g.stripes]),
+  }),
   okttyper: d => ({
     kolonner:['Økttype','Økter','Oppmøter','Andel av oppmøter (%)','Snitt pr. økt'],
     rader:d.typeListe.map(t=>[t.type, t.okter, t.oppmoter, Math.round(t.andel*100), mrRund1(t.snitt)]),
@@ -830,7 +922,12 @@ function lastNedRapportXlsx(d, valgte, tittel){
   const ark=RAPPORT_SEKSJONER.filter(s => valgt.has(s.key) && MR_TABELL[s.key])
     .map(s => { const t=MR_TABELL[s.key](d); return { navn:s.navn, kolonner:t.kolonner, rader:t.rader }; });
   if(!ark.length){ alert('Ingen seksjoner å eksportere.'); return; }
-  lastNedXlsx('bodojj_'+mrFilnavn(tittel, d)+'.xlsx', ark);
+  const filnavn='bodojj_'+mrFilnavn(tittel, d)+'.xlsx';
+  const linjer=[(tittel||'Rapport')+' — '+d.periodeNavn, 'Bodø Jiu Jitsu',
+    'Generert '+new Date().toLocaleDateString('nb-NO'), '',
+    'Faner i denne fila:'].concat(ark.map(a=>'· '+a.navn));
+  const hent = typeof window.hentKlubblogo==='function' ? window.hentKlubblogo() : Promise.resolve(null);
+  hent.then(logo => lastNedXlsx(filnavn, ark, { logo, linjer }));
 }
 function mrFilnavn(tittel, d){
   const slug=String(tittel||'rapport').toLowerCase().normalize('NFD')
@@ -857,13 +954,17 @@ function buildRapportHTML(d, valgte, tittel){
   // en stripeliste er ikke «september 2026», den er «per i dag».
   const harPeriode=RAPPORT_SEKSJONER.some(s => valgt.has(s.key) && s.periode);
   const undertittel=harPeriode ? d.periodeNavn : 'per ' + new Date().toLocaleDateString('nb-NO');
+  // Absolutt adresse: rapporten skrives inn i et tomt vindu (about:blank),
+  // der en relativ sti ikke peker noe sted.
+  const logoUrl=(typeof location!=='undefined' && location.origin && location.origin!=='null' ? location.origin : '') + '/klubblogo.png';
   return `<!DOCTYPE html><html lang="nb"><head><meta charset="utf-8">
 <title>${mrEsc(navn)} ${mrEsc(undertittel)} — Bodø Jiu Jitsu</title>
 <style>
   :root{ --accent:#7B6EF6; --green:#34B98C; --coral:#F2825F; --blue:#4F9BEA; --ink:#232136; --mut:#8A86A0; --rule:#ECEAF4; }
   *{ margin:0; padding:0; box-sizing:border-box; }
   body{ font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color:var(--ink); padding:72px 52px 44px; max-width:900px; margin:0 auto; }
-  header{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--accent); padding-bottom:18px; }
+  header{ display:flex; justify-content:space-between; align-items:flex-end; gap:18px; border-bottom:3px solid var(--accent); padding-bottom:18px; }
+  .logo{ width:72px; height:72px; flex:none; } header .tit{ flex:1; }
   h1{ font-size:30px; letter-spacing:-0.02em; } h1 small{ display:block; font-size:12px; color:var(--mut); font-weight:600; letter-spacing:.14em; text-transform:uppercase; margin-bottom:6px; }
   .gen{ font-size:11px; color:var(--mut); text-align:right; line-height:1.6; }
   h2{ font-size:15px; margin:0 0 12px; } h2 small{ color:var(--mut); font-weight:500; font-size:11px; margin-left:8px; }
@@ -899,7 +1000,8 @@ function buildRapportHTML(d, valgte, tittel){
 </style></head><body>
 <button class="printbtn" onclick="window.print()">Skriv ut / lagre PDF</button>
 <header>
-  <h1><small>${mrEsc(navn)}</small>${mrEsc(undertittel)}</h1>
+  <img class="logo" src="${mrEsc(logoUrl)}" alt="Bodø Jiu Jitsu">
+  <div class="tit"><h1><small>${mrEsc(navn)}</small>${mrEsc(undertittel)}</h1></div>
   <div class="gen">Bodø Jiu Jitsu<br>Generert ${new Date().toLocaleDateString('nb-NO')}<br>løft.app/dashboard</div>
 </header>
 ${kropp || '<div class="sec"><div class="tom">Ingen seksjoner valgt.</div></div>'}
