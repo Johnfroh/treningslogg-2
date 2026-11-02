@@ -141,7 +141,7 @@ const mrOkterSiden = okterSidenGradering;
    nivånavn i group-feltet («Erfaren», «Grunnleggende BJJ») får nivået fra
    teksten når taggen mangler. */
 const MR_OKTTYPER = ['Erfaren gi','Erfaren nogi','Alle nivåer','Grunnleggende','Junior',
-  'Åpen matte','Taktisk grappling','BJJ damer','Gi uten nivå','Nogi uten nivå','Annet'];
+  'Åpen matte','Taktisk grappling','BJJ damer','Gi/nogi (annet)','Annet'];
 const MR_UKEDAG = ['Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'];
 function mrUkedag(iso){
   // 0 = mandag. UTC, så tidssone ikke flytter datoen.
@@ -181,6 +181,77 @@ function mrOktType(s){
   if(n==='grunn') return 'Grunnleggende';
   if(n==='mix') return 'Alle nivåer';
   return g==='nogi' ? 'Nogi uten nivå' : 'Gi uten nivå';
+}
+const MR_UTEN_NIVAA = /uten nivå$/;
+
+/* Timeplanen — fasit for hvilken økt et klokkeslett er. Nytt semester:
+   legg til en ny blokk ØVERST med ny `fra`-dato. Gamle blokker beholdes, så
+   eldre rapporter regnes etter timeplanen som gjaldt da.
+   dag: 0 = mandag. slutt kan utelates (regnes da som 90 min). */
+const MR_TIMEPLAN = [
+  { fra:'2026-08-24', okter:[
+    { dag:0, start:'17:15', slutt:'18:30', type:'Alle nivåer' },
+    { dag:0, start:'18:30', slutt:'19:30', type:'Junior' },
+    { dag:1, start:'17:15', slutt:'18:30', type:'Erfaren gi' },
+    { dag:1, start:'18:30', slutt:'19:30', type:'Grunnleggende' },
+    { dag:1, start:'19:30', slutt:'21:00', type:'Taktisk grappling' },
+    { dag:2, start:'11:00', slutt:'12:00', type:'Åpen matte' },
+    { dag:2, start:'17:00', slutt:'18:00', type:'BJJ damer' },
+    { dag:2, start:'18:00', slutt:'19:00', type:'Junior' },
+    { dag:2, start:'19:30', slutt:'20:30', type:'Åpen matte' },
+    { dag:3, start:'18:30', slutt:'19:30', type:'Grunnleggende' },
+    { dag:3, start:'19:30', slutt:'21:00', type:'Erfaren nogi' },
+    { dag:4, start:'16:30', type:'Åpen matte' },
+    { dag:5, start:'12:00', type:'Åpen matte' },
+    { dag:6, start:'18:00', type:'Åpen matte' },
+  ]},
+];
+const mrMin = hm => { const m=/^(\d{1,2}):(\d{2})/.exec(String(hm||'')); return m? (+m[1])*60 + (+m[2]) : null; };
+// Økta på timeplanen som passer dato + klokkeslett, eller null. Treffer når
+// økta starter fra 15 min før til slutt; ved overlapp vinner nærmeste start
+// (18:30 er Junior, ikke slutten av Alle nivåer).
+function mrTimeplanType(s){
+  const plan=MR_TIMEPLAN.find(p=> s.date>=p.fra);
+  const t=mrMin(s.time);
+  if(!plan || t==null) return null;
+  const dag=mrUkedag(s.date);
+  let best=null, avstand=1e9;
+  plan.okter.forEach(o=>{
+    if(o.dag!==dag) return;
+    const a=mrMin(o.start), b=o.slutt? mrMin(o.slutt) : a+90;
+    if(t<a-15 || t>=b) return;
+    const d=Math.abs(t-a);
+    if(d<avstand){ avstand=d; best=o.type; }
+  });
+  return best;
+}
+// Økter uten nivå-tag får typen fra timeplanen: samme ukedag + klokkeslett
+// + gi/nogi som taggede økter (hele historikken, ikke bare perioden). Er
+// typen der ikke entydig, vinner den som forekommer oftest. Finnes ingen
+// tagget økt i samme tidsrom, blir det «Gi/nogi (annet)».
+function mrLagTypeOppslag(alle){
+  const plan={};
+  const nokkel=(s,g)=> mrUkedag(s.date)+'|'+String(s.time||'')+'|'+g;
+  alle.forEach(s=>{
+    const t=mrOktType(s);
+    if(MR_UTEN_NIVAA.test(t) || !s.time) return;
+    const g=mrOktGruppe(s);
+    if(g!=='gi' && g!=='nogi') return;
+    const k=nokkel(s,g);
+    (plan[k]||(plan[k]={}))[t]=((plan[k]||{})[t]||0)+1;
+  });
+  return s=>{
+    // Timeplanen først: gruppe/tag i loggen kan være feil (åpen matte ført
+    // som «gi»), timeplanen er det som faktisk sto på veggen.
+    const tp=mrTimeplanType(s);
+    if(tp) return { type:tp, antatt:false, timeplan:true };
+    const t=mrOktType(s);
+    if(!MR_UTEN_NIVAA.test(t)) return { type:t, antatt:false };
+    const p=plan[nokkel(s, mrOktGruppe(s))];
+    if(!p) return { type:'Gi/nogi (annet)', antatt:false };
+    const best=Object.keys(p).sort((a,b)=> p[b]-p[a] || mrTypeRang(a)-mrTypeRang(b))[0];
+    return { type:best, antatt:true };
+  };
 }
 const mrTypeRang = t => { const i=MR_OKTTYPER.indexOf(t); return i<0 ? 99 : i; };
 // Samler økter i bøtter: {okter, oppmoter, medTall, min, max}.
@@ -277,7 +348,9 @@ function buildRapportData(fra, til, ctx){
   // --- Økter (dag-eksakt inne i perioden) ---
   const oppmoteAv = s => (s.attendance==null || s.attendance==='') ? null : Number(s.attendance);
   const alle=(c.sessions||[]).filter(s => MR_ISO.test(s.date||''));
+  const typeAv=mrLagTypeOppslag(alle);
   const okter=alle.filter(s => iPeriode(s.date.slice(0,7)))
+    .map(s => ({ ...s, ...(()=>{ const r=typeAv(s); return { oktType:r.type, antatt:r.antatt, timeplan:!!r.timeplan }; })() }))
     .sort((a,b)=> a.date===b.date ? String(a.time||'').localeCompare(String(b.time||'')) : a.date.localeCompare(b.date));
   const medTall=okter.filter(s => oppmoteAv(s)!=null);
   const oppmoterTot=medTall.reduce((n,s)=> n+oppmoteAv(s), 0);
@@ -297,24 +370,20 @@ function buildRapportData(fra, til, ctx){
   }).sort((a,b)=> b.oppmoter-a.oppmoter);
 
   // Pr. økttype (Erfaren gi, Alle nivåer …) i fast rekkefølge.
-  const typeB=mrSamle(okter, mrOktType, oppmoteAv);
+  const typeB=mrSamle(okter, s=>s.oktType, oppmoteAv);
   const typeListe=Object.keys(typeB).map(t=>({ type:t, ...typeB[t],
     andel: oppmoterTot ? typeB[t].oppmoter/oppmoterTot : 0 }))
     .sort((a,b)=> mrTypeRang(a.type)-mrTypeRang(b.type));
 
-  // Pr. ukedag, og ukedag × økttype (oppmøter).
+  const antatte=okter.filter(s=>s.antatt).length;
+
+  // Pr. ukedag.
   const dagB=mrSamle(okter, s=>mrUkedag(s.date), oppmoteAv);
   const dagListe=MR_UKEDAG.map((navn,i)=>({ dag:i, navn, ...(dagB[i]||{okter:0,oppmoter:0,medTall:0,snitt:0,min:null,max:null}) }));
-  const dagType={};
-  okter.forEach(s=>{
-    const a=oppmoteAv(s); if(a==null) return;
-    const t=mrOktType(s), dg=mrUkedag(s.date);
-    (dagType[t]||(dagType[t]=[0,0,0,0,0,0,0]))[dg]+=a;
-  });
 
   // Pr. fast økt: samme ukedag + klokkeslett + økttype slås sammen, så en
   // måned med 30 enkeltøkter blir de 8–10 faste øktene på timeplanen.
-  const fastB=mrSamle(okter, s=>mrUkedag(s.date)+'|'+String(s.time||'')+'|'+mrOktType(s), oppmoteAv);
+  const fastB=mrSamle(okter, s=>mrUkedag(s.date)+'|'+String(s.time||'')+'|'+s.oktType, oppmoteAv);
   const fasteOkter=Object.keys(fastB).map(k=>{
     const [dg,tid,type]=k.split('|');
     return { dag:+dg, dagNavn:MR_UKEDAG[+dg], tid, type, ...fastB[k] };
@@ -445,7 +514,7 @@ function buildRapportData(fra, til, ctx){
     forrigeNavn: mrPeriodeNavn(fFra, fTil),
     okter, oppmoterTot, utenTall, medTall: medTall.length,
     snitt: medTall.length ? oppmoterTot/medTall.length : 0,
-    gruppeListe, typeListe, dagListe, dagType, fasteOkter,
+    gruppeListe, typeListe, dagListe, fasteOkter, antatte, fraTimeplan: okter.filter(s=>s.timeplan).length,
     unike, unikeForrige: unikeF,
     okterForrige: okterF.length, oppmoterForrige: oppmoterF,
     snittForrige: medTallF.length ? oppmoterF/medTallF.length : 0,
@@ -563,10 +632,13 @@ const MR_RENDER = {
       `<td class="num">${mrNf(t.oppmoter)}</td><td class="num dim">${Math.round(t.andel*100)} %</td>` +
       `<td class="num">${t.medTall? t.snitt.toFixed(1) : '—'}</td>` +
       `<td style="width:28%"><span class="bt" style="display:block"><span class="bf" style="width:${Math.round(t.snitt/max*100)}%;background:var(--accent)"></span></span></td></tr>`).join('');
-    const uten=d.typeListe.filter(t=>/uten nivå/.test(t.type)).reduce((n,t)=>n+t.okter,0);
+    const annet=d.typeListe.filter(t=>t.type==='Gi/nogi (annet)').reduce((n,t)=>n+t.okter,0);
     return mrSeksjon('Oppmøte pr. økttype','snitt = gjennomsnittlig oppmøte pr. økt',
       `<table><thead><tr><th>Økttype</th><th class="num">Økter</th><th class="num">Oppmøter</th><th class="num">Andel</th><th class="num">Snitt</th><th></th></tr></thead><tbody>${rader}</tbody></table>` +
-      (uten? `<div class="note">${uten} ${uten===1?'økt':'økter'} mangler nivå-tag (grunn/erfaren/mix) og står som «uten nivå». Tag dem i kalenderen, så havner de på riktig økttype.</div>`:''));
+      (d.fraTimeplan? `<div class="note">${d.fraTimeplan} av ${d.okter.length} økter har fått type fra timeplanen (ukedag og klokkeslett).` +
+      (d.antatte? ` ${d.antatte} ${d.antatte===1?'økt':'økter'} utenfor timeplanen uten nivå-tag er plassert som taggede økter på samme tidspunkt.`:'') + `</div>`
+      : (d.antatte? `<div class="note">${d.antatte} ${d.antatte===1?'økt':'økter'} uten nivå-tag er plassert som taggede økter på samme ukedag og klokkeslett.</div>`:'')) +
+      (annet? `<div class="note">«Gi/nogi (annet)»: ${annet} ${annet===1?'økt':'økter'} uten nivå-tag på tidspunkt som ikke finnes på timeplanen ellers.</div>`:''));
   },
   ukedager(d){
     const aktive=d.dagListe.filter(x=>x.okter>0);
@@ -575,21 +647,10 @@ const MR_RENDER = {
     const rader=aktive.map(x=>
       `<tr><td><strong>${mrEsc(x.navn)}</strong></td><td class="num">${x.okter}</td>` +
       `<td class="num">${mrNf(x.oppmoter)}</td><td class="num">${x.medTall? x.snitt.toFixed(1) : '—'}</td></tr>`).join('');
-    // Ukedag × økttype: hvilke økter som bærer hvilke dager.
-    const dager=aktive.map(x=>x.dag);
-    const typer=Object.keys(d.dagType).sort((a,b)=>mrTypeRang(a)-mrTypeRang(b));
-    const matrise=typer.length? `<h3 style="margin-top:22px">Oppmøter pr. ukedag og økttype</h3>
-      <table><thead><tr><th>Økttype</th>${dager.map(i=>`<th class="num">${MR_UKEDAG[i].slice(0,3)}</th>`).join('')}<th class="num">Sum</th></tr></thead><tbody>` +
-      typer.map(t=>{
-        const r=d.dagType[t];
-        return `<tr><td>${mrEsc(t)}</td>${dager.map(i=>`<td class="num${r[i]?'':' dim'}">${r[i]?mrNf(r[i]):'–'}</td>`).join('')}` +
-          `<td class="num">${mrNf(r.reduce((a,b)=>a+b,0))}</td></tr>`;
-      }).join('') + `</tbody></table>` : '';
     return mrSeksjon('Aktivitet pr. ukedag', `travleste dag: ${topp.navn.toLowerCase()}`,
       `<div class="two"><div>${mrBarRader(aktive.map(x=>[x.navn, x.oppmoter]),'var(--green)')}
         <div class="note">Søylene viser sum oppmøter i perioden.</div></div>
-      <div><table><thead><tr><th>Dag</th><th class="num">Økter</th><th class="num">Oppmøter</th><th class="num">Snitt</th></tr></thead><tbody>${rader}</tbody></table></div></div>` +
-      matrise);
+      <div><table><thead><tr><th>Dag</th><th class="num">Økter</th><th class="num">Oppmøter</th><th class="num">Snitt</th></tr></thead><tbody>${rader}</tbody></table></div></div>`);
   },
   okter(d){
     if(!d.fasteOkter.length) return mrSeksjon('Oppmøte pr. fast økt','',mrTom('Ingen økter i perioden.'), true);
@@ -607,7 +668,7 @@ const MR_RENDER = {
     const rader=d.okter.map(s=>{
       const a=(s.attendance==null||s.attendance==='')?null:Number(s.attendance);
       return `<tr${a==null?' class="mangler"':''}><td>${mrEsc(mrDagMnd(s.date))}</td><td class="dim">${mrEsc(s.time||'')}</td>` +
-        `<td>${mrEsc(mrOktType(s))}</td><td>${mrEsc(s.title||'')}</td><td class="dim">${mrEsc(s.trainer||'')}</td>` +
+        `<td>${mrEsc(s.oktType)}${s.antatt?' <span class="dim">(antatt)</span>':''}</td><td>${mrEsc(s.title||'')}</td><td class="dim">${mrEsc(s.trainer||'')}</td>` +
         `<td class="num">${a==null?'<span class="mangel">ikke ført</span>':mrNf(a)}</td></tr>`;
     }).join('');
     return mrSeksjon('Alle økter — detaljliste', d.okter.length+' økter',
@@ -822,22 +883,19 @@ const MR_TABELL = {
     kolonner:['Økttype','Økter','Oppmøter','Andel av oppmøter (%)','Snitt pr. økt'],
     rader:d.typeListe.map(t=>[t.type, t.okter, t.oppmoter, Math.round(t.andel*100), mrRund1(t.snitt)]),
   }),
-  ukedager: d => {
-    const typer=Object.keys(d.dagType).sort((a,b)=>mrTypeRang(a)-mrTypeRang(b));
-    return {
-      kolonner:['Ukedag','Økter','Oppmøter','Snitt pr. økt'].concat(typer.map(t=>'Oppmøter '+t)),
-      rader:d.dagListe.filter(x=>x.okter>0).map(x=>[x.navn, x.okter, x.oppmoter, mrRund1(x.snitt)]
-        .concat(typer.map(t=>d.dagType[t][x.dag]))),
-    };
-  },
+  ukedager: d => ({
+    kolonner:['Ukedag','Økter','Oppmøter','Snitt pr. økt'],
+    rader:d.dagListe.filter(x=>x.okter>0).map(x=>[x.navn, x.okter, x.oppmoter, x.medTall? mrRund1(x.snitt) : '']),
+  }),
   okter: d => ({
     kolonner:['Ukedag','Tid','Økttype','Økter','Oppmøter','Snitt pr. økt','Min','Maks'],
     rader:d.fasteOkter.map(f=>[f.dagNavn, f.tid||'', f.type, f.okter, f.oppmoter,
       f.medTall? mrRund1(f.snitt) : '', f.min==null?'':f.min, f.max==null?'':f.max]),
   }),
   oktliste: d => ({
-    kolonner:['Dato','Ukedag','Tid','Økttype','Gruppe','Økt','Trener','Oppmøte'],
-    rader:d.okter.map(o=>[mrDato(o.date), MR_UKEDAG[mrUkedag(o.date)], o.time||'', mrOktType(o), o.group||'',
+    kolonner:['Dato','Ukedag','Tid','Økttype','Kilde for type','Gruppe','Økt','Trener','Oppmøte'],
+    rader:d.okter.map(o=>[mrDato(o.date), MR_UKEDAG[mrUkedag(o.date)], o.time||'', o.oktType,
+      o.timeplan?'timeplan':(o.antatt?'tidligere økter':'tag/gruppe'), o.group||'',
       o.title||'', o.trainer||'', (o.attendance==null||o.attendance==='')? '' : Number(o.attendance)]),
   }),
   gradert: d => ({
