@@ -108,6 +108,17 @@ function mrStripeInfo(m){
     grunn: sisteStripe? 'stripe' : (sisteBelte? 'belte' : (innmeldt? 'innmelding' : 'ukjent')),
   };
 }
+// Junior/barn: holdes utenfor alle navnelister i medlemsbrevet (topp,
+// fremgang, gratulerer). Samme regel som dashIsMinor_ i Code.gs, pluss
+// juniorbelter — en 15-åring med grå-hvitt belte skal ikke slippe gjennom
+// fordi alderen mangler i registeret.
+function mrErJunior(m){
+  if(!m) return false;
+  if(m.minor===true || m.kategori==='Junior' || m.kategori==='Knøtte') return true;
+  if(m.alder!=null && m.alder!=='' && Number(m.alder)<16) return true;
+  const belt=m.grading && m.grading.current && m.grading.current.belt;
+  return !!(belt && typeof isJuniorBelt==='function' && isJuniorBelt(belt));
+}
 function mrMnd(live, id, ym){
   const mm=(live && live.memberMonthly && live.memberMonthly[id]) || null;
   return mm ? (mm[ym]||0) : 0;
@@ -330,7 +341,8 @@ function buildRapportData(fra, til, ctx){
   // Samme kilde som «innom matta» (oppmøte pr. medlem pr. måned), så tallene
   // henger sammen. Topplista tar med alle som står likt med nr. 10.
   const TOPP_N=10, TOPP_MAKS=15;
-  const pr=list.map(m=>({ id:m.id, navn:mrNavn(m), kategori:m.kategori,
+  // Juniorer navngis ikke i medlemsbrevet — de telles bare i totalene.
+  const pr=list.filter(m=>!mrErJunior(m)).map(m=>({ id:m.id, navn:mrNavn(m), kategori:m.kategori,
     belte:mrBelteTekst(m), na:sumMnd(m.id,mnd), forr:sumMnd(m.id,mndF) }));
   const sortTopp=pr.filter(r=>r.na>0).sort((a,b)=> b.na-a.na || a.navn.localeCompare(b.navn,'nb'));
   const grense=sortTopp.length>=TOPP_N ? sortTopp[TOPP_N-1].na : 0;
@@ -372,7 +384,7 @@ function buildRapportData(fra, til, ctx){
       if(e.kind==='innmelding') return;
       const d=String(e.date||'');
       if(!MR_ISO.test(d) || !iPeriode(d.slice(0,7))) return;
-      gradert.push({ navn:mrNavn(m), kategori:m.kategori, dato:d,
+      gradert.push({ navn:mrNavn(m), kategori:m.kategori, dato:d, junior:mrErJunior(m),
         belt:e.belt, stripes:Number(e.stripes||0), kind:e.kind, by:e.by });
     });
   });
@@ -516,7 +528,7 @@ const MR_RENDER = {
         `<td style="width:34%"><span class="bt" style="display:block"><span class="bf" style="width:${Math.round(r.na/max*100)}%;background:var(--accent)"></span></span></td>` +
         `<td class="num">${r.na}</td></tr>`;
     }).join('');
-    return mrSeksjon('Topp oppmøte', 'flest økter i '+d.periodeNavn,
+    return mrSeksjon('Topp oppmøte', 'flest økter i '+d.periodeNavn+' · voksne',
       `<table><thead><tr><th></th><th>Navn</th><th>Belte</th><th></th><th class="num">Økter</th></tr></thead><tbody>${rader}</tbody></table>`);
   },
   fremgang(d){
@@ -527,17 +539,21 @@ const MR_RENDER = {
       `<td class="num dim">${r.forr}</td><td class="num">${r.na}</td><td class="num up">+${r.diff}</td></tr>`).join('');
     return mrSeksjon('Størst fremgang', 'flere økter enn '+d.forrigeNavn,
       `<table><thead><tr><th>Navn</th><th>Belte</th><th class="num">${mrEsc(d.forrigeNavn)}</th><th class="num">${mrEsc(d.periodeNavn)}</th><th class="num">Økning</th></tr></thead><tbody>${rader}</tbody></table>` +
-      `<div class="note">Med på lista: minst ${d.fremMin} økter i perioden og minst 2 flere enn i perioden før.</div>`);
+      `<div class="note">Med på lista: voksne med minst ${d.fremMin} økter i perioden og minst 2 flere enn i perioden før.</div>`);
   },
   gratulerer(d){
-    if(!d.gradert.length) return mrSeksjon('Gratulerer!','',mrTom('Ingen graderinger i perioden.'));
-    const belter=d.gradert.filter(g=>g.kind==='belte'), striper=d.gradert.filter(g=>g.kind!=='belte');
+    const voksne=d.gradert.filter(g=>!g.junior);
+    const antJunior=d.gradert.length-voksne.length;
+    // Juniorene nevnes bare som et antall — aldri med navn.
+    const juniorNote=antJunior? `<div class="note">I tillegg ${antJunior===1?'én gradering':antJunior+' graderinger'} i juniorgruppa. Gratulerer til dere også!</div>` : '';
+    if(!voksne.length) return mrSeksjon('Gratulerer!','', (antJunior? '' : mrTom('Ingen graderinger i perioden.')) + juniorNote);
+    const belter=voksne.filter(g=>g.kind==='belte'), striper=voksne.filter(g=>g.kind!=='belte');
     const liste=(arr,tekst)=> arr.map(g=>
       `<tr><td><strong>${mrEsc(g.navn)}</strong></td><td>${mrEsc(tekst(g))}</td><td class="num dim">${mrEsc(mrDagMnd(g.dato))}</td></tr>`).join('');
     const blokk=(tittel,arr,tekst)=> arr.length? `<h3 style="margin-top:14px">${tittel}</h3><table><tbody>${liste(arr,tekst)}</tbody></table>` : '';
     return mrSeksjon('Gratulerer!', 'graderinger i '+d.periodeNavn,
       blokk('Nytt belte', belter, g=>g.belt+'belte') +
-      blokk('Ny stripe', striper, g=>g.belt+' · '+g.stripes+(g.stripes===1?' stripe':' striper')));
+      blokk('Ny stripe', striper, g=>g.belt+' · '+g.stripes+(g.stripes===1?' stripe':' striper')) + juniorNote);
   },
   okttyper(d){
     if(!d.typeListe.length) return mrSeksjon('Oppmøte pr. økttype','',mrTom('Ingen økter i perioden.'));
@@ -800,7 +816,7 @@ const MR_TABELL = {
   }),
   gratulerer: d => ({
     kolonner:['Dato','Navn','Type','Belte','Striper'],
-    rader:d.gradert.map(g=>[mrDato(g.dato), g.navn, g.kind==='belte'?'nytt belte':'stripe', g.belt||'', g.stripes]),
+    rader:d.gradert.filter(g=>!g.junior).map(g=>[mrDato(g.dato), g.navn, g.kind==='belte'?'nytt belte':'stripe', g.belt||'', g.stripes]),
   }),
   okttyper: d => ({
     kolonner:['Økttype','Økter','Oppmøter','Andel av oppmøter (%)','Snitt pr. økt'],
