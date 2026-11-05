@@ -133,14 +133,15 @@ function mrMnd(live, id, ym){
 const mrOkterSiden = okterSidenGradering;
 
 /* ---------- Økttype og ukedag ----------
-   Klubbens timeplan består av faste økttyper: Erfaren gi, Erfaren nogi,
-   Alle nivåer, Grunnleggende og Junior (+ åpen matte, taktisk, damer).
+   Klubbens timeplan består av faste økttyper: Gi, NoGi (fra 5.11.2026,
+   for dem som har trent ca. 6 mnd), Grunnleggende og Junior (+ åpen matte,
+   taktisk, damer). Før 5.11.2026: Erfaren gi, Erfaren nogi og Alle nivåer.
    Gruppe (gi/nogi/junior …) og nivå (tag grunn/erfaren/mix) lagres hver for
    seg, så typen settes sammen her. Gruppa utledes med _attGroup fra
    attendance-import.jsx — ingen ny kopi av grupperegelen. Gamle økter med
    nivånavn i group-feltet («Erfaren», «Grunnleggende BJJ») får nivået fra
    teksten når taggen mangler. */
-const MR_OKTTYPER = ['Erfaren gi','Erfaren nogi','Alle nivåer','Grunnleggende','Junior',
+const MR_OKTTYPER = ['Gi','NoGi','Erfaren gi','Erfaren nogi','Alle nivåer','Grunnleggende','Junior',
   'Åpen matte','Taktisk grappling','BJJ damer','Gi/nogi (annet)','Annet'];
 const MR_UKEDAG = ['Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'];
 function mrUkedag(iso){
@@ -189,6 +190,24 @@ const MR_UTEN_NIVAA = /uten nivå$/;
    eldre rapporter regnes etter timeplanen som gjaldt da.
    dag: 0 = mandag. slutt kan utelates (regnes da som 90 min). */
 const MR_TIMEPLAN = [
+  // Fra 5.11.2026: «Alle nivåer Gi» + «Erfaren Gi» → «Gi», «Erfaren NoGi» →
+  // «NoGi». Samme dager og tider som før.
+  { fra:'2026-11-05', okter:[
+    { dag:0, start:'17:15', slutt:'18:30', type:'Gi' },
+    { dag:0, start:'18:30', slutt:'19:30', type:'Junior' },
+    { dag:1, start:'17:15', slutt:'18:30', type:'Gi' },
+    { dag:1, start:'18:30', slutt:'19:30', type:'Grunnleggende' },
+    { dag:1, start:'19:30', slutt:'21:00', type:'Taktisk grappling' },
+    { dag:2, start:'11:00', slutt:'12:00', type:'Åpen matte' },
+    { dag:2, start:'17:00', slutt:'18:00', type:'BJJ damer' },
+    { dag:2, start:'18:00', slutt:'19:00', type:'Junior' },
+    { dag:2, start:'19:30', slutt:'20:30', type:'Åpen matte' },
+    { dag:3, start:'18:30', slutt:'19:30', type:'Grunnleggende' },
+    { dag:3, start:'19:30', slutt:'21:00', type:'NoGi' },
+    { dag:4, start:'16:30', type:'Åpen matte' },
+    { dag:5, start:'12:00', type:'Åpen matte' },
+    { dag:6, start:'18:00', type:'Åpen matte' },
+  ]},
   { fra:'2026-08-24', okter:[
     { dag:0, start:'17:15', slutt:'18:30', type:'Alle nivåer' },
     { dag:0, start:'18:30', slutt:'19:30', type:'Junior' },
