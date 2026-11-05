@@ -29,9 +29,12 @@ const _mapClassToGroup = (raw) => {
 
 // Foreslår nivå-tag basert på Spond-tittel. Returnerer null hvis ukjent.
 const _suggestNivaa = (raw) => {
-  const s = String(raw || '').toLowerCase();
+  const s = String(raw || '').toLowerCase().trim();
   if (s.includes('grunn') || s.includes('intro') || s.includes('fundamental') || s.includes('basics')) return 'grunn';
   if (s.includes('erfaren') || s.includes('viderekommende') || s.includes('intermediate')) return 'erfaren';
+  // Fra 5.11.2026 heter erfaren-øktene bare «Gi» / «NoGi» (for dem som har
+  // trent ca. 6 mnd). Eksakt treff, så «BJJ Damer NoGi» o.l. ikke tagges.
+  if (s === 'gi' || s === 'nogi' || s === 'no-gi' || s === 'no gi') return 'erfaren';
   return null;
 };
 
