@@ -773,7 +773,141 @@ function Innhold(){
       <Tile title="Handling" corner="action">
         <ThemeBars keys={CORE_ACT} allMap={allMap} recentMap={recentMap} color="#F2825F"/>
       </Tile>
+
+      <div className="section-h">Registrerte økter<span className="meta">filtrer og del inn pr. økttype</span></div>
+      <OktOversikt okter={data.okter}/>
     </div>
+  );
+}
+
+// Oversikt over registrerte økter: periode, økttype (gruppe), fritekstsøk og
+// valgfri inndeling pr. økttype. Gruppen er allerede normalisert i Code.gs
+// (dashNormGroup_), så det finnes ingen egen gruppelogikk her.
+const OKT_PERIODER = [['90', 'Siste 90 dager'], ['ar', 'I år'], ['alt', 'Alt']];
+const OKT_SIDE = 40;
+
+function OktRad({ o }){
+  const [apen, setApen] = useState(false);
+  const farge = DASH_GRUPPE_FARGE[o.group] || DASH_GRUPPE_FARGE.ukjent;
+  const harDetaljer = !!(o.content || (o.tags && o.tags.length));
+  return (
+    <div onClick={() => harDetaljer && setApen(a => !a)}
+      style={{padding:'10px 0', borderTop:'1px solid var(--border)', cursor: harDetaljer ? 'pointer' : 'default'}}>
+      <div style={{display:'flex', justifyContent:'space-between', gap:10, alignItems:'baseline', flexWrap:'wrap'}}>
+        <span style={{fontSize:13, fontWeight:600, minWidth:0}}>
+          <span className="tag" style={{marginRight:8, background:farge, color:'#fff'}}>{GROUP_LABEL[o.group] || o.group}</span>
+          {o.title || <span className="dim" style={{fontWeight:400}}>uten tittel</span>}
+        </span>
+        <span className="dim tabular" style={{fontSize:11.5, whiteSpace:'nowrap'}}>
+          {fmtDate(o.date)}{o.time ? ` · ${o.time}` : ''}{o.trainer ? ` · ${o.trainer}` : ''}
+          {o.attendance != null ? ` · ${o.attendance} oppmøtt` : ''}
+        </span>
+      </div>
+      {o.group === 'ukjent' && o.rawGroup && <div className="dim" style={{fontSize:11, marginTop:3}}>Registrert gruppe: «{o.rawGroup}»</div>}
+      {apen && o.content && <div className="dim" style={{fontSize:12, marginTop:6, lineHeight:1.5, whiteSpace:'pre-wrap'}}>{o.content}</div>}
+      {apen && o.tags && o.tags.length > 0 && (
+        <div style={{display:'flex', gap:4, flexWrap:'wrap', marginTop:6}}>{o.tags.map(t => <span key={t} className="tag" style={{fontSize:10}}>{t}</span>)}</div>
+      )}
+    </div>
+  );
+}
+
+function OktOversikt({ okter }){
+  const [periode, setPeriode] = useState('90');
+  const [type, setType] = useState('alle');
+  const [sok, setSok] = useState('');
+  const [perType, setPerType] = useState(false);
+  const [antall, setAntall] = useState(OKT_SIDE);
+
+  if (!okter) return (
+    <Tile title="Økter" corner="liste">
+      <div className="dim" style={{fontSize:12}}>Øktlisten krever oppdatert Code.gs-backend (dashThemes sender med øktene).</div>
+    </Tile>
+  );
+
+  const iDag = new Date();
+  const fra = periode === '90' ? new Date(iDag.getTime() - 90 * 86400000).toISOString().slice(0, 10)
+    : periode === 'ar' ? `${iDag.getFullYear()}-01-01` : '';
+  const iPeriode = okter.filter(o => !fra || o.date >= fra);
+  const q = sok.trim().toLowerCase();
+  const treff = q ? iPeriode.filter(o =>
+    [o.title, o.content, o.trainer, (o.tags || []).join(' ')].join(' ').toLowerCase().indexOf(q) >= 0) : iPeriode;
+
+  // Tellinger pr. økttype for valgt periode + søk (før typefilteret).
+  const perGruppe = {};
+  treff.forEach(o => { (perGruppe[o.group] || (perGruppe[o.group] = [])).push(o); });
+  const typer = DASH_GRUPPER.concat(perGruppe.ukjent ? ['ukjent'] : []);
+  const valgte = type === 'alle' ? treff : (perGruppe[type] || []);
+
+  const snitt = (liste) => {
+    const m = liste.filter(o => o.attendance != null);
+    return m.length ? (m.reduce((s, o) => s + Number(o.attendance), 0) / m.length).toFixed(1) : '—';
+  };
+
+  return (
+    <Tile title="Økter" corner={`${fmtN(valgte.length)} av ${fmtN(okter.length)}`}>
+      <div className="chips" style={{marginBottom:10}}>
+        {OKT_PERIODER.map(([v, l]) => (
+          <button key={v} className={'chip' + (periode === v ? ' active' : '')} onClick={() => { setPeriode(v); setAntall(OKT_SIDE); }}>{l}</button>
+        ))}
+      </div>
+      <div className="chips" style={{marginBottom:10}}>
+        <button className={'chip' + (type === 'alle' ? ' active' : '')} onClick={() => { setType('alle'); setAntall(OKT_SIDE); }}>Alle · {treff.length}</button>
+        {typer.map(g => (
+          <button key={g} className={'chip' + (type === g ? ' active' : '')} onClick={() => { setType(g); setAntall(OKT_SIDE); }}>
+            {GROUP_LABEL[g] || g} · {(perGruppe[g] || []).length}
+          </button>
+        ))}
+      </div>
+      <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', marginBottom:12}}>
+        <input type="search" value={sok} onChange={e => { setSok(e.target.value); setAntall(OKT_SIDE); }}
+          placeholder="Søk i tittel, innhold, trener, temaer…"
+          style={{flex:'1 1 220px', padding:'8px 12px', borderRadius:10, border:'1px solid var(--border)', background:'var(--card)', color:'var(--ink)', font:'inherit', fontSize:13}}/>
+        <label style={{display:'flex', gap:6, alignItems:'center', fontSize:12.5, cursor:'pointer'}}>
+          <input type="checkbox" checked={perType} onChange={e => setPerType(e.target.checked)}/> Del inn pr. økttype
+        </label>
+      </div>
+
+      {perType && type === 'alle' && treff.length > 0 && (
+        <table className="t" style={{marginBottom:14}}>
+          <thead><tr><th>Økttype</th><th className="num">Økter</th><th className="num">Med innhold</th><th className="num">Snitt oppmøte</th><th className="num">Siste økt</th></tr></thead>
+          <tbody>
+            {typer.filter(g => perGruppe[g]).map(g => {
+              const l = perGruppe[g];
+              return (
+                <tr key={g} style={{cursor:'pointer'}} onClick={() => setType(g)}>
+                  <td><span style={{display:'inline-block', width:8, height:8, borderRadius:2, marginRight:8, background:DASH_GRUPPE_FARGE[g]}}/>{GROUP_LABEL[g] || g}</td>
+                  <td className="num">{l.length}</td>
+                  <td className="num">{l.filter(o => o.title || (o.tags && o.tags.length)).length}</td>
+                  <td className="num">{snitt(l)}</td>
+                  <td className="num dim">{fmtDate(l[0].date)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+      {valgte.length === 0 && <div className="dim" style={{fontSize:12}}>Ingen økter i utvalget.</div>}
+
+      {perType ? (
+        typer.filter(g => (type === 'alle' || g === type) && perGruppe[g]).map(g => (
+          <div key={g} style={{marginTop:14}}>
+            <div style={{fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', color:DASH_GRUPPE_FARGE[g], marginBottom:4}}>
+              {GROUP_LABEL[g] || g} <span className="dim" style={{fontWeight:500}}>· {perGruppe[g].length} {perGruppe[g].length === 1 ? 'økt' : 'økter'} · snitt {snitt(perGruppe[g])} oppmøtt</span>
+            </div>
+            {perGruppe[g].slice(0, antall).map(o => <OktRad key={o.id} o={o}/>)}
+            {perGruppe[g].length > antall && <div className="dim" style={{fontSize:11, paddingTop:6}}>+{perGruppe[g].length - antall} flere</div>}
+          </div>
+        ))
+      ) : (
+        valgte.slice(0, antall).map(o => <OktRad key={o.id} o={o}/>)
+      )}
+
+      {(perType ? typer.some(g => (perGruppe[g] || []).length > antall) : valgte.length > antall) && (
+        <button className="btn outline sm" style={{marginTop:12}} onClick={() => setAntall(n => n + OKT_SIDE)}>Vis flere</button>
+      )}
+    </Tile>
   );
 }
 

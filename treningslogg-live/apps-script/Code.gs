@@ -867,11 +867,19 @@ function dashThemes() {
   const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
   const groups = {}, tagsAll = {}, tagsRecent = {};
+  // Selve øktene, med kanonisk gruppe (økttype), så Innhold-fanen kan liste
+  // og filtrere dem uten en egen gruppe-normalisering i frontend.
+  const okter = [];
   let logged = 0, recentLogged = 0;
   sessions.forEach(s => {
     if (!s.date) return;
     const recent = s.date >= cutoff;
     const g = dashNormGroup_(s.group, s.title);
+    okter.push({
+      id: s.id, date: s.date, time: s.time, group: g, rawGroup: s.group,
+      trainer: s.trainer, title: s.title, content: s.content, tags: s.tags || [],
+      attendance: s.attendance,
+    });
     const gg = groups[g] || (groups[g] = { group: g, sessions: 0, recent: 0, checkins: 0 });
     gg.sessions++;
     if (recent) gg.recent++;
@@ -889,6 +897,7 @@ function dashThemes() {
     tags: toArr(tagsAll),
     tagsRecent: toArr(tagsRecent),
     totalSessions: sessions.length, logged: logged, recentLogged: recentLogged, since: cutoff,
+    okter: okter.sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))),
   };
 }
 
