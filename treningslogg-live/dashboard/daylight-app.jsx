@@ -785,6 +785,9 @@ function Innhold(){
 // (dashNormGroup_), så det finnes ingen egen gruppelogikk her.
 const OKT_PERIODER = [['90', 'Siste 90 dager'], ['ar', 'I år'], ['alt', 'Alt']];
 const OKT_SIDE = 40;
+// «Registrert innhold» = trenerens innholdstekst eller temaer. Tittel alene
+// teller ikke her: importerte økter får klassenavnet fra Spond som tittel.
+const oktHarInnhold = o => !!(String(o.content || '').trim() || (o.tags && o.tags.length));
 
 function OktRad({ o }){
   const [apen, setApen] = useState(false);
@@ -817,6 +820,7 @@ function OktOversikt({ okter }){
   const [type, setType] = useState('alle');
   const [sok, setSok] = useState('');
   const [perType, setPerType] = useState(false);
+  const [kunInnhold, setKunInnhold] = useState(false);
   const [antall, setAntall] = useState(OKT_SIDE);
 
   if (!okter) return (
@@ -828,7 +832,7 @@ function OktOversikt({ okter }){
   const iDag = new Date();
   const fra = periode === '90' ? new Date(iDag.getTime() - 90 * 86400000).toISOString().slice(0, 10)
     : periode === 'ar' ? `${iDag.getFullYear()}-01-01` : '';
-  const iPeriode = okter.filter(o => !fra || o.date >= fra);
+  const iPeriode = okter.filter(o => (!fra || o.date >= fra) && (!kunInnhold || oktHarInnhold(o)));
   const q = sok.trim().toLowerCase();
   const treff = q ? iPeriode.filter(o =>
     [o.title, o.content, o.trainer, (o.tags || []).join(' ')].join(' ').toLowerCase().indexOf(q) >= 0) : iPeriode;
@@ -866,6 +870,9 @@ function OktOversikt({ okter }){
         <label style={{display:'flex', gap:6, alignItems:'center', fontSize:12.5, cursor:'pointer'}}>
           <input type="checkbox" checked={perType} onChange={e => setPerType(e.target.checked)}/> Del inn pr. økttype
         </label>
+        <label style={{display:'flex', gap:6, alignItems:'center', fontSize:12.5, cursor:'pointer'}}>
+          <input type="checkbox" checked={kunInnhold} onChange={e => { setKunInnhold(e.target.checked); setAntall(OKT_SIDE); }}/> Kun med registrert innhold
+        </label>
       </div>
 
       {perType && type === 'alle' && treff.length > 0 && (
@@ -878,7 +885,7 @@ function OktOversikt({ okter }){
                 <tr key={g} style={{cursor:'pointer'}} onClick={() => setType(g)}>
                   <td><span style={{display:'inline-block', width:8, height:8, borderRadius:2, marginRight:8, background:DASH_GRUPPE_FARGE[g]}}/>{GROUP_LABEL[g] || g}</td>
                   <td className="num">{l.length}</td>
-                  <td className="num">{l.filter(o => o.title || (o.tags && o.tags.length)).length}</td>
+                  <td className="num">{l.filter(oktHarInnhold).length}</td>
                   <td className="num">{snitt(l)}</td>
                   <td className="num dim">{fmtDate(l[0].date)}</td>
                 </tr>
