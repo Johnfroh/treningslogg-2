@@ -41,6 +41,8 @@ Send gjerne fila med SendUserFile samtidig.
 
 - Produksjon deployer fra `main`; arbeid skjer på feature-branch og
   brukeren merger PR selv. Minn brukeren på merge når endringer skal testes live.
+- Opprett PR mot `main` selv når arbeidet er pushet — det trenger du ikke
+  spørre om. Merging gjør brukeren.
 - **Repoet er offentlig.** Nøkkelen mot Apps Script står ALDRI i koden:
   den ligger i Script Properties (`SHARED_TOKEN`) og i Cloudflare Pages
   (`APPS_SCRIPT_TOKEN`, type Secret). Proxyen (`functions/_lib/proxy.js`)
