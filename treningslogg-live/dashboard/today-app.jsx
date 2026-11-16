@@ -288,14 +288,19 @@ function TodayList({ title, hint, accent, liste, rows, meta, empty, onOpen, skju
   );
 }
 
-function Today({ members, live, thresholds }){
+function Today({ members, live, thresholds, q, onEndreQ }){
   // Profilen åpnes via den globale kanalen (MemberOpenCtx), ikke lokal state —
   // samme profil som i toppliste, trender og medlemsregister.
   const { open: openMember } = useMemberOpen();
   const { followup, actions } = useMembers();
   const [busy, setBusy] = useTd(false);
   const [feil, setFeil] = useTd('');
-  const list = members || [];
+  // Felles gruppefilter: en juniortrener skal kunne se sine. Hvem som hører
+  // til en gruppe avgjøres av oppmøtet (gruppeMedlemmer i dashboard-shared).
+  const gruppe = (q && q.g) || 'alle';
+  const gm = gruppeMedlemmer(live, gruppe);
+  const alle = members || [];
+  const list = gm && !gm.mangler ? alle.filter(gm.har) : alle;
   const th = thresholds || {};
   const stilleUker = th.stilleUker || 3;
   const gradMinOppmote = th.gradMinOppmote || 30;
@@ -389,6 +394,15 @@ function Today({ members, live, thresholds }){
 
   return (
     <div>
+      {onEndreQ && <Kontrollstripe q={{ g: gruppe }} onEndre={onEndreQ} vis={['g']} />}
+      {gm && (
+        <div className="dim" style={{fontSize:11.5, margin:'2px 2px 14px', lineHeight:1.6}}>
+          {gm.mangler
+            ? 'Gruppefilteret krever oppdatert Code.gs-backend (ny versjon i Apps Script) — viser alle.'
+            : <>Viser <strong>{list.length} av {alle.length}</strong> medlemmer: de som har trent {gruppeNavnAv(gruppe)} minst én gang siste 12 måneder.
+                Et medlem kan høre til flere grupper.</>}
+        </div>
+      )}
       <div className="grid-4">
         <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`} accent="coral"/>
         <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"/>

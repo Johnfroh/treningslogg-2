@@ -120,6 +120,8 @@ module.exports = [
         isoLokal: 'readonly', isoPluss: 'readonly', isoMandag: 'readonly',
         oppmoteTil: 'readonly', oppmoteRef: 'readonly', dagerUtenOppmote: 'readonly',
         sisteHeleUke: 'readonly', mandagerTil: 'readonly',
+        gruppeMedlemmer: 'readonly', gruppeNavnAv: 'readonly', medlemsFordeling: 'readonly',
+        GRUPPE_UKER_TILBAKE: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
         okterSidenGradering: 'readonly', SPARK_SOYLE_GRENSE: 'readonly',
         DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',
@@ -182,6 +184,7 @@ module.exports = [
         ukeserie: 'readonly', oktSerie: 'readonly', nyeSerie: 'readonly',
         sumIPeriode: 'readonly', innmeldtStatus: 'readonly', INTRO_MIN_FOR_PROSENT: 'readonly',
         SemesterOverlay: 'readonly', Kontrollstripe: 'readonly', TrendKort: 'readonly',
+        periodeTilIdag: 'readonly', PERIODER: 'readonly',
         // data-tab.jsx
         DataFane: 'readonly',
         // daylight-app.jsx — eksportert for trends-app.jsx og data-tab.jsx

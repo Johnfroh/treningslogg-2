@@ -107,6 +107,22 @@ function periodeRange(p, sisteMandag, naa) {
   return { fra: '', til: son, navn: 'hele grunnlaget' };
 }
 
+// Samme periodevalg, men fram til og med I DAG. Brukes der det ikke
+// sammenlignes mot en annen periode (Innhold): en økt som ble logget i går
+// skal være med, selv om uka ikke er ferdig.
+function periodeTilIdag(p, naa) {
+  const idag = trIso(naa || new Date());
+  if (p === '4u') return { fra: trPlussDager(idag, -27), til: idag, navn: 'siste 4 uker' };
+  if (p === '12m') return { fra: trPlussDager(idag, -364), til: idag, navn: 'siste 12 måneder' };
+  if (p === 'semester') {
+    const s = semesterFor(idag);
+    const key = s ? s.key : idag.slice(0, 4) + 'V';
+    const sp = semesterSpenn(key);
+    return { fra: sp.fra, til: idag < sp.til ? idag : sp.til, navn: semesterNavn(key).toLowerCase() };
+  }
+  return { fra: '', til: idag, navn: 'hele grunnlaget' };
+}
+
 // Sammenligningsperioden. Returnerer null når den ikke gir mening — «Alt» har
 // ingen forrige periode, og da skal kortene vise «—», ikke 0.
 //
@@ -328,7 +344,10 @@ function isoUkeNokkel(iso) {
 }
 
 /* ---------- Kontrollstripe ---------- */
-function Kontrollstripe({ q, onEndre }) {
+// Samme stripe på alle faner som kan filtreres. `vis` bestemmer hvilke felt
+// fanen bruker: Trender alle tre, Innhold periode + gruppe, I dag / Medlemmer /
+// Kalender bare gruppe. Valgene bor i hashen og følger med mellom fanene.
+function Kontrollstripe({ q, onEndre, vis, children }) {
   const smal = useSmal();
   const grupper = [{ id: 'alle', navn: 'Alle grupper' }]
     .concat(DASH_GRUPPER.map(g => ({ id: g, navn: DASH_GRUPPE_LABEL[g] || g })));
@@ -336,7 +355,7 @@ function Kontrollstripe({ q, onEndre }) {
     { key: 'p', label: 'Periode', valg: PERIODER },
     { key: 'c', label: 'Sammenlign med', valg: SAMMENLIGN },
     { key: 'g', label: 'Gruppe', valg: grupper },
-  ];
+  ].filter(f => !vis || vis.indexOf(f.key) >= 0);
   // «Alt» har ingen forrige periode — da er sammenligningen av. Valget
   // huskes (vises ikke som aktivt), så det gjelder igjen ved neste periode.
   const utenSammenligning = q.p === 'alt';
@@ -363,6 +382,7 @@ function Kontrollstripe({ q, onEndre }) {
           </div>
         );
       })}
+      {children}
     </div>
   );
 }
@@ -511,6 +531,17 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
   const katU = useTrMemo(() => kategoriUker(live, gruppe), [live, gruppe]);
   const uker = useTrMemo(() => ukerFor(r, [mu, katU]), [r, mu, katU]);
   const topp = useTrMemo(() => topplisteRader(mu, members, live, r, rc), [mu, members, live, r, rc]);
+  // Unike utøvere: hvor mange forskjellige som faktisk trente i perioden.
+  // For én gruppe erstatter dette «Aktive medlemmer», som bare finnes for
+  // hele klubben (registeret vet ikke hvilke partier folk går på).
+  const unikeI = (rr) => (mu && rr ? Object.keys(mu).filter(id => sumIPeriode(mu[id], rr) > 0).length : null);
+  const unikeNa = useTrMemo(() => unikeI(r), [mu, r]);
+  const unikeFor = useTrMemo(() => unikeI(rc), [mu, rc]);
+  // Hvor mange av dagens aktive medlemmer som trente i perioden.
+  const aktiveTrente = useTrMemo(() => {
+    if (!mu || !members) return null;
+    return members.filter(m => !isInactiveTypeImp(m.medlemstype) && sumIPeriode(mu[m.id], r) > 0).length;
+  }, [mu, members, r]);
 
   const sumOkt = s => s.reduce((a, e) => a + e[1].okter, 0);
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
@@ -568,14 +599,23 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
           : (q.p || '4u') === 'alt' ? ' — uten sammenligning (velg en kortere periode for å sammenligne).' : ' — uten sammenligning.'}
         {' '}Periodene består av hele uker — inneværende uke kommer med når den er ferdig.
         {dataForsinket && <strong style={{ color: 'var(--coral)' }}>{' '}Oppmøte er bare registrert til og med {fmtDate(oppmoteTil(live))}, så periodene slutter der.</strong>}
-        {kunSheets && ' Gruppefiltrering finnes bare for økter som ligger i Sheets (logget i appen eller importert) — Spond-historikken er gruppert på klassenavn, ikke gruppe.'}
+        {kunSheets && ' Gruppefiltrering finnes bare for økter som ligger i Sheets (logget i appen eller importert) — Spond-historikken er gruppert på klassenavn, ikke gruppe. Innmeldinger og konvertering gjelder alltid hele klubben.'}
       </div>
 
       <div className="grid-5">
-        <TrendKort label="Aktive medlemmer" verdi={aktiveNa} forrige={aktiveFor} farge="amber"
-          hint={snapHint} onKlikk={til('tr-kohort')}
-          serie={snapshots && snapshots.length > 1
-            ? snapshots.filter(s => !r.fra || s.uke >= isoUkeNokkel(r.fra)).map(s => [s.uke, s.aktive]) : null} />
+        {kunSheets ? (
+          <TrendKort label={`Utøvere · ${gruppeNavn}`} verdi={unikeNa} forrige={unikeFor} farge="amber"
+            hint={'Forskjellige medlemmer som trente i gruppen minst én gang i perioden (register-koblet oppmøte). '
+              + 'Aktive medlemmer finnes bare for hele klubben — registeret vet ikke hvilke partier folk går på.'}
+            under={mu ? 'unike som trente i perioden' : 'krever oppdatert Code.gs'}
+            onKlikk={til('tr-topp')} />
+        ) : (
+          <TrendKort label="Aktive medlemmer" verdi={aktiveNa} forrige={aktiveFor} farge="amber"
+            hint={snapHint} onKlikk={til('tr-kohort')}
+            under={aktiveTrente != null && aktiveNa ? `${aktiveTrente} av dem trente i perioden` : null}
+            serie={snapshots && snapshots.length > 1
+              ? snapshots.filter(s => !r.fra || s.uke >= isoUkeNokkel(r.fra)).map(s => [s.uke, s.aktive]) : null} />
+        )}
         <TrendKort label="Snitt pr. økt" verdi={snitt(okt)} forrige={oktC ? snitt(oktC) : null} farge="blue"
           format={v => (Math.round(v * 10) / 10).toString().replace('.', ',')} enhet=" stk"
           hint="Deltagere pr. økt med registrert oppmøte. Økter som er logget uten oppmøte holdes utenfor, som i rapporten. Teller og nevner fra samme kilde (økter i Sheets), så snittet ikke blander Spond-historikk med loggede økter."
@@ -585,7 +625,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
           farge="green" hint="Økter logget i trener-appen eller importert fra Spond-oppmøte. Finnes bare for Sheets-æraen."
           under={utenTall > 0 ? `${utenTall} uten registrert oppmøte` : null}
           onKlikk={til('tr-gruppe')} serie={okt.map(e => [e[0], e[1].okter])} />
-        <TrendKort label="Nye medlemmer" verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
+        <TrendKort label={kunSheets ? 'Nye medlemmer · hele klubben' : 'Nye medlemmer'} verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
           forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
           hint={'Personer som meldte seg inn for første gang i perioden — én gang pr. person, også om Spond har gitt dem nye medlemskap senere. '
             + (departed && departed.spond ? 'Tar med dem som har sluttet igjen (fra importen av tidligere medlemmer).'
@@ -593,7 +633,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
           under={statNa && (statNa.intro || statNa.borte)
             ? `${statNa.intro} på introkurs nå · ${statNa.borte} sluttet igjen` : null}
           onKlikk={til('tr-kohort')} serie={nye} />
-        <TrendKort label="Intro → fast"
+        <TrendKort label={kunSheets ? 'Intro → fast · hele klubben' : 'Intro → fast'}
           verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}
           farge="green" format={v => fmtN(v)}
           enhet={introNa ? ` av ${introNa.av}` : ''}
@@ -706,4 +746,6 @@ window.kategoriUker = kategoriUker;
 window.topplisteRader = topplisteRader;
 window.SemesterOverlay = SemesterOverlay;
 window.Kontrollstripe = Kontrollstripe;
+window.periodeTilIdag = periodeTilIdag;
+window.PERIODER = PERIODER;
 window.TrendKort = TrendKort;

@@ -17,8 +17,12 @@ function beltRank(belt){
 // belter høy→lav); neste klikk på samme kolonne snur den.
 const SORT_DEFAULT_DIR = { navn:'asc', belte:'desc', sist:'desc', siden:'desc', oppmote:'desc' };
 
-function Register(){
+function Register({ kpis, q: hq, onEndreQ }){
   const { members, actions, live } = useMembers();
+  // Felles gruppefilter (fra hashen) — hvem som trener i gruppen avgjøres
+  // av oppmøtet siste 12 måneder (gruppeMedlemmer i dashboard-shared).
+  const gruppe = (hq && hq.g) || 'alle';
+  const gm = useM(()=>gruppeMedlemmer(live, gruppe), [live, gruppe]);
   const [q, setQ] = useS('');
   const [kat, setKat] = useS('Alle');
   const [beltFilter, setBeltFilter] = useS('Alle');
@@ -35,6 +39,7 @@ function Register(){
   // under (ellers endres antall hooks når members lastes → React error #310).
   const filtered = useM(()=>{
     let r = (members||[]).filter(m=>{
+      if(gm && !gm.mangler && !gm.har(m)) return false;
       if(kat!=='Alle' && m.kategori!==kat) return false;
       if(beltFilter==='Farget' && m.grading.current.belt==='Hvit') return false;
       if(beltFilter==='Voksenbelter' && !beltMeta(m.grading.current.belt).adult) return false;
@@ -59,7 +64,7 @@ function Register(){
     const sign = dir==='asc' ? 1 : -1;
     r.sort((a,b)=> sign*cmp(a,b) || a.navn.localeCompare(b.navn,'nb'));
     return r;
-  },[members,live,q,kat,beltFilter,sort,dir]);
+  },[members,live,q,kat,beltFilter,sort,dir,gm]);
 
   function sortBy(key){
     if(key===sort) setDir(d=>d==='asc'?'desc':'asc');
@@ -79,18 +84,20 @@ function Register(){
   // derived header counts
   const stats = useM(()=>{
     // Kortene teller AKTIVE medlemmer — samme definisjon som sidefeltet og
-    // Trender (parkerte «Ikke aktiv»-medlemskap holdes utenfor). Før sto det
-    // «aktive» under et tall som også talte de parkerte.
-    const alle = members || [];
+    // Trender (parkerte «Ikke aktiv»-medlemskap holdes utenfor) — og følger
+    // utvalget: søk, kategori, belte og gruppe.
+    const alle = filtered || [];
     const list = alle.filter(m=>!isInactiveTypeImp(m.medlemstype));
     const colored = list.filter(m=>m.grading.current.belt!=='Hvit').length;
     const cutoff = new Date(Date.now()-90*86400000).toISOString().slice(0,10);
     let recent=0; for(const m of list) for(const e of m.grading.history) if(e.kind!=='innmelding'&&e.date>=cutoff) recent++;
     const black = list.filter(m=>m.grading.current.belt==='Sort').length;
     return { total:list.length, parkert:alle.length-list.length, colored, recent, black };
-  },[members]);
+  },[filtered]);
 
   if(!members) return <div style={{padding:30,color:'var(--muted)'}}>Laster medlemmer…</div>;
+
+  const erFiltrert = filtered.length !== members.length;
 
   const allSelected = filtered.length>0 && filtered.every(m=>sel.has(m.id));
   function toggleAll(){ const n=new Set(sel); if(allSelected) filtered.forEach(m=>n.delete(m.id)); else filtered.forEach(m=>n.add(m.id)); setSel(n); }
@@ -110,10 +117,19 @@ function Register(){
 
   return (
     <div>
+      {onEndreQ && <Kontrollstripe q={{ g: gruppe }} onEndre={onEndreQ} vis={['g']} />}
+      {gm && (
+        <div className="dim" style={{fontSize:11.5, margin:'2px 2px 14px', lineHeight:1.6}}>
+          {gm.mangler
+            ? 'Gruppefilteret krever oppdatert Code.gs-backend (ny versjon i Apps Script) — viser alle.'
+            : <>Viser medlemmer som har trent {gruppeNavnAv(gruppe)} minst én gang siste 12 måneder. Kort, fordelinger og eksport følger utvalget.</>}
+        </div>
+      )}
+      {kpis && <Fordelinger kpis={kpis} members={filtered} filtrert={erFiltrert}/>}
       {/* KPI strip */}
       <div className="grid-4">
-        <KPI label="Aktive medlemmer" value={stats.total}
-          delta={stats.parkert>0 ? `+ ${stats.parkert} parkert i registeret` : 'i registeret'} accent="amber"/>
+        <KPI label={erFiltrert ? 'Aktive i utvalget' : 'Aktive medlemmer'} value={stats.total}
+          delta={stats.parkert>0 ? `+ ${stats.parkert} parkert` : (erFiltrert ? `av ${members.length} i registeret` : 'i registeret')} accent="amber"/>
         <KPI label="Fargebelter" value={stats.colored} delta={stats.total ? `av ${stats.total} aktive (${fmtPct(stats.colored/stats.total)})` : '—'} accent="green"/>
         <KPI label="Sortbelter" value={stats.black} delta="instruktørnivå" accent="blue"/>
         <KPI label="Graderinger" value={stats.recent} delta="siste 90 dager" deltaClass="up" accent="coral"/>
@@ -152,8 +168,8 @@ function Register(){
             <button className="btn outline sm" onClick={()=>setExportOpen(v=>!v)}>Eksporter ▾</button>
             {exportOpen && (
               <div className="export-menu" onMouseLeave={()=>setExportOpen(false)}>
-                <button onClick={()=>{ downloadText('bodojj_medlemmer.csv', membersToCSV(members)); setExportOpen(false); }}>Medlemsliste (CSV)</button>
-                <button onClick={()=>{ downloadText('bodojj_graderingslogg.csv', gradingLogToCSV(members)); setExportOpen(false); }}>Graderingslogg (CSV)</button>
+                <button onClick={()=>{ downloadText('bodojj_medlemmer.csv', membersToCSV(filtered)); setExportOpen(false); }}>Medlemsliste (CSV){erFiltrert ? ` · ${filtered.length} i utvalget` : ''}</button>
+                <button onClick={()=>{ downloadText('bodojj_graderingslogg.csv', gradingLogToCSV(filtered)); setExportOpen(false); }}>Graderingslogg (CSV){erFiltrert ? ` · ${filtered.length} i utvalget` : ''}</button>
                 <div className="export-note">Åpnes direkte i Google Sheets / Excel. Endringer lagres lokalt i nettleseren.</div>
                 {actions.overridesCount()>0 && <button className="danger" onClick={()=>{ if(confirm('Tilbakestille alle belteendringer?')) actions.resetAll(); setExportOpen(false); }}>Tilbakestill alle endringer ({actions.overridesCount()})</button>}
               </div>
