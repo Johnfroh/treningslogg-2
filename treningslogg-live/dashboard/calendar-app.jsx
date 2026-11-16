@@ -172,7 +172,22 @@ function LogSessionModal({ initial, dateDefault, defaultType, trainers, onClose,
 }
 
 /* ---------- Kalender ---------- */
-function Kalender(){
+// Kalenderens rå gruppenavn → samme seks grupper som resten av dashboardet.
+// Speiler dashNormGroup_ i Code.gs (enklere: tittel brukes ikke her).
+function calGruppe(raw){
+  const s = String(raw||'').toLowerCase().replace(/\*+\s*$/,'').trim();
+  if(!s) return 'ukjent';
+  if(s.includes('junior')||s.includes('knøtte')||s.includes('knotte')) return 'junior';
+  if(s.includes('åpen matte')||s.includes('apen matte')||s.includes('open mat')) return 'åpen matte';
+  if(s.includes('taktisk')||s.includes('grappling')) return 'taktisk';
+  if(s.includes('dame')||s.includes('kvinne')) return 'damer';
+  if(s.includes('nogi')||s.includes('no-gi')||s.includes('no gi')) return 'nogi';
+  if(s.includes('gi')||s.includes('grunn')||s.includes('erfaren')) return 'gi';
+  return 'ukjent';
+}
+
+function Kalender({ q, onEndreQ }){
+  const gruppe = (q && q.g) || 'alle';
   const [data, setData] = useCs(null);
   const [err, setErr] = useCs('');
   const [cursor, setCursor] = useCs(() => { const d=new Date(); return { y:d.getFullYear(), m:d.getMonth() }; });
@@ -187,11 +202,12 @@ function Kalender(){
   const byDate = React.useMemo(() => {
     const map = {};
     if(data){
-      (data.sessions||[]).forEach(s=> (map[s.date]||(map[s.date]=[])).push({ ...s, kind:'logged' }));
-      (data.planned||[]).forEach(p=> (map[p.date]||(map[p.date]=[])).push({ ...p, kind:'planned' }));
+      const med = x => gruppe === 'alle' || calGruppe(x.group) === gruppe;
+      (data.sessions||[]).filter(med).forEach(s=> (map[s.date]||(map[s.date]=[])).push({ ...s, kind:'logged' }));
+      (data.planned||[]).filter(med).forEach(p=> (map[p.date]||(map[p.date]=[])).push({ ...p, kind:'planned' }));
     }
     return map;
-  }, [data]);
+  }, [data, gruppe]);
 
   if(err) return <div className="dim" style={{padding:20}}>Kunne ikke laste kalender: {err}</div>;
   if(!data) return <div className="dim" style={{padding:20}}>Laster kalender…</div>;
@@ -204,11 +220,33 @@ function Kalender(){
   for(let i=0;i<startDow;i++) cells.push(null);
   for(let d=1; d<=daysInMonth; d++) cells.push(calYmd(new Date(y, m, d)));
 
+  // Månedssum for valgt gruppe: økter, oppmøte og hvor mange som mangler
+  // oppmøte eller innhold — det som trengs for å se om måneden er ført.
+  const prefiks = `${y}-${String(m+1).padStart(2,'0')}`;
+  const mndLogget = Object.keys(byDate).filter(d=>d.startsWith(prefiks))
+    .reduce((a,d)=>a.concat(byDate[d].filter(x=>x.kind==='logged')), []);
+  const medTall = mndLogget.filter(x=>x.attendance!=null && x.attendance!=='');
+  const mndSum = {
+    okter: mndLogget.length,
+    oppmote: medTall.reduce((n,x)=>n+Number(x.attendance),0),
+    utenTall: mndLogget.length - medTall.length,
+    utenInnhold: mndLogget.filter(x=>!(String(x.content||'').trim() || (x.tags&&x.tags.length))).length,
+    planlagt: Object.keys(byDate).filter(d=>d.startsWith(prefiks)).reduce((n,d)=>n+byDate[d].filter(x=>x.kind==='planned').length,0),
+  };
+
   const selItems = (byDate[selected] || []).slice().sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')));
   const onSaved = () => { setModal(null); load(); };
 
   return (
     <div>
+      {onEndreQ && <Kontrollstripe q={{ g: gruppe }} onEndre={onEndreQ} vis={['g']} />}
+      <div className="grid-4" style={{marginBottom:6}}>
+        <KPI label={`Økter · ${MND_FULL[m]}`} value={fmtN(mndSum.okter)} delta={gruppeNavnAv(gruppe)} accent="blue"/>
+        <KPI label="Snitt oppmøte" value={medTall.length ? (mndSum.oppmote/medTall.length).toFixed(1).replace('.',',') : '—'}
+          delta={`${fmtN(mndSum.oppmote)} oppmøter · ${medTall.length} økter med tall`} accent="green"/>
+        <KPI label="Mangler oppmøte" value={fmtN(mndSum.utenTall)} delta="loggede økter uten tall" accent="coral"/>
+        <KPI label="Mangler innhold" value={fmtN(mndSum.utenInnhold)} delta={`uten tekst eller temaer · ${mndSum.planlagt} planlagt`} accent="amber"/>
+      </div>
       <div className="section-h" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>{MND_FULL[m]} {y}</span>
         <span style={{display:'flex',gap:6}}>

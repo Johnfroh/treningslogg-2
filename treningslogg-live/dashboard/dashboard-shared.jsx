@@ -134,6 +134,57 @@ function mandagerTil(n, sisteMandag) {
   for (let i = n - 1; i >= 0; i--) out.push(isoPluss(sisteMandag, -7 * i));
   return out;
 }
+// =============== FELLES GRUPPEFILTER ===============
+// Hvem som «hører til» en treningsgruppe. Registeret vet bare medlemstype
+// (Voksen, Student, Junior …), ikke hvilke partier folk går på — det ser vi
+// av oppmøtet. Regelen er bevisst enkel: minst én økt i gruppen de siste 52
+// ukene. Et medlem kan høre til flere grupper (gi + no-gi).
+// Medlemmer helt uten gruppeoppmøte i perioden plasseres etter medlemstype
+// der den er entydig: Junior/Knøtte → junior. Ellers vises de bare under
+// «Alle grupper».
+// Returnerer null for «alle» (ingen filtrering). `mangler` = backend er for
+// gammel til å sende oppmøte pr. gruppe; da filtreres det ikke.
+const GRUPPE_UKER_TILBAKE = 52;
+function gruppeMedlemmer(live, gruppe) {
+  if (!gruppe || gruppe === 'alle') return null;
+  const mgw = live && live.memberGruppeWeekly;
+  if (!mgw) return { mangler: true, har: () => true };
+  const fra = isoPluss(isoMandag(isoLokal(new Date())), -7 * GRUPPE_UKER_TILBAKE);
+  const iGruppen = {}, harNoe = {};
+  Object.keys(mgw).forEach(id => {
+    Object.keys(mgw[id] || {}).forEach(g => {
+      if (!Object.keys(mgw[id][g] || {}).some(wk => wk >= fra)) return;
+      harNoe[id] = true;
+      if (g === gruppe) iGruppen[id] = true;
+    });
+  });
+  const erBarn = m => m.kategori === 'Junior' || m.kategori === 'Knøtte';
+  return {
+    mangler: false,
+    har: m => !!iGruppen[m.id] || (!harNoe[m.id] && gruppe === 'junior' && erBarn(m)),
+  };
+}
+const gruppeNavnAv = g => (!g || g === 'alle' ? 'alle grupper' : (DASH_GRUPPE_LABEL[g] || g));
+
+// Fordelinger for en medlemsliste — kategori, kjønn, belte og alder. Én
+// kilde for sidefeltet/Trender (mergeLiveKpis) og for Fordelinger i
+// Medlemmer, som regner på det filtrerte utvalget.
+function medlemsFordeling(liste) {
+  const byKategori = {}, byKjonn = { Mann: 0, Kvinne: 0 }, byBelt = {}, byAgeBucket = {};
+  (liste || []).forEach(m => {
+    // Kategori regnes om fra medlemstypen, så rettelser i deriveKategoriImp
+    // slår inn uten at medlemsfila må lastes opp på nytt.
+    const kat = m.medlemstype ? window.deriveKategoriImp(m.medlemstype) : (m.kategori || 'Annet');
+    byKategori[kat] = (byKategori[kat] || 0) + 1;
+    const kj = m.kjonn || 'Ukjent'; byKjonn[kj] = (byKjonn[kj] || 0) + 1;
+    const belt = (m.grading && m.grading.current.belt) || 'Hvit'; byBelt[belt] = (byBelt[belt] || 0) + 1;
+    const a = window.alderNaImp(m);
+    const bucket = a == null ? 'Ukjent' : a < 13 ? 'Under 13' : a < 18 ? '13–17' : a < 30 ? '18–29' : a < 45 ? '30–44' : '45+';
+    byAgeBucket[bucket] = (byAgeBucket[bucket] || 0) + 1;
+  });
+  return { byKategori, byKjonn, byBelt, byAgeBucket };
+}
+
 // Sum av fire uker som slutter endOffset uker før slutten av serien.
 const sum4 = (arr, endOffset) => arr.slice(arr.length - endOffset - 4, arr.length - endOffset).reduce((s, v) => s + v, 0);
 
@@ -564,6 +615,10 @@ window.oppmoteRef = oppmoteRef;
 window.dagerUtenOppmote = dagerUtenOppmote;
 window.sisteHeleUke = sisteHeleUke;
 window.mandagerTil = mandagerTil;
+window.gruppeMedlemmer = gruppeMedlemmer;
+window.gruppeNavnAv = gruppeNavnAv;
+window.medlemsFordeling = medlemsFordeling;
+window.GRUPPE_UKER_TILBAKE = GRUPPE_UKER_TILBAKE;
 window.sum4 = sum4;
 window.innmeldinger = innmeldinger;
 window.memberTrendRows = memberTrendRows;

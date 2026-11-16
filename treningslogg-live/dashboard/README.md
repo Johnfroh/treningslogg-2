@@ -104,6 +104,15 @@ sju i stedet for ni:
   med registrert oppmøte (`oppmoteRef()` ↔ `dashOppmoteRef_()`), ikke mot
   dagens dato. «I dag», rapporten og ukesnapshotet bruker samme regel, og
   «stille» er alle tre steder terskelen–8 uker.
+- **Felles filter:** periode, sammenligning og gruppe ligger i hashen og
+  følger med når man bytter fane. Gruppevalget huskes i nettleseren
+  (`localStorage`, nøkkel `dash.gruppe`). Trender bruker alle tre, Innhold
+  periode + gruppe (perioden går fram til i dag), I dag / Medlemmer /
+  Kalender bare gruppe. Økonomi har én egen periodevelger for hele fanen.
+- **Hvem hører til en gruppe:** minst én økt i gruppen siste 52 uker
+  (`gruppeMedlemmer()` i `dashboard-shared.jsx`). Medlemmer uten
+  gruppeoppmøte plasseres i junior hvis medlemstypen er Junior/Knøtte.
+  Innmeldinger og konvertering gjelder alltid hele klubben.
 - **Nye / Intro → fast / funnel** har én kilde: `innmeldtStatus()` i
   `trends-app.jsx`. Fast = står i registeret i dag med fast medlemskap;
   de som har sluttet eller er parkert teller ikke.

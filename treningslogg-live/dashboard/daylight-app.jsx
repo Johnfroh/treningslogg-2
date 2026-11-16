@@ -83,6 +83,22 @@ function qsAv(q){
     .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(q[k])).join('&');
 }
 
+// «Min gruppe» mellom besøk. localStorage kan være sperret (privat modus) —
+// da husker vi bare innenfor besøket, via hashen.
+const GRUPPE_NOKKEL = 'dash.gruppe';
+function lagretGruppe(){
+  try {
+    const g = localStorage.getItem(GRUPPE_NOKKEL);
+    return g && DASH_GRUPPER.indexOf(g) >= 0 ? { g } : {};
+  } catch (_e) { return {}; }
+}
+function lagreGruppe(g){
+  try {
+    if (g && g !== 'alle') localStorage.setItem(GRUPPE_NOKKEL, g);
+    else localStorage.removeItem(GRUPPE_NOKKEL);
+  } catch (_e) { /* sperret lagring: valget lever i hashen */ }
+}
+
 // Inneværende år. Var hardkodet til '2026' på fire steder, som ville begynt å
 // vise «+0 i 2026» så snart kalenderen rullet videre.
 const AAR_NA = String(new Date().getFullYear());
@@ -228,19 +244,15 @@ function mergeLiveKpis(kpis, members, departed){
   // ikke telle som aktive — verken i antall, fordelinger eller MRR.
   const aktive = members.filter(m => !isInactiveTypeImp(m.medlemstype));
   if(!aktive.length) return kpis;
-  const byKategori={}, byKjonn={Mann:0,Kvinne:0}, byBelt={}, byAgeBucket={}, byPostnr={};
+  // Kategori, kjønn, belte og alder: samme utregning som Fordelinger i
+  // Medlemmer bruker på det filtrerte utvalget (medlemsFordeling).
+  const { byKategori, byKjonn, byBelt, byAgeBucket } = medlemsFordeling(aktive);
+  const byPostnr={};
   const pricing={};
   const cohort={};                 // innmeldingsår → antall som fortsatt trener
   let mrr=0, tenureSum=0, tenureN=0;
   const naa=Date.now();
   aktive.forEach(m=>{
-    const kat = m.medlemstype ? deriveKategoriImp(m.medlemstype) : (m.kategori||'Annet');
-    byKategori[kat]=(byKategori[kat]||0)+1;
-    const kj=m.kjonn||'Ukjent'; byKjonn[kj]=(byKjonn[kj]||0)+1;
-    const belt=(m.grading&&m.grading.current.belt)||'Hvit'; byBelt[belt]=(byBelt[belt]||0)+1;
-    const a=alderNaImp(m);
-    const bucket = a==null?'Ukjent' : a<13?'Under 13' : a<18?'13–17' : a<30?'18–29' : a<45?'30–44' : '45+';
-    byAgeBucket[bucket]=(byAgeBucket[bucket]||0)+1;
     if(m.postnr) byPostnr[m.postnr]=(byPostnr[m.postnr]||0)+1; // barn er maskert → kun voksne
     const type=m.medlemstype||'Ukjent';
     const p=pricing[type]||(pricing[type]={count:0, monthly:m.prisMnd||0, mrr:0});
@@ -295,7 +307,9 @@ function App() {
   const [tab, setTab] = useState(tabFromHash);
   // Fanens parametre (Trender: periode, sammenligning, gruppe) bor i hashen,
   // ikke i state alene — da kan en visning deles som lenke.
-  const [hashQ, setHashQ] = useState(() => hashDeler().q);
+  // Gruppevalget («min gruppe») huskes også mellom besøk, i nettleseren.
+  // Står det en gruppe i lenka, vinner den.
+  const [hashQ, setHashQ] = useState(() => ({ ...lagretGruppe(), ...hashDeler().q }));
   const [merAapen, setMerAapen] = useState(false);
   // Medlemsprofilen bodde i «I dag»-fanen. Nå ligger den her, slik at ethvert
   // medlemsnavn i dashboardet kan åpne den samme profilen (se MemberOpenCtx).
@@ -322,7 +336,7 @@ function App() {
 
   // Tilbake/frem i nettleseren bytter fane og gjenskaper parametrene.
   useEffect(() => {
-    const onHash = () => { setTab(tabFromHash()); setHashQ(hashDeler().q); };
+    const onHash = () => { setTab(tabFromHash()); setHashQ({ ...lagretGruppe(), ...hashDeler().q }); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -365,14 +379,19 @@ function App() {
     kan: (id) => !!byIdMedlem[id],
   };
   const profilMedlem = profilId ? byIdMedlem[profilId] : null;
+  // Filteret (periode, sammenligning, gruppe) følger med når man bytter fane.
+  // Før ble det nullstilt, så en juniortrener måtte velge gruppe på nytt på
+  // hver eneste fane.
   const velgFane = (id) => {
-    setTab(id); setHashQ({}); setMerAapen(false);
-    location.hash = '#' + id;
+    setTab(id); setMerAapen(false);
+    const qs = qsAv(hashQ);
+    location.hash = '#' + id + (qs ? '?' + qs : '');
   };
   // Endrer én parameter i gjeldende fane og skriver hele settet til hashen.
   const endreQ = (key, verdi) => {
     const ny = { ...hashQ, [key]: verdi };
     setHashQ(ny);
+    if (key === 'g') lagreGruppe(verdi);
     const qs = qsAv(ny);
     location.hash = '#' + tab + (qs ? '?' + qs : '');
   };
@@ -483,13 +502,13 @@ function App() {
               title="Innstillinger — terskler, snapshots og hendelser ligger i Data-fanen">⚙</button>
           </div>
         </div>
-        {effTab==='idag' && <Today members={members} live={live} thresholds={terskler}/>}
+        {effTab==='idag' && <Today members={members} live={live} thresholds={terskler} q={hashQ} onEndreQ={endreQ}/>}
         {effTab==='trender' && <Trender kpis={kpis} charts={charts} live={live} members={members}
           events={events} snapshots={snapshots} departed={departed}
           q={hashQ} onEndreQ={endreQ}/>}
-        {effTab==='register' && <><Fordelinger kpis={kpis} members={members}/><Register/></>}
-        {effTab==='kalender' && <Kalender/>}
-        {effTab==='innhold' && <Innhold/>}
+        {effTab==='register' && <Register kpis={kpis} q={hashQ} onEndreQ={endreQ}/>}
+        {effTab==='kalender' && <Kalender q={hashQ} onEndreQ={endreQ}/>}
+        {effTab==='innhold' && <Innhold q={hashQ} onEndreQ={endreQ}/>}
         {effTab==='okonomi' && isStyre && <Okonomi kpis={kpis} charts={charts}/>}
         {effTab==='data' && <DataFane kpis={kpis} charts={charts} live={live} meta={meta} isStyre={isStyre}
           terskler={terskler} brukerStandard={standardTerskler}
@@ -699,19 +718,19 @@ const CORE_ACT = ['passing','escapes','submissions','takedowns','sweeps','pins']
 // hadde sin egen kopi av de samme seks gruppene.
 const GROUP_LABEL = DASH_GRUPPE_LABEL;
 
-function ThemeBars({ keys, allMap, recentMap, color }){
-  const max = Math.max(1, ...keys.map(k => allMap[k] || 0));
+function ThemeBars({ keys, antall, sist, color }){
+  const max = Math.max(1, ...keys.map(k => antall[k] || 0));
   return (
     <div>
       {keys.map(k => {
-        const v = allMap[k] || 0, r = recentMap[k] || 0;
+        const v = antall[k] || 0;
         return (
           <div key={k} className="bar-row" style={{display:'grid',gridTemplateColumns:'120px 1fr auto',gap:10,alignItems:'center',padding:'5px 0'}}>
             <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.12em'}}>{k}</span>
             <div className="meter" style={{background:'var(--bar-bg)',height:14,borderRadius:7,overflow:'hidden'}}>
               <div style={{width:(v/max)*100+'%',background:color,height:'100%'}}/>
             </div>
-            <span className="tabular" style={{fontSize:12,minWidth:64,textAlign:'right'}}>{v} <span className="dim">· {r} siste 90d</span></span>
+            <span className="tabular" style={{fontSize:12,minWidth:110,textAlign:'right'}}>{v} <span className="dim">· {sist[k] ? 'sist ' + fmtDate(sist[k]) : 'aldri'}</span></span>
           </div>
         );
       })}
@@ -719,76 +738,94 @@ function ThemeBars({ keys, allMap, recentMap, color }){
   );
 }
 
-function Innhold(){
+// Innhold følger det felles filteret: periode (fram til i dag) og gruppe
+// styrer kortene, temabalansen og øktlista. «Sist trent» pr. tema ser
+// alltid på hele historikken for gruppen — det er den som sier hvor lenge
+// siden et tema faktisk ble trent.
+function Innhold({ q, onEndreQ }){
   const { actions } = useMembers();
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
   React.useEffect(() => { actions.fetchThemes().then(setData).catch(e => setErr(e.message || 'feil')); }, []);
+  const p = (q && q.p) || '4u';
+  const gruppe = (q && q.g) || 'alle';
 
   if (err) return <div className="dim" style={{padding:20}}>Kunne ikke laste tema-balanse: {err}</div>;
   if (!data) return <div className="dim" style={{padding:20}}>Laster tema-balanse…</div>;
+  const stripe = onEndreQ && <Kontrollstripe q={{ p, g: gruppe }} onEndre={onEndreQ} vis={['p','g']} />;
+  if (!data.okter) return (
+    <div>{stripe}<Tile title="Innhold" corner="liste">
+      <div className="dim" style={{fontSize:12}}>Innhold-fanen krever oppdatert Code.gs-backend (dashThemes sender med øktene).</div>
+    </Tile></div>
+  );
 
-  // Kortene regnes fra de samme øktene som lista under, med samme regel for
-  // «innhold» som filteret der (oktHarInnhold). Før telte kortet tittel som
-  // innhold — og importerte økter får klassenavnet fra Spond som tittel, så
-  // tallet ble for høyt og stemte ikke med lista.
-  const okterAlle = data.okter || null;
-  const antOkter = okterAlle ? okterAlle.length : data.totalSessions;
-  const antInnhold = okterAlle ? okterAlle.filter(oktHarInnhold).length : data.logged;
-  const antInnhold90 = okterAlle ? okterAlle.filter(o => o.date >= data.since && oktHarInnhold(o)).length : data.recentLogged;
-
-  const allMap = {}; data.tags.forEach(t => { allMap[t.tag] = t.sessions; });
-  const recentMap = {}; data.tagsRecent.forEach(t => { recentMap[t.tag] = t.sessions; });
-  const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(recentMap[k] > 0));
-  // Rusk-grupper («ukjent») holdes ute av hovedvisningen, men flagges som ryddeoppgave.
-  const ukjentGroup = data.groups.find(g => g.group === 'ukjent');
-  const groupData = data.groups
-    .filter(g => g.group !== 'ukjent')
-    .map(g => ({ label: `${GROUP_LABEL[g.group] || g.group} (${g.recent} siste 90d)`, value: g.sessions }));
+  const r = periodeTilIdag(p);
+  const iGruppe = data.okter.filter(o => gruppe === 'alle' || o.group === gruppe);
+  const okter = iGruppe.filter(o => (!r.fra || o.date >= r.fra) && o.date <= r.til);
+  const medInnhold = okter.filter(oktHarInnhold);
+  // Temaer: antall økter i perioden + siste gang temaet ble trent (hele
+  // historikken for gruppen).
+  const antall = {}, sist = {};
+  okter.forEach(o => (o.tags || []).forEach(t => { antall[t] = (antall[t] || 0) + 1; }));
+  iGruppe.forEach(o => (o.tags || []).forEach(t => { if (!sist[t] || o.date > sist[t]) sist[t] = o.date; }));
+  const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(antall[k] > 0));
+  // Gruppebalanse: økter pr. gruppe i perioden (uavhengig av gruppevalget).
+  const perGruppe = {};
+  data.okter.filter(o => (!r.fra || o.date >= r.fra) && o.date <= r.til)
+    .forEach(o => { perGruppe[o.group] = (perGruppe[o.group] || 0) + 1; });
+  const groupData = DASH_GRUPPER.filter(g => perGruppe[g])
+    .map(g => ({ label: GROUP_LABEL[g] || g, value: perGruppe[g] }));
+  const gNavn = gruppeNavnAv(gruppe);
 
   return (
     <div>
+      {stripe}
+      <div className="dim" style={{fontSize:11.5, margin:'2px 2px 14px', lineHeight:1.6}}>
+        Viser <strong>{r.navn}</strong>{r.fra ? ` (${r.fra} → ${r.til})` : ''} for {gNavn}. Perioden går fram til i dag.
+      </div>
       <div className="grid-4">
-        <KPI label="Økter i Sheets" value={fmtN(antOkter)} delta="loggede + importerte · alle år" accent="blue"/>
-        <KPI label="Med innhold" value={fmtN(antInnhold)} delta={antOkter ? `innholdstekst eller temaer · ${fmtPct(antInnhold/antOkter)}` : 'innholdstekst eller temaer'} accent="green"/>
-        <KPI label="Siste 90 dager" value={fmtN(antInnhold90)} delta={`med innhold · etter ${data.since}`} accent="amber"/>
-        <KPI label="Underdekket nå" value={fmtN(underdekket.length)} delta="kjernetemaer siste 90d" accent="coral"/>
+        <KPI label="Økter" value={fmtN(okter.length)} delta={`loggede + importerte · ${gNavn}`} accent="blue"/>
+        <KPI label="Med innhold" value={fmtN(medInnhold.length)}
+          delta={okter.length ? `innholdstekst eller temaer · ${fmtPct(medInnhold.length/okter.length)}` : 'innholdstekst eller temaer'} accent="green"/>
+        <KPI label="Uten innhold" value={fmtN(okter.length - medInnhold.length)} delta="bør fylles ut i kalenderen" accent="amber"/>
+        <KPI label="Underdekket" value={fmtN(underdekket.length)} delta={`av ${CORE_POS.length + CORE_ACT.length} kjernetemaer · ingen økter i perioden`} accent="coral"/>
       </div>
 
       {underdekket.length > 0 && (
         <>
-        <div className="section-h">Underdekket siste 90 dager<span className="meta">kjernetemaer uten økter</span></div>
+        <div className="section-h">Underdekket<span className="meta">kjernetemaer uten økter · {r.navn} · {gNavn}</span></div>
         <Tile title="Bør prioriteres" corner="balanse">
           <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-            {underdekket.map(k => <span key={k} className="tag coral" style={{textTransform:'uppercase',letterSpacing:'.1em'}}>{k}</span>)}
+            {underdekket.map(k => <span key={k} className="tag coral" style={{textTransform:'uppercase',letterSpacing:'.1em'}}
+              title={sist[k] ? `Sist trent ${fmtDate(sist[k])}` : 'Aldri registrert'}>{k}{sist[k] ? ` · ${fmtDate(sist[k])}` : ''}</span>)}
           </div>
-          <div className="dim" style={{fontSize:11,marginTop:10}}>Disse kjernetemaene har ingen loggede økter de siste 90 dagene.</div>
+          <div className="dim" style={{fontSize:11,marginTop:10}}>Disse kjernetemaene har ingen loggede økter i perioden. Datoen er sist de ble trent.</div>
         </Tile>
         </>
       )}
 
-      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · junior / gi / no-gi / åpen matte / taktisk / damer</span></div>
+      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · {r.navn} · alle grupper</span></div>
       <Tile title="Grupper" corner="balanse">
-        <HBar data={groupData} color="var(--accent)" height={20}/>
-        {ukjentGroup && ukjentGroup.sessions > 0 && (
+        {groupData.length ? <HBar data={groupData} color="var(--accent)" height={20}/> : <div className="dim" style={{fontSize:12}}>Ingen økter i perioden.</div>}
+        {perGruppe.ukjent > 0 && (
           <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
-            ⚠ {ukjentGroup.sessions} økter har ukjent/ugyldig gruppe — rydd dem til en av de seks gruppene i kalenderen.
+            ⚠ {perGruppe.ukjent} økter har ukjent/ugyldig gruppe — rydd dem til en av de seks gruppene i kalenderen.
           </div>
         )}
       </Tile>
 
-      <div className="section-h">Posisjoner<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
+      <div className="section-h">Posisjoner<span className="meta">økter pr. tema i perioden · sist trent</span></div>
       <Tile title="Posisjon" corner="position">
-        <ThemeBars keys={CORE_POS} allMap={allMap} recentMap={recentMap} color="#34B98C"/>
+        <ThemeBars keys={CORE_POS} antall={antall} sist={sist} color="#34B98C"/>
       </Tile>
 
-      <div className="section-h">Handlinger<span className="meta">økter pr. tema · totalt og siste 90d</span></div>
+      <div className="section-h">Handlinger<span className="meta">økter pr. tema i perioden · sist trent</span></div>
       <Tile title="Handling" corner="action">
-        <ThemeBars keys={CORE_ACT} allMap={allMap} recentMap={recentMap} color="#F2825F"/>
+        <ThemeBars keys={CORE_ACT} antall={antall} sist={sist} color="#F2825F"/>
       </Tile>
 
-      <div className="section-h">Registrerte økter<span className="meta">filtrer og del inn pr. økttype</span></div>
-      <OktOversikt okter={data.okter}/>
+      <div className="section-h">Registrerte økter<span className="meta">{r.navn} · {gNavn}</span></div>
+      <OktOversikt okter={okter} totalt={data.okter.length}/>
     </div>
   );
 }
@@ -796,7 +833,6 @@ function Innhold(){
 // Oversikt over registrerte økter: periode, økttype (gruppe), fritekstsøk og
 // valgfri inndeling pr. økttype. Gruppen er allerede normalisert i Code.gs
 // (dashNormGroup_), så det finnes ingen egen gruppelogikk her.
-const OKT_PERIODER = [['90', 'Siste 90 dager'], ['ar', 'I år'], ['alt', 'Alt']];
 const OKT_SIDE = 40;
 // «Registrert innhold» = trenerens innholdstekst eller temaer. Tittel alene
 // teller ikke her: importerte økter får klassenavnet fra Spond som tittel.
@@ -828,8 +864,9 @@ function OktRad({ o }){
   );
 }
 
-function OktOversikt({ okter }){
-  const [periode, setPeriode] = useState('90');
+// Periode og gruppe kommer fra det felles filteret (Innhold sender ferdig
+// filtrerte økter). Her velges bare økttype, søk og innhold.
+function OktOversikt({ okter, totalt }){
   const [type, setType] = useState('alle');
   const [sok, setSok] = useState('');
   const [perType, setPerType] = useState(false);
@@ -842,10 +879,7 @@ function OktOversikt({ okter }){
     </Tile>
   );
 
-  const iDag = new Date();
-  const fra = periode === '90' ? new Date(iDag.getTime() - 90 * 86400000).toISOString().slice(0, 10)
-    : periode === 'ar' ? `${iDag.getFullYear()}-01-01` : '';
-  const iPeriode = okter.filter(o => (!fra || o.date >= fra) && (!kunInnhold || oktHarInnhold(o)));
+  const iPeriode = okter.filter(o => !kunInnhold || oktHarInnhold(o));
   const q = sok.trim().toLowerCase();
   const treff = q ? iPeriode.filter(o =>
     [o.title, o.content, o.trainer, (o.tags || []).join(' ')].join(' ').toLowerCase().indexOf(q) >= 0) : iPeriode;
@@ -853,7 +887,7 @@ function OktOversikt({ okter }){
   // Tellinger pr. økttype for valgt periode + søk (før typefilteret).
   const perGruppe = {};
   treff.forEach(o => { (perGruppe[o.group] || (perGruppe[o.group] = [])).push(o); });
-  const typer = DASH_GRUPPER.concat(perGruppe.ukjent ? ['ukjent'] : []);
+  const typer = DASH_GRUPPER.filter(g => perGruppe[g]).concat(perGruppe.ukjent ? ['ukjent'] : []);
   const valgte = type === 'alle' ? treff : (perGruppe[type] || []);
 
   const snitt = (liste) => {
@@ -862,12 +896,7 @@ function OktOversikt({ okter }){
   };
 
   return (
-    <Tile title="Økter" corner={`${fmtN(valgte.length)} av ${fmtN(okter.length)}`}>
-      <div className="chips" style={{marginBottom:10}}>
-        {OKT_PERIODER.map(([v, l]) => (
-          <button key={v} className={'chip' + (periode === v ? ' active' : '')} onClick={() => { setPeriode(v); setAntall(OKT_SIDE); }}>{l}</button>
-        ))}
-      </div>
+    <Tile title="Økter" corner={`${fmtN(valgte.length)} av ${fmtN(totalt || okter.length)}`}>
       <div className="chips" style={{marginBottom:10}}>
         <button className={'chip' + (type === 'alle' ? ' active' : '')} onClick={() => { setType('alle'); setAntall(OKT_SIDE); }}>Alle · {treff.length}</button>
         {typer.map(g => (
@@ -1120,32 +1149,36 @@ function BunnMeny({ tabs, aktiv, onVelg, merAapen, onMer }) {
 // Fordelinger — var en egen fane («Medlemsstatistikk»). Tallene beskriver
 // registeret, så de hører hjemme over registeret, sammenfoldet: de fleste
 // åpner Medlemmer for å finne én person, ikke for å se en kjønnsfordeling.
-function Fordelinger({ kpis, members }) {
-  const t = kpis.totals;
-  const kvinner = kpis.byKjonn.Kvinne || 0, menn = kpis.byKjonn.Mann || 0;
+// `members` er UTVALGET (søk, kategori, belte, gruppe i Medlemmer-fanen), så
+// fordelingene følger filteret. «Vekst over år» bygger på inn-/utmeldinger
+// og gjelder alltid hele klubben.
+function Fordelinger({ kpis, members, filtrert }) {
   // Samme aktiv-definisjon som mergeLiveKpis: «Ikke aktiv» er en parkert
-  // medlemskapstype i Spond. Registeret inneholder begge, og kortet het
-  // «Aktive» mens det viste alle — nå står det hva det er.
-  const alle = (members || []).length;
-  const parkert = (members || []).filter(m => isInactiveTypeImp(m.medlemstype)).length;
+  // medlemskapstype i Spond, og telles ikke i fordelingene.
+  const liste = members || [];
+  const aktiveU = liste.filter(m => !isInactiveTypeImp(m.medlemstype));
+  const alle = liste.length;
+  const parkert = alle - aktiveU.length;
+  const fd = medlemsFordeling(aktiveU);
+  const kvinner = fd.byKjonn.Kvinne || 0, menn = fd.byKjonn.Mann || 0;
   return (
     <details className="fordelinger">
-      <summary>Fordelinger <span className="dim">· belte, alder, kjønn, medlemstype, vekst</span></summary>
+      <summary>Fordelinger <span className="dim">· belte, alder, kjønn, medlemstype{filtrert ? ` · ${aktiveU.length} aktive i utvalget` : ''}</span></summary>
       <div className="grid-4" style={{marginTop:16}}>
-        <KPI label="I registeret" value={alle || t.activeMembers}
-          delta={`${fmtN(alle ? alle - parkert : t.activeMembers)} aktive · ${fmtN(parkert)} parkert`} accent="amber"/>
-        <KPI label="Junior + Knøtte" value={(kpis.byKategori['Junior']||0)+(kpis.byKategori['Knøtte']||0)} delta="9–14 år" accent="green"/>
-        <KPI label="Voksen + Student" value={(kpis.byKategori['Voksen']||0)+(kpis.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
+        <KPI label={filtrert ? 'I utvalget' : 'I registeret'} value={alle}
+          delta={`${fmtN(aktiveU.length)} aktive · ${fmtN(parkert)} parkert`} accent="amber"/>
+        <KPI label="Junior + Knøtte" value={(fd.byKategori['Junior']||0)+(fd.byKategori['Knøtte']||0)} delta="9–14 år" accent="green"/>
+        <KPI label="Voksen + Student" value={(fd.byKategori['Voksen']||0)+(fd.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
         <KPI label="Kvinneandel" value={menn+kvinner ? fmtPct(kvinner/(menn+kvinner)) : '—'} delta={`${kvinner} av ${menn+kvinner}`} accent="coral"/>
       </div>
 
       <div className="grid-3">
         <Tile title="Medlemstype" corner="kategori">
           <div style={{display:'flex', gap:14, alignItems:'center', marginTop:6, flexWrap:'wrap'}}>
-            <Donut data={Object.entries(kpis.byKategori).map(([k,v])=>({label:k, value:v}))}
-              colors={COLORS} centerValue={t.activeMembers} centerLabel="aktive"/>
+            <Donut data={Object.entries(fd.byKategori).map(([k,v])=>({label:k, value:v}))}
+              colors={COLORS} centerValue={aktiveU.length} centerLabel="aktive"/>
             <div style={{flex:1, minWidth:130, fontSize:11}}>
-              {Object.entries(kpis.byKategori).map(([k,v],i) => (
+              {Object.entries(fd.byKategori).map(([k,v],i) => (
                 <div key={k} style={{display:'flex', justifyContent:'space-between', padding:'3px 0'}}>
                   <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:COLORS[i%COLORS.length]}}/>{k}</span>
                   <span className="tabular">{v}</span>
@@ -1155,15 +1188,15 @@ function Fordelinger({ kpis, members }) {
           </div>
         </Tile>
         <Tile title="Aldersfordeling" corner="alder">
-          <HBar data={Object.entries(kpis.byAgeBucket).map(([k,v])=>({label:k, value:v}))} color="#5A8DB0" height={18}/>
+          <HBar data={Object.entries(fd.byAgeBucket).map(([k,v])=>({label:k, value:v}))} color="#5A8DB0" height={18}/>
         </Tile>
         <Tile title="Kjønn" corner="kjonn">
           <div style={{display:'flex', gap:14, alignItems:'center', flexWrap:'wrap'}}>
-            <Donut data={Object.entries(kpis.byKjonn).map(([k,v])=>({label:k, value:v}))}
+            <Donut data={Object.entries(fd.byKjonn).map(([k,v])=>({label:k, value:v}))}
               colors={['#4F9BEA','#F2825F','#C0BED2']}
               centerValue={menn+kvinner ? fmtPct(menn/(menn+kvinner)) : '—'} centerLabel="menn"/>
             <div style={{flex:1, minWidth:120, fontSize:11}}>
-              {Object.entries(kpis.byKjonn).map(([k,v],i)=>(
+              {Object.entries(fd.byKjonn).map(([k,v],i)=>(
                 <div key={k} style={{padding:'3px 0', display:'flex', justifyContent:'space-between'}}>
                   <span><span style={{display:'inline-block',width:8,height:8,marginRight:6,background:['#4F9BEA','#F2825F','#C0BED2'][i%3]}}/>{k}</span>
                   <span className="tabular">{v}</span>
@@ -1178,16 +1211,16 @@ function Fordelinger({ kpis, members }) {
         <Tile title="Belter — fordeling" corner="grading">
           {(() => {
             const rader = [
-              {n:'Hvit', c:kpis.byBelt['Hvit']||0, color:'#EFEDF8'},
-              {n:'Grå/Hvit', c:kpis.byBelt['Grå/Hvit']||0, color:'#9290A6'},
-              {n:'Blå', c:(kpis.byBelt['Blå']||0)+(kpis.byBelt['Blått']||0), color:'#4F9BEA'},
-              {n:'Lilla', c:kpis.byBelt['Lilla']||0, color:'#B06FD6'},
-              {n:'Brun', c:kpis.byBelt['Brun']||0, color:'#B07A4A'},
-              {n:'Sort', c:kpis.byBelt['Sort']||0, color:'#2B2A3C'},
+              {n:'Hvit', c:fd.byBelt['Hvit']||0, color:'#EFEDF8'},
+              {n:'Grå/Hvit', c:fd.byBelt['Grå/Hvit']||0, color:'#9290A6'},
+              {n:'Blå', c:(fd.byBelt['Blå']||0)+(fd.byBelt['Blått']||0), color:'#4F9BEA'},
+              {n:'Lilla', c:fd.byBelt['Lilla']||0, color:'#B06FD6'},
+              {n:'Brun', c:fd.byBelt['Brun']||0, color:'#B07A4A'},
+              {n:'Sort', c:fd.byBelt['Sort']||0, color:'#2B2A3C'},
             ];
             const max = Math.max(1, ...rader.map(b=>b.c));
-            const sum = Object.values(kpis.byBelt||{}).reduce((a,b)=>a+b,0);
-            const hvit = kpis.byBelt['Hvit']||0;
+            const sum = Object.values(fd.byBelt||{}).reduce((a,b)=>a+b,0);
+            const hvit = fd.byBelt['Hvit']||0;
             return (
               <>
                 <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:8}}>
@@ -1211,7 +1244,7 @@ function Fordelinger({ kpis, members }) {
             );
           })()}
         </Tile>
-        <Tile title="Vekst over år" corner="trend">
+        <Tile title="Vekst over år" corner="hele klubben">
           <div style={{display:'flex', alignItems:'flex-end', gap:6, height: 180, padding: '8px 0'}}>
             {aarSerie(kpis).map(y=>{
               const sUp = kpis.signupsPerYear[y]||0;
@@ -1374,9 +1407,30 @@ function Okonomi({ kpis, charts }) {
   // tidlige return-er, og en hook som noen ganger kalles og noen ganger ikke
   // er en sikker vei til «Rendered more hooks than during the previous render».
   const samletRef = useHoyreScroll([samletMnd, ok && ok.keys.length, vipps && vipps.months.length]);
-  const vippsRef = useHoyreScroll([vStream, vipps && vipps.months.length]);
+  const vippsRef = useHoyreScroll([vStream, samletMnd, vipps && vipps.months.length]);
+  // Periodevalget gjelder HELE fanen: samlet inntekt, Vipps-kortene og
+  // Vipps-grafen. Før fulgte Vipps-kortene kalenderåret og grafen hele
+  // historikken, uansett hva som var valgt øverst.
+  const naaYm = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })();
+  const fraYm = samletMnd === 'all' ? '' : (() => {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - samletMnd + 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  })();
+  const iOkPeriode = ym => (!fraYm || ym >= fraYm) && ym <= naaYm;
+  const okPerLabel = samletMnd === 'all' ? 'hele perioden' : `siste ${samletMnd} mnd`;
   return (
     <div>
+      <div className="kstripe">
+        <div className="kstripe-felt">
+          <span className="kstripe-lbl">Periode · gjelder hele fanen</span>
+          <span className="chips">
+            {[['6','6 mnd'],['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
+              <button key={v} className={'chip'+(String(samletMnd)===v?' active':'')}
+                onClick={()=>setSamletMnd(v==='all'?'all':Number(v))}>{l}</button>
+            ))}
+          </span>
+        </div>
+      </div>
       {(() => {
         // Samlet inntekt: kontingent (Spond) + varesalg (Vipps butikk + diverse).
         // Diverse regnes med i totalen — det er varesalg tilbake i tid (før butikken).
@@ -1390,7 +1444,8 @@ function Okonomi({ kpis, charts }) {
         });
         const keys = Object.keys(byYm).sort();
         if (!keys.length) return null;
-        const shown = samletMnd === 'all' ? keys : keys.slice(-samletMnd);
+        // Kalendermåneder i perioden — samme utsnitt som Vipps-delen under.
+        const shown = keys.filter(iOkPeriode);
         const totOf = k => byYm[k].kont + byYm[k].but + byYm[k].div;
         const maxT = Math.max(1, ...shown.map(totOf));
         // KPI-ene følger valgt periode (chips), ikke kalenderåret.
@@ -1439,15 +1494,7 @@ function Okonomi({ kpis, charts }) {
         return (
           <>
             <div className="section-h">Samlet inntekt
-              <span className="meta" style={{display:'flex', gap:8, alignItems:'center'}}>
-                <span>kontingent + varesalg · netto</span>
-                <span className="chips">
-                  {[['6','6 mnd'],['12','12 mnd'],['24','24 mnd'],['all','Alt']].map(([v,l])=>(
-                    <button key={v} className={'chip'+(String(samletMnd)===v?' active':'')}
-                      onClick={()=>setSamletMnd(v==='all'?'all':Number(v))}>{l}</button>
-                  ))}
-                </span>
-              </span>
+              <span className="meta">kontingent + varesalg · netto · {okPerLabel}</span>
             </div>
             {vareInfo.tekst && (
               <div className="dim" style={{fontSize:11.5, lineHeight:1.6, margin:'0 2px 10px'}}>{vareInfo.tekst}</div>
@@ -1505,7 +1552,7 @@ function Okonomi({ kpis, charts }) {
         );
       })()}
 
-      <div className="section-h" style={{marginTop:26}}>Faktiske utbetalinger<span className="meta">importert fra Spond · netto etter avgifter</span></div>
+      <div className="section-h" style={{marginTop:26}}>Faktiske utbetalinger<span className="meta">siste importerte måned · netto etter avgifter</span></div>
       {!ok ? <Tile title="Laster">…</Tile> : (
       <>
       <div className="grid-4">
@@ -1532,10 +1579,9 @@ function Okonomi({ kpis, charts }) {
       {(() => {
         const vm = (vipps && vipps.months) || [];
         const vp = (vipps && vipps.products) || [];
-        const shown = vm.filter(m => m.stream === vStream).sort((a,b)=>a.month.localeCompare(b.month));
+        const shown = vm.filter(m => m.stream === vStream && iOkPeriode(m.month)).sort((a,b)=>a.month.localeCompare(b.month));
         const maxV = shown.length ? Math.max(1, ...shown.map(m=>m.netto)) : 1;
-        const yr = String(new Date().getFullYear());
-        const iYr = vm.filter(m => m.stream==='butikk' && m.month.startsWith(yr));
+        const iYr = vm.filter(m => m.stream==='butikk' && iOkPeriode(m.month));
         const nettoYr = iYr.reduce((s,m)=>s+m.netto,0);
         const gebyrYr = iYr.reduce((s,m)=>s+m.gebyr,0);
         const antallYr = iYr.reduce((s,m)=>s+m.antall,0);
@@ -1563,10 +1609,10 @@ function Okonomi({ kpis, charts }) {
             ) : (
               <>
                 <div className="grid-4">
-                  <KPI label={`Netto butikk · ${yr}`} value={fmtN(Math.round(nettoYr))} unit=" kr" delta={`${antallYr} ordre`} accent="green"/>
-                  <KPI label="Vipps-gebyr" value={fmtN(Math.round(gebyrYr))} unit=" kr" delta={`i ${yr}`} deltaClass="down" accent="coral"/>
+                  <KPI label="Netto butikk" value={fmtN(Math.round(nettoYr))} unit=" kr" delta={`${antallYr} ordre · ${okPerLabel}`} accent="green"/>
+                  <KPI label="Vipps-gebyr" value={fmtN(Math.round(gebyrYr))} unit=" kr" delta={okPerLabel} deltaClass="down" accent="coral"/>
                   <KPI label="Snitt pr. ordre" value={antallYr ? fmtN(Math.round(nettoYr/antallYr)) : '—'} unit=" kr" accent="blue"/>
-                  <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken hele perioden" accent="amber"/>
+                  <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken · all historikk" accent="amber"/>
                 </div>
                 <Tile title={`Netto per måned · ${VIPPS_STREAM_LABEL[vStream].toLowerCase()}`} corner="vipps">
                   {shown.length > 0 ? (
@@ -1587,7 +1633,7 @@ function Okonomi({ kpis, charts }) {
                 </Tile>
                 {vp.length > 0 && (
                   <>
-                    <div className="section-h" style={{marginTop:26}}>Hva selger<span className="meta">vippsbutikken · hele perioden · brutto</span></div>
+                    <div className="section-h" style={{marginTop:26}}>Hva selger<span className="meta">vippsbutikken · all historikk (salgsrapporten har ikke måned) · brutto</span></div>
                     <Tile title="Produkttopp" corner="salgsrapport">
                       <HBar data={vp.slice(0,12).map(p=>({label:`${p.navn} · ${p.antall} stk`, value:p.belop}))} color="var(--accent)" height={20}/>
                     </Tile>
