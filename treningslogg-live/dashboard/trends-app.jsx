@@ -123,6 +123,78 @@ function oktSerie(live, r, gruppe) {
 }
 const sumSerie = (serie) => serie.reduce((s, e) => s + e[1], 0);
 
+// ── Pr. medlem og pr. kategori — følger periode OG gruppe ──────────────
+// Sum av { mandag: n } for ukene i perioden. Samme iRange som resten av
+// fanen, så topplisten og kortene alltid teller de samme ukene.
+function sumIPeriode(obj, r) {
+  if (!obj || !r) return 0;
+  return Object.keys(obj).reduce((s, wk) => s + (iRange(wk, r) ? obj[wk] : 0), 0);
+}
+function trMandag(iso) {
+  const d = trDato(iso);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return trIso(d);
+}
+// Sammenhengende liste med mandager i perioden (også uker uten oppmøte, så
+// kurvene ikke hopper over hull). «Alt» starter på første uke vi har data for.
+function ukerFor(r, kilder) {
+  let fra = r.fra ? trMandag(r.fra) : '';
+  if (r.fra && fra < r.fra) fra = trPlussDager(fra, 7);
+  if (!fra) {
+    (kilder || []).forEach(src => Object.keys(src || {}).forEach(k => {
+      Object.keys(src[k] || {}).forEach(wk => { if (/^\d{4}-\d{2}-\d{2}$/.test(wk) && (!fra || wk < fra)) fra = wk; });
+    }));
+  }
+  const til = trMandag(r.til);
+  if (!fra || fra > til) return [til];
+  const ut = [];
+  for (let w = fra; w <= til; w = trPlussDager(w, 7)) ut.push(w);
+  return ut;
+}
+// { memberId: { mandag: n } } for valgt gruppe. «Alle grupper» tar med
+// Spond-historikken (memberHistWeekly), så tallene stemmer med profilen.
+// En enkelt gruppe finnes bare for Sheets-æraen. null = backend for gammel.
+function medlemsUker(live, gruppe) {
+  if (!live) return {};
+  if (gruppe && gruppe !== 'alle') {
+    const mgw = live.memberGruppeWeekly;
+    if (!mgw) return null;
+    const ut = {};
+    Object.keys(mgw).forEach(id => { if (mgw[id][gruppe]) ut[id] = mgw[id][gruppe]; });
+    return ut;
+  }
+  const ut = {};
+  [live.memberWeekly, live.memberHistWeekly].forEach(src => {
+    Object.keys(src || {}).forEach(id => {
+      const o = ut[id] || (ut[id] = {});
+      Object.keys(src[id]).forEach(wk => { o[wk] = (o[wk] || 0) + src[id][wk]; });
+    });
+  });
+  return ut;
+}
+// { kategori: { mandag: n } } for valgt gruppe (Sheets-æraen).
+function kategoriUker(live, gruppe) {
+  if (!live) return {};
+  if (gruppe && gruppe !== 'alle') {
+    const kgw = live.kategoriGruppeWeekly;
+    if (!kgw) return null;
+    const ut = {};
+    Object.keys(kgw).forEach(k => { if (kgw[k][gruppe]) ut[k] = kgw[k][gruppe]; });
+    return ut;
+  }
+  return live.kategoriWeekly || {};
+}
+// Topplisten for perioden: nåværende medlemmer, sortert på oppmøter.
+function topplisteRader(mu, members, live, r, rc) {
+  if (!mu) return [];
+  const byId = {}; (members || []).forEach(m => { byId[m.id] = m; });
+  const sist = {}; ((live && live.leaderboard) || []).forEach(l => { sist[l.id] = l.sist; });
+  return Object.keys(mu).filter(id => byId[id]).map(id => ({
+    id, navn: byId[id].navn, deltatt: sumIPeriode(mu[id], r),
+    forrige: rc ? sumIPeriode(mu[id], rc) : null, sist: sist[id] || '',
+  })).filter(x => x.deltatt > 0).sort((a, b) => b.deltatt - a.deltatt || a.navn.localeCompare(b.navn, 'no'));
+}
+
 // Nye medlemmer i perioden, pr. måned — én pr. person, datert med FØRSTE
 // innmelding (innmeldinger()). Gjeninnmeldte telles ikke på nytt.
 function nyeSerie(members, r, departed) {
@@ -370,6 +442,11 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
     return { intro, borte };
   }, [members, departed, r]);
 
+  const mu = useTrMemo(() => medlemsUker(live, gruppe), [live, gruppe]);
+  const katU = useTrMemo(() => kategoriUker(live, gruppe), [live, gruppe]);
+  const uker = useTrMemo(() => ukerFor(r, [mu, katU]), [r, mu, katU]);
+  const topp = useTrMemo(() => topplisteRader(mu, members, live, r, rc), [mu, members, live, r, rc]);
+
   const sumOkt = s => s.reduce((a, e) => a + e[1].okter, 0);
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
   const snitt = s => (sumOkt(s) ? sumOpp(s) / sumOkt(s) : null);
@@ -497,26 +574,31 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
         })()}
       </Tile>
 
-      <div className="section-h">Trend per medlemskategori<span className="meta">live · siste 26 uker · uavhengig av periodevalget</span></div>
-      <TrendPerGruppe live={live} />
+      <div className="section-h">Trend per medlemskategori<span className="meta">{r.navn} · {gruppeNavn}{rc ? ` · mot ${rc.navn}` : ''}</span></div>
+      <TrendPerGruppe kat={katU} uker={uker} r={r} rc={rc} />
 
       <div className="section-h" id="tr-topp" style={{ scrollMarginTop: 80 }}>Mest dedikerte
-        <span className="meta">nåværende medlemmer · hele oppmøtehistorikken</span></div>
+        <span className="meta">nåværende medlemmer · {r.navn} · {gruppeNavn}</span></div>
       <Tile title="Toppliste" corner="topp 10">
-        <LeaderboardTable live={live} limit={10} medals
-          emptyHint="last opp ukesoppmøte under Data."
-          unmatchedHint="Koble dem i avstemmingen under Data." />
+        {mu ? (
+          <LeaderboardTable live={live} rows={topp} limit={10} medals forrigeNavn={rc ? rc.navn : null}
+            emptyHint={`ingen register-koblede oppmøter for ${gruppeNavn} i perioden.`}
+            unmatchedHint="Koble dem i avstemmingen under Data." />
+        ) : <div className="dim" style={{ fontSize: 12 }}>Gruppefilteret krever oppdatert Code.gs-backend (ny versjon i Apps Script).</div>}
+        {gruppe === 'alle' && live && live.memberWeekly && !live.memberHistWeekly && (
+          <div className="dim" style={{ fontSize: 11, marginTop: 8 }}>Spond-historikken er ikke med før Code.gs er oppdatert — tallene kan være lavere enn på profilen.</div>
+        )}
       </Tile>
 
-      <div className="section-h">Trend per medlem<span className="meta">live · siste 26 uker · 4-ukers endring</span></div>
-      <TrendPerMedlem live={live} members={members} />
+      <div className="section-h">Trend per medlem<span className="meta">{r.navn} · {gruppeNavn}{rc ? ` · mot ${rc.navn}` : ' · siste 4 uker mot forrige 4'}</span></div>
+      <TrendPerMedlem mu={mu} members={members} uker={uker} r={r} rc={rc} />
 
       <div className="section-h" id="tr-kohort" style={{ scrollMarginTop: 80 }}>Kohort-retention
-        <span className="meta">hvor mange fra hvert år trener fortsatt?</span></div>
+        <span className="meta">hele medlemshistorikken · følger ikke filteret</span></div>
       <KohortSeksjon kpis={kpis} charts={charts} departed={departed} />
 
       <div className="section-h" id="tr-funnel" style={{ scrollMarginTop: 80 }}>Konverteringsfunnel
-        <span className="meta">intro-kurs → fast medlemskap</span></div>
+        <span className="meta">intro-kurs → fast medlemskap · hele historikken · følger ikke filteret</span></div>
       <Funnel kpis={kpis} live={live} isStyre={isStyre} onGotoReconcile={onGotoReconcile} />
     </div>
   );
@@ -537,6 +619,11 @@ window.isoUkeNokkel = isoUkeNokkel;
 window.ukeserie = ukeserie;
 window.oktSerie = oktSerie;
 window.nyeSerie = nyeSerie;
+window.sumIPeriode = sumIPeriode;
+window.ukerFor = ukerFor;
+window.medlemsUker = medlemsUker;
+window.kategoriUker = kategoriUker;
+window.topplisteRader = topplisteRader;
 window.SemesterOverlay = SemesterOverlay;
 window.Kontrollstripe = Kontrollstripe;
 window.TrendKort = TrendKort;

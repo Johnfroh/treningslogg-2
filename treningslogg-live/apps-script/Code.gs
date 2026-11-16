@@ -628,10 +628,20 @@ function dashMaskMember_(m) {
 function dashAttHistorikk_(foer, idx) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.dashAttHistorikk);
   if (!sh || sh.getLastRow() < 2) return [];
+  // Én rad pr. medlem pr. økt (dato + klokkeslett + tittel) — en eksport
+  // som er limt inn to ganger skal ikke doble noens historikk.
+  const sett = {};
   return sh.getRange(2, 1, sh.getLastRow() - 1, DASH_ATT_HIST_COLS.length).getValues().map(r => ({
     memberId: String(r[0] || '').trim() || dashResolveMemberId(r[1], idx),
     date: ymd(r[2]),
-  })).filter(r => r.memberId && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && (!foer || r.date < foer));
+    nokkel: String(r[3] || '') + '|' + String(r[4] || ''),
+  })).filter(r => {
+    if (!r.memberId || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || (foer && r.date >= foer)) return false;
+    const k = r.memberId + '|' + r.date + '|' + r.nokkel;
+    if (sett[k]) return false;
+    sett[k] = true;
+    return true;
+  });
 }
 
 // Første dato med ordinært oppmøte (attendance koblet til en datert økt).
@@ -654,15 +664,22 @@ function dashAttendanceByMember() {
   const idx = dashMemberIndex();
   const byId = {};
   const attRows = readAttendance();
+  // Samme regler som topplisten i dashLiveOppmote(): én telling pr. medlem
+  // pr. økt, og bare økter som fortsatt finnes. Ellers viste profilen og
+  // topplisten ulike tall for samme person.
+  const sett = {};
   attRows.forEach(a => {
     const id = a.memberId || dashResolveMemberId(a.memberName, idx);
     if (!id) return;
     const s = sById[a.sessionId];
-    const date = s ? s.date : '';
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(s.date || ''))) return;
+    const nokkel = id + '|' + a.sessionId;
+    if (sett[nokkel]) return;
+    sett[nokkel] = true;
     const e = byId[id] || (byId[id] = { checkins: 0, sist: '', _s: [] });
     e.checkins++;
-    if (date > e.sist) e.sist = date;
-    if (s) e._s.push({ date: s.date, group: s.group, title: s.title });
+    if (s.date > e.sist) e.sist = s.date;
+    e._s.push({ date: s.date, group: s.group, title: s.title });
   });
   // Historikken teller med i totalen. Den er eldre enn alt i Sheets, så «sist»
   // og «siste økter» påvirkes ikke.
@@ -911,6 +928,15 @@ function dashMonday(ymdStr) {
   return d.toISOString().slice(0, 10);
 }
 
+// Navn i topplisten: barn som «Fornavn E.» — som maskeringen i api.js. Bare
+// fornavn er tvetydig når klubben har flere barn med samme navn.
+function dashLeaderNavn_(rm) {
+  const navn = String(rm.navn || '');
+  if (!rm.minor) return navn;
+  const d = navn.trim().split(/\s+/);
+  return (d[0] || 'Medlem') + (d.length > 1 ? ' ' + d[d.length - 1].charAt(0).toUpperCase() + '.' : '');
+}
+
 // Live oppmøte fra trener-appens loggede økter (sessions + attendance).
 // Check-ins pr. økt = session.attendance hvis satt, ellers antall
 // attendance-rader. Brukes til å forlenge dashboardets historiske grunnlag.
@@ -979,6 +1005,18 @@ function dashLiveOppmote() {
   // ikke data så langt tilbake» — ikke forveksles.
   let attFrom = '';
   let unmatched = 0;
+  // Pr. gruppe (økttype), så Trender kan filtrere toppliste og medlemstrend
+  // på gruppe. Spond-historikken har ingen gruppe og er derfor ikke med her.
+  const memberGruppeWeekly = {};   // { memberId: { gruppe: { mandag: n } } }
+  const kategoriGruppeWeekly = {}; // { kategori: { gruppe: { mandag: n } } }
+  // Spond-historikk pr. uke pr. medlem — holdt adskilt fra memberWeekly, så
+  // klubbkurvene ikke endrer seg, men toppliste/medlemstrend kan ta den med.
+  const memberHistWeekly = {};     // { memberId: { mandag: n } }
+  // Én telling pr. medlem pr. økt. Før ble samme person talt flere ganger
+  // når hen sto to ganger på samme økt (to navnevarianter som peker på samme
+  // medlem, eller dobbel rad i Spond-fila), og oppmøte på slettede økter
+  // talte med i topplisten men ikke i kurvene.
+  const sett = {};
   attRows.forEach(a => {
     if (!a.memberName) return;
     const s = sById[a.sessionId];
@@ -988,48 +1026,69 @@ function dashLiveOppmote() {
       if (!idx.ignored[a.memberName.toLowerCase().trim()]) unmatched++;
       return;
     }
+    if (!ISO_DATE.test(date)) return;               // økta finnes ikke lenger
+    const nokkel = id + '|' + a.sessionId;
+    if (sett[nokkel]) return;
+    sett[nokkel] = true;
     const rm = roster[id];
-    let navn = rm ? rm.navn : a.memberName;
-    if (rm && rm.minor) {
-      // «Fornavn E.» — som maskeringen i api.js. Bare fornavn er tvetydig når
-      // klubben har flere barn med samme navn.
-      const d = String(navn).trim().split(/\s+/);
-      navn = (d[0] || 'Medlem') + (d.length > 1 ? ' ' + d[d.length - 1].charAt(0).toUpperCase() + '.' : '');
-    }
+    const navn = rm ? dashLeaderNavn_(rm) : a.memberName;
     const e = byMember[id] || (byMember[id] = { id: id, navn: navn, deltatt: 0, sist: '' });
     e.deltatt++;
-    if (ISO_DATE.test(date) && date > e.sist) e.sist = date;
+    if (date > e.sist) e.sist = date;
     // Ukeserier for trendene i dashboardet — kun register-koblede oppmøter.
-    const wkm = ISO_DATE.test(date) ? dashMonday(date) : '';
+    const wkm = dashMonday(date);
     if (wkm) {
       const kat = (rm && rm.kategori) || tidligereKat[id] || 'Ukjent';
+      const grp = dashNormGroup_(s.group, s.title);
       const kw = kategoriWeekly[kat] || (kategoriWeekly[kat] = {});
       kw[wkm] = (kw[wkm] || 0) + 1;
+      const kgw = kategoriGruppeWeekly[kat] || (kategoriGruppeWeekly[kat] = {});
+      const kg = kgw[grp] || (kgw[grp] = {});
+      kg[wkm] = (kg[wkm] || 0) + 1;
       const mwk = memberWeekly[id] || (memberWeekly[id] = {});
       mwk[wkm] = (mwk[wkm] || 0) + 1;
+      const mgw = memberGruppeWeekly[id] || (memberGruppeWeekly[id] = {});
+      const mg = mgw[grp] || (mgw[grp] = {});
+      mg[wkm] = (mg[wkm] || 0) + 1;
       const mm = memberMonthly[id] || (memberMonthly[id] = {});
       const ym = date.slice(0, 7);
       mm[ym] = (mm[ym] || 0) + 1;
       if (!attFrom || date < attFrom) attFrom = date;
     }
   });
-  // Spond-historikk: bare inn i memberMonthly («siden gradering»), ikke i
-  // kurvene over. attFrom flyttes så langt tilbake som historikken går, slik
-  // at «≥»-merkingen bare gjelder dem som er gradert før det.
+  // Spond-historikk: inn i memberMonthly («siden gradering»), memberHistWeekly
+  // og topplisten — samme totaltall som på medlemsprofilen. Ikke i kurvene
+  // over. attFrom flyttes så langt tilbake som historikken går, slik at
+  // «≥»-merkingen bare gjelder dem som er gradert før det.
   dashAttHistorikk_(dashAttFoerste_(attRows, sById), idx).forEach(h => {
     const mm = memberMonthly[h.memberId] || (memberMonthly[h.memberId] = {});
     const ym = h.date.slice(0, 7);
     mm[ym] = (mm[ym] || 0) + 1;
+    const wkm = dashMonday(h.date);
+    if (wkm) {
+      const hw = memberHistWeekly[h.memberId] || (memberHistWeekly[h.memberId] = {});
+      hw[wkm] = (hw[wkm] || 0) + 1;
+    }
+    const rm = roster[h.memberId];
+    if (rm) {
+      const e = byMember[h.memberId] || (byMember[h.memberId] = { id: h.memberId, navn: dashLeaderNavn_(rm), deltatt: 0, sist: '' });
+      e.deltatt++;
+      if (h.date > e.sist) e.sist = h.date;
+    }
     if (!attFrom || h.date < attFrom) attFrom = h.date;
   });
 
   // Bare nåværende medlemmer — de som har sluttet er med i kurvene, men ikke
   // på toppen (og uten registeroppslag ville barn stått med fullt navn).
+  // Hele lista sendes (ikke bare topp 10), så Trender kan vise riktig tall
+  // for alle — frontend kutter selv.
   const leaderboard = Object.keys(byMember).filter(k => roster[k]).map(k => byMember[k])
-    .sort((a, b) => b.deltatt - a.deltatt).slice(0, 10);
+    .sort((a, b) => b.deltatt - a.deltatt);
 
   return { weekly: weekly, total: total, sessions: sessCount, leaderboard: leaderboard, maxDate: maxDate, unmatched: unmatched,
     kategoriWeekly: kategoriWeekly, memberWeekly: memberWeekly,
+    memberGruppeWeekly: memberGruppeWeekly, kategoriGruppeWeekly: kategoriGruppeWeekly,
+    memberHistWeekly: memberHistWeekly,
     sessionWeekly: sessionWeekly, gruppeWeekly: gruppeWeekly,
     memberMonthly: memberMonthly, attFrom: attFrom };
 }

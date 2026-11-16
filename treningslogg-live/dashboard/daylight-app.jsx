@@ -558,13 +558,18 @@ function Tile({ title, corner, children, style }) {
 // Delt «mest dedikerte»-tabell — brukes av Oversikt (topp 5) og Oppmøte
 // (topp 10, med 2./3.-merker). Én kilde for kolonner, tomtilstand og
 // umatchet-advarselen, så de to visningene ikke driver fra hverandre.
-function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHint }) {
-  const rows = (live && live.leaderboard) || [];
+function LeaderboardTable({ live, rows: egneRader, limit, medals = false, emptyHint, unmatchedHint, forrigeNavn }) {
+  // `rows` (valgfritt): ferdig filtrerte rader { id, navn, deltatt, sist, forrige }.
+  // Uten dem brukes hele oppmøtehistorikken fra backend.
+  const rows = egneRader || (live && live.leaderboard) || [];
+  const visForrige = !!forrigeNavn;
   return (
     <>
       {rows.length > 0 ? (
         <table className="t">
-          <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th><th className="num">Sist sett</th></tr></thead>
+          <thead><tr><th>#</th><th>Navn</th><th className="num">Oppmøter</th>
+            {visForrige && <th className="num" title={forrigeNavn}>Endring</th>}
+            <th className="num">Sist sett</th></tr></thead>
           <tbody>
             {rows.slice(0, limit).map((m, i) => (
               <tr key={m.id || m.navn}>
@@ -576,6 +581,7 @@ function LeaderboardTable({ live, limit, medals = false, emptyHint, unmatchedHin
                   {medals && i === 2 && <span className="tag coral" style={{marginLeft:8}}>3.</span>}
                 </td>
                 <td className="num" style={{color:'var(--amber)', fontWeight:700}}>{m.deltatt}</td>
+                {visForrige && <td className="num" title={`${m.forrige} i ${forrigeNavn}`}><TrendDelta now={m.deltatt} prev={m.forrige}/></td>}
                 <td className="num dim">{fmtDate(m.sist)}</td>
               </tr>
             ))}
@@ -918,30 +924,41 @@ function OktOversikt({ okter }){
   );
 }
 
-// ── Trend-hjelpere: uke-serier fra live.kategoriWeekly / live.memberWeekly ──
+// ── Trend-hjelpere: uke-serier pr. kategori / medlem (filtrert i trends-app) ──
 const KAT_COLORS = { 'Junior':'#B06FD6', 'Voksen':'#7B6EF6', 'Student':'#4F9BEA', 'Knøtte':'#F2825F', 'Familie':'#34B98C', 'Introkurs':'#E0B03A' };
-// lastMondays(), sum4() og memberTrendRows() ligger i dashboard-shared.jsx —
-// «I dag»-fanen regner fallende oppmøte med nøyaktig samme funksjon.
+// «I dag»-fanen regner fallende oppmøte med memberTrendRows() i
+// dashboard-shared.jsx (alltid siste 26 uker, uavhengig av Trender-filteret).
 function TrendDelta({ now, prev }){
   const d = now - prev;
   const col = d>0?'var(--green)':d<0?'var(--coral)':'var(--muted)';
   return <span style={{color:col, fontWeight:700, fontSize:12}}>{d>0?`▲ +${d}`:d<0?`▼ ${d}`:'— 0'}</span>;
 }
 
-// Trend pr. gruppe (medlemskategori): små ukesserier med 4-ukers endring.
-function TrendPerGruppe({ live }){
-  const kw = live && live.kategoriWeekly;
-  const weeks = React.useMemo(()=>lastMondays(26), []);
+// Endring for én serie: mot sammenligningsperioden når den finnes, ellers
+// siste 4 mot forrige 4 uker innenfor perioden («Alt» har ingen forrige).
+function trendEndring(obj, series, r, rc) {
+  if (rc) return { na: window.sumIPeriode(obj, r), for: window.sumIPeriode(obj, rc) };
+  return { na: sum4(series, 0), for: sum4(series, 4) };
+}
+const endringTekst = (rc) => (rc ? `${rc.navn}` : 'forrige 4 uker');
+
+// Trend pr. medlemskategori: små ukesserier for perioden og gruppen som er
+// valgt øverst i Trender. `kat` = { kategori: { mandag: n } }, eller null når
+// backend er for gammel til å kunne filtrere på gruppe.
+function TrendPerGruppe({ kat, uker, r, rc }){
   const groups = React.useMemo(()=>{
-    if(!kw) return [];
-    return Object.keys(kw).map(kat=>{
-      const series = weeks.map(w=>kw[kat][w]||0);
-      return { kat, series, total: series.reduce((s,v)=>s+v,0), last4: sum4(series,0), prev4: sum4(series,4) };
-    }).filter(g=>g.total>0).sort((a,b)=>b.total-a.total);
-  }, [kw, weeks]);
+    if(!kat) return [];
+    return Object.keys(kat).map(k=>{
+      const series = uker.map(w=>kat[k][w]||0);
+      const e = trendEndring(kat[k], series, r, rc);
+      return { kat: k, series, total: series.reduce((s,v)=>s+v,0), na: e.na, for: e.for };
+    }).filter(g=>g.total>0 || g.for>0).sort((a,b)=>b.total-a.total);
+  }, [kat, uker, r, rc]);
   if(!groups.length) return (
-    <Tile title="Trend per gruppe" corner="live">
-      <div className="dim" style={{fontSize:12}}>Ingen gruppetrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
+    <Tile title="Trend per medlemskategori" corner="live">
+      <div className="dim" style={{fontSize:12}}>{kat
+        ? 'Ingen register-koblede oppmøter i perioden for dette utvalget.'
+        : 'Gruppefilteret krever oppdatert Code.gs-backend (ny versjon i Apps Script).'}</div>
     </Tile>
   );
   return (
@@ -951,11 +968,11 @@ function TrendPerGruppe({ live }){
         return (
           <Tile key={g.kat} title={g.kat.toLowerCase()} corner={`${fmtN(g.total)} oppmøter`}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8, fontSize:12}}>
-              <span className="dim">siste 4 uker: <strong style={{color:'var(--ink)'}}>{g.last4}</strong> · før: {g.prev4}</span>
-              <TrendDelta now={g.last4} prev={g.prev4}/>
+              <span className="dim">{rc ? 'perioden' : 'siste 4 uker'}: <strong style={{color:'var(--ink)'}}>{g.na}</strong> · {endringTekst(rc)}: {g.for}</span>
+              <TrendDelta now={g.na} prev={g.for}/>
             </div>
             <Spark data={g.series} height={64} color={c} fill={hexA(c, 0.12)}
-              labelAccessor={(d,i)=>ukeEtikett(weeks[i])}/>
+              labelAccessor={(d,i)=>ukeEtikett(uker[i])}/>
           </Tile>
         );
       })}
@@ -963,24 +980,36 @@ function TrendPerGruppe({ live }){
   );
 }
 
-// Trend pr. medlem: velg medlem → ukesserie, pluss størst endring opp/ned.
-function TrendPerMedlem({ live, members }){
-  const weeks = React.useMemo(()=>lastMondays(26), []);
-  const rows = React.useMemo(()=>memberTrendRows(live, members, weeks), [live, members, weeks]);
+// Trend pr. medlem: velg medlem → ukesserie for perioden, pluss størst
+// endring opp/ned mot sammenligningsperioden. `mu` = { memberId: { mandag: n } }.
+function TrendPerMedlem({ mu, members, uker, r, rc }){
+  const rows = React.useMemo(()=>{
+    if(!mu) return [];
+    const byId = {}; (members||[]).forEach(m=>{ byId[m.id]=m; });
+    return Object.keys(mu).filter(id=>byId[id]).map(id=>{
+      const series = uker.map(w=>mu[id][w]||0);
+      const e = trendEndring(mu[id], series, r, rc);
+      return { id, navn: byId[id].navn, kategori: byId[id].kategori || '', series,
+        total: series.reduce((s,v)=>s+v,0), na: e.na, for: e.for };
+    }).filter(x=>x.total>0 || x.for>0).sort((a,b)=>b.total-a.total);
+  }, [mu, members, uker, r, rc]);
   const [selId, setSelId] = useState('');
   if(!rows.length) return (
     <Tile title="Trend per medlem" corner="live">
-      <div className="dim" style={{fontSize:12}}>Ingen medlemstrend ennå — krever register-koblede oppmøter (og oppdatert Code.gs-backend).</div>
+      <div className="dim" style={{fontSize:12}}>{mu
+        ? 'Ingen register-koblede oppmøter i perioden for dette utvalget.'
+        : 'Gruppefilteret krever oppdatert Code.gs-backend (ny versjon i Apps Script).'}</div>
     </Tile>
   );
-  const sel = rows.find(r=>r.id===selId) || rows[0];
-  const opp = rows.filter(r=>r.last4>r.prev4).sort((a,b)=>(b.last4-b.prev4)-(a.last4-a.prev4)).slice(0,5);
-  const ned = rows.filter(r=>r.last4<r.prev4).sort((a,b)=>(a.last4-a.prev4)-(b.last4-b.prev4)).slice(0,5);
-  const moverRow = (r) => (
-    <div key={r.id} style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)', fontSize:12.5, cursor:'pointer'}}
-      onClick={()=>setSelId(r.id)} title="Vis trend for medlemmet">
-      <span><MemberLink id={r.id}><strong>{r.navn}</strong></MemberLink>{r.kategori && <span className="dim" style={{marginLeft:6, fontSize:11}}>{r.kategori}</span>}</span>
-      <span style={{whiteSpace:'nowrap'}}><span className="dim" style={{marginRight:8}}>{r.prev4} → {r.last4}</span><TrendDelta now={r.last4} prev={r.prev4}/></span>
+  const sel = rows.find(x=>x.id===selId) || rows[0];
+  const opp = rows.filter(x=>x.na>x.for).sort((a,b)=>(b.na-b.for)-(a.na-a.for)).slice(0,5);
+  const ned = rows.filter(x=>x.na<x.for).sort((a,b)=>(a.na-a.for)-(b.na-b.for)).slice(0,5);
+  const hjorne = rc ? `perioden vs ${rc.navn}` : 'siste 4 uker vs forrige 4';
+  const moverRow = (x) => (
+    <div key={x.id} style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)', fontSize:12.5, cursor:'pointer'}}
+      onClick={()=>setSelId(x.id)} title="Vis trend for medlemmet">
+      <span><MemberLink id={x.id}><strong>{x.navn}</strong></MemberLink>{x.kategori && <span className="dim" style={{marginLeft:6, fontSize:11}}>{x.kategori}</span>}</span>
+      <span style={{whiteSpace:'nowrap'}}><span className="dim" style={{marginRight:8}}>{x.for} → {x.na}</span><TrendDelta now={x.na} prev={x.for}/></span>
     </div>
   );
   return (
@@ -989,21 +1018,21 @@ function TrendPerMedlem({ live, members }){
         <div style={{display:'flex', gap:14, alignItems:'center', marginBottom:12, flexWrap:'wrap'}}>
           <select value={sel.id} onChange={e=>setSelId(e.target.value)}
             style={{padding:'8px 12px', borderRadius:10, border:'1px solid var(--border)', background:'var(--card)', color:'var(--ink)', font:'inherit', fontSize:13}}>
-            {rows.map(r=><option key={r.id} value={r.id}>{r.navn} · {r.total} oppmøter</option>)}
+            {rows.map(x=><option key={x.id} value={x.id}>{x.navn} · {x.total} oppmøter</option>)}
           </select>
           <MemberLink id={sel.id} style={{fontSize:12.5, fontWeight:700}}>{sel.navn}</MemberLink>
-          <span className="dim" style={{fontSize:12}}>siste 4 uker: <strong style={{color:'var(--ink)'}}>{sel.last4}</strong> · før: {sel.prev4}</span>
-          <TrendDelta now={sel.last4} prev={sel.prev4}/>
+          <span className="dim" style={{fontSize:12}}>{rc ? 'perioden' : 'siste 4 uker'}: <strong style={{color:'var(--ink)'}}>{sel.na}</strong> · {endringTekst(rc)}: {sel.for}</span>
+          <TrendDelta now={sel.na} prev={sel.for}/>
         </div>
         <Spark data={sel.series} height={90} color="var(--accent)" fill="var(--accent-soft)"
-          labelAccessor={(d,i)=>ukeEtikett(weeks[i])} showAxis/>
+          labelAccessor={(d,i)=>ukeEtikett(uker[i])} showAxis/>
       </Tile>
       {(opp.length>0 || ned.length>0) && (
         <div className="grid-2" style={{marginTop:16}}>
-          <Tile title="Størst fremgang" corner="4 uker vs forrige 4">
+          <Tile title="Størst fremgang" corner={hjorne}>
             {opp.length ? opp.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med fremgang i perioden.</div>}
           </Tile>
-          <Tile title="Størst nedgang" corner="4 uker vs forrige 4">
+          <Tile title="Størst nedgang" corner={hjorne}>
             {ned.length ? ned.map(moverRow) : <div className="dim" style={{fontSize:12}}>Ingen med nedgang i perioden.</div>}
           </Tile>
         </div>
