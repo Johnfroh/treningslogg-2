@@ -231,12 +231,11 @@ function mergeLiveKpis(kpis, members, departed){
   const byKategori={}, byKjonn={Mann:0,Kvinne:0}, byBelt={}, byAgeBucket={}, byPostnr={};
   const pricing={};
   const cohort={};                 // innmeldingsår → antall som fortsatt trener
-  let mrr=0, tenureSum=0, tenureN=0, introN=0;
+  let mrr=0, tenureSum=0, tenureN=0;
   const naa=Date.now();
   aktive.forEach(m=>{
     const kat = m.medlemstype ? deriveKategoriImp(m.medlemstype) : (m.kategori||'Annet');
     byKategori[kat]=(byKategori[kat]||0)+1;
-    if(kat==='Introkurs') introN++;
     const kj=m.kjonn||'Ukjent'; byKjonn[kj]=(byKjonn[kj]||0)+1;
     const belt=(m.grading&&m.grading.current.belt)||'Hvit'; byBelt[belt]=(byBelt[belt]||0)+1;
     const a=alderNaImp(m);
@@ -284,7 +283,6 @@ function mergeLiveKpis(kpis, members, departed){
     pricingBreakdown: pricing,
     cohortByYear: cohort,
     signupsPerYear: signups,
-    conversion: { ...(kpis.conversion||{}), introTotal: introN },
     deactPerYear: deact,
     totals: { ...kpis.totals, activeMembers: aktive.length, mrr, arr: mrr*12,
       deactivated: deaktivertTot,
@@ -464,7 +462,7 @@ function App() {
               const tip = 'Ferskhet pr. datakilde — merket følger den eldste. Grønn ≤7 dager, gul 8–21, rød >21.\n'
                 + f.kilder.map(k => `${k.navn}: ${k.ts==null ? 'aldri importert' : fmtDayMonth(k.ts)+' · '+k.days+' dager siden'}`).join('\n')
                 + (periode ? `\n\nPeriode: ${periode}` : '')
-                + `\nCheck-ins: ${fmtN(kpis.totals.totalCheckins)}`;
+                + `\nCheck-ins: ${fmtN(kpis.totals.totalCheckins + liveSince(kpis, live).total)}`;
               return (
                 <span className="pill" title={tip} style={{borderColor:color, color, fontWeight:weight}}>
                   <span className="sw" style={{background:color}}/>{txt}
@@ -487,8 +485,8 @@ function App() {
         </div>
         {effTab==='idag' && <Today members={members} live={live} thresholds={terskler}/>}
         {effTab==='trender' && <Trender kpis={kpis} charts={charts} live={live} members={members}
-          events={events} snapshots={snapshots} isStyre={isStyre} departed={departed}
-          onGotoReconcile={gotoReconcile} q={hashQ} onEndreQ={endreQ}/>}
+          events={events} snapshots={snapshots} departed={departed}
+          q={hashQ} onEndreQ={endreQ}/>}
         {effTab==='register' && <><Fordelinger kpis={kpis} members={members}/><Register/></>}
         {effTab==='kalender' && <Kalender/>}
         {effTab==='innhold' && <Innhold/>}
@@ -730,6 +728,15 @@ function Innhold(){
   if (err) return <div className="dim" style={{padding:20}}>Kunne ikke laste tema-balanse: {err}</div>;
   if (!data) return <div className="dim" style={{padding:20}}>Laster tema-balanse…</div>;
 
+  // Kortene regnes fra de samme øktene som lista under, med samme regel for
+  // «innhold» som filteret der (oktHarInnhold). Før telte kortet tittel som
+  // innhold — og importerte økter får klassenavnet fra Spond som tittel, så
+  // tallet ble for høyt og stemte ikke med lista.
+  const okterAlle = data.okter || null;
+  const antOkter = okterAlle ? okterAlle.length : data.totalSessions;
+  const antInnhold = okterAlle ? okterAlle.filter(oktHarInnhold).length : data.logged;
+  const antInnhold90 = okterAlle ? okterAlle.filter(o => o.date >= data.since && oktHarInnhold(o)).length : data.recentLogged;
+
   const allMap = {}; data.tags.forEach(t => { allMap[t.tag] = t.sessions; });
   const recentMap = {}; data.tagsRecent.forEach(t => { recentMap[t.tag] = t.sessions; });
   const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(recentMap[k] > 0));
@@ -742,9 +749,9 @@ function Innhold(){
   return (
     <div>
       <div className="grid-4">
-        <KPI label="Økter totalt" value={fmtN(data.totalSessions)} delta="loggede + importerte" accent="blue"/>
-        <KPI label="Med innhold" value={fmtN(data.logged)} delta="tittel eller temaer" accent="green"/>
-        <KPI label="Siste 90 dager" value={fmtN(data.recentLogged)} delta={`med innhold · etter ${data.since}`} accent="amber"/>
+        <KPI label="Økter i Sheets" value={fmtN(antOkter)} delta="loggede + importerte · alle år" accent="blue"/>
+        <KPI label="Med innhold" value={fmtN(antInnhold)} delta={antOkter ? `innholdstekst eller temaer · ${fmtPct(antInnhold/antOkter)}` : 'innholdstekst eller temaer'} accent="green"/>
+        <KPI label="Siste 90 dager" value={fmtN(antInnhold90)} delta={`med innhold · etter ${data.since}`} accent="amber"/>
         <KPI label="Underdekket nå" value={fmtN(underdekket.length)} delta="kjernetemaer siste 90d" accent="coral"/>
       </div>
 
@@ -937,7 +944,7 @@ function TrendDelta({ now, prev }){
 // Endring for én serie: mot sammenligningsperioden når den finnes, ellers
 // siste 4 mot forrige 4 uker innenfor perioden («Alt» har ingen forrige).
 function trendEndring(obj, series, r, rc) {
-  if (rc) return { na: window.sumIPeriode(obj, r), for: window.sumIPeriode(obj, rc) };
+  if (rc) return { na: sumIPeriode(obj, r), for: sumIPeriode(obj, rc) };
   return { na: sum4(series, 0), for: sum4(series, 4) };
 }
 const endringTekst = (rc) => (rc ? `${rc.navn}` : 'forrige 4 uker');
@@ -1055,8 +1062,8 @@ function OmDataene({ kpis, live, meta, isStyre, checkins, okter, apen }) {
           <div className="h">Grunnlag</div>
           <ul>
             <li>Periode: {periode || 'ingen datoer i grunnlaget ennå'}</li>
-            <li>Check-ins: {fmtN(checkins)}</li>
-            <li>Økter: {fmtN(okter)}</li>
+            <li>Check-ins i hele grunnlaget: {fmtN(checkins)}</li>
+            <li>Økter i hele grunnlaget: {fmtN(okter)} <span className="dim">(Spond-historikk + nyere økter i Sheets)</span></li>
             <li>Snitt pr. økt: {okter ? (checkins/okter).toFixed(1) : '—'} deltagere</li>
           </ul>
         </div>
@@ -1279,45 +1286,45 @@ function KohortSeksjon({ kpis, charts, departed }) {
   );
 }
 
-function Funnel({ kpis, live, isStyre, onGotoReconcile }) {
-  const conv = kpis.conversion || {};
-  // 0 konverterte av N intro er nesten sikkert join-svikt, ikke virkelighet.
-  const convUnreliable = !(conv.converted > 0);
-  const unmatched = (live && live.unmatched) ? live.unmatched : 0;
+// Funnel for dem som meldte seg inn i valgt periode — samme tall som kortene
+// «Nye medlemmer» og «Intro → fast» øverst (innmeldtStatus i trends-app.jsx).
+// Den gamle funnelen leste «fast medlem nå» fra det frosne grunnlaget, der
+// tallet var 0, og sto derfor som «Ikke beregnet» uansett hva som ble gjort.
+function Funnel({ na, forrige, r, rc }) {
+  const andel = t => (t && t.av >= INTRO_MIN_FOR_PROSENT ? t.fast / t.av : null);
+  if (!na) return (
+    <Tile title="Konvertering" corner={r.navn}>
+      <div className="dim" style={{fontSize:12}}>Ingen innmeldinger i perioden.</div>
+    </Tile>
+  );
+  const pst = andel(na), pstFor = andel(forrige);
+  const ute = na.borte + na.parkert;
+  const trinn = [
+    { lbl:'Innmeldt i perioden', v: na.av, sub:'første innmelding · én pr. person' },
+    { lbl:'Fortsatt på introkurs', v: na.intro, sub:'ikke avgjort ennå', farge:'var(--amber)' },
+    { lbl:'Fast medlem nå', v: na.fast, farge:'var(--green)',
+      sub: pst != null ? `${Math.round(pst*100)} % av de innmeldte` : `for få til å regne prosent (< ${INTRO_MIN_FOR_PROSENT})` },
+    { lbl:'Sluttet igjen', v: ute, farge:'var(--coral)',
+      sub: na.parkert ? `${na.borte} ute av registeret · ${na.parkert} parkert` : 'ikke lenger i registeret' },
+  ];
   return (
-    <Tile title="Konvertering" corner="conversion">
-      <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'center', flexWrap:'wrap'}}>
-        <div style={{flex:1, minWidth:130}}>
-          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 1 — intro-kurs</div>
-          <div style={{fontSize:36, fontWeight:700}}>{conv.introTotal || 0}</div>
-          <div className="dim" style={{fontSize:11}}>registrerte intro-deltagere</div>
-        </div>
-        <div className="dim" style={{fontSize:24}}>→</div>
-        <div style={{flex:1, minWidth:130}}>
-          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Trinn 2 — fast medlem nå</div>
-          <div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{convUnreliable ? '—' : conv.converted}</div>
-          <div className="dim" style={{fontSize:11}}>{convUnreliable ? 'ikke koblet ennå' : 'fortsatt aktive'}</div>
-        </div>
-        <div style={{flex:1, minWidth:130}}>
-          <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>Konverteringsrate</div>
-          {convUnreliable
-            ? <><div style={{fontSize:22, fontWeight:700, color:'var(--coral)'}}>Ikke beregnet</div>
-                <div className="dim" style={{fontSize:11}}>avhenger av navnematching</div></>
-            : <><div style={{fontSize:36, fontWeight:700, color:'var(--coral)'}}>{fmtPct(conv.rate)}</div>
-                <div className="dim" style={{fontSize:11}}>navn-match-basert</div></>}
-        </div>
+    <Tile title="Konvertering" corner={r.navn}>
+      <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'flex-start', flexWrap:'wrap'}}>
+        {trinn.map(t => (
+          <div key={t.lbl} style={{flex:1, minWidth:130}}>
+            <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>{t.lbl}</div>
+            <div style={{fontSize:36, fontWeight:700, color: t.farge || 'var(--ink)'}}>{fmtN(t.v)}</div>
+            <div className="dim" style={{fontSize:11}}>{t.sub}</div>
+          </div>
+        ))}
       </div>
-      {convUnreliable ? (
-        <div style={{fontSize:12, padding:14, borderTop:'1px solid var(--border)', marginTop:8, lineHeight:1.6}}>
-          <strong>{conv.introTotal || 0} introdeltakere</strong>{unmatched>0 && <> · <strong style={{color:'var(--coral)'}}>{unmatched} umatchede oppmøter</strong></>} — konvertering kan ikke beregnes før navnene er koblet til medlemsregisteret.
-          {isStyre && <button className="btn primary sm" style={{marginLeft:10}} onClick={onGotoReconcile}>Kjør identitetsbro</button>}
-          <div className="dim" style={{fontSize:11, marginTop:8}}>Merk: intro-deltagere som ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond. Tag intro-kohorter eksplisitt for ekte konverteringstall.</div>
-        </div>
-      ) : (
-        <div className="dim" style={{fontSize:11, padding:14, borderTop:'1px solid var(--border)', marginTop:8}}>
-          <strong>Merknad:</strong> intro-deltagere som senere ble fast medlem registreres trolig som <em>nye</em> medlemskap i Spond.
-        </div>
-      )}
+      <div className="dim" style={{fontSize:11, padding:'12px 0 0', borderTop:'1px solid var(--border)', marginTop:8, lineHeight:1.6}}>
+        {rc && (forrige
+          ? <>Til sammenligning: av {forrige.av} innmeldte i {rc.navn} er {forrige.fast} faste nå{pstFor != null ? ` (${Math.round(pstFor*100)} %)` : ''}. Et eldre kull har hatt lengre tid på å bestemme seg, så tallene er ikke helt like å lese. </>
+          : <>Ingen innmeldinger i {rc.navn} å sammenligne med. </>)}
+        Spond oppretter nytt medlemskap når en introdeltaker fortsetter, så registeret vet ikke hvem som startet på introkurs.
+        Funnelen følger derfor alle som meldte seg inn i perioden, og «fast medlem nå» er et gulv — ikke en ekte konverteringsrate.
+      </div>
     </Tile>
   );
 }

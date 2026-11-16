@@ -446,17 +446,28 @@ function buildRapportData(fra, til, ctx){
     .sort((a,b)=> b.diff-a.diff || b.na-a.na).slice(0,TOPP_N) : [];
 
   // --- Oppfølging (øyeblikksbilde) ---
+  // Samme regler som «I dag»: «uten oppmøte» måles mot siste dato med
+  // registrert oppmøte (ikke dagens dato), og stille stopper på åtte uker —
+  // de som har vært borte lenger er en egen liste. Før tok rapporten med
+  // alle over terskelen, så den og «I dag» viste ulike tall for «stille».
+  const refDato=oppmoteRef(live);
+  const borteUker=window.TD_BORTE_UKER || 8;
+  const uten = m => dagerUtenOppmote(m.oppmote && m.oppmote.sisteOppmote, refDato);
   const intro=list.filter(m=>{
     if(m.kategori!=='Introkurs') return false;
-    const d=mrDagerSiden(m.oppmote && m.oppmote.sisteOppmote);
+    const d=uten(m);
     return d==null || d>=introUker*7;
-  }).sort((a,b)=> (mrDagerSiden(b.oppmote && b.oppmote.sisteOppmote)||9999) - (mrDagerSiden(a.oppmote && a.oppmote.sisteOppmote)||9999));
+  }).sort((a,b)=> (uten(b)||9999) - (uten(a)||9999));
 
-  const stille=list.filter(m=>{
-    if(m.kategori==='Introkurs') return false;   // dekkes av intro-lista
-    const d=mrDagerSiden(m.oppmote && m.oppmote.sisteOppmote);
-    return d!=null && d>=stilleUker*7;
-  }).sort((a,b)=> mrDagerSiden(b.oppmote.sisteOppmote) - mrDagerSiden(a.oppmote.sisteOppmote));
+  const utenIntro=list.filter(m=> m.kategori!=='Introkurs');   // dekkes av intro-lista
+  const stille=utenIntro.filter(m=>{
+    const d=uten(m);
+    return d!=null && d>=stilleUker*7 && d<borteUker*7;
+  }).sort((a,b)=> uten(a) - uten(b));
+  const borte=utenIntro.filter(m=>{
+    const d=uten(m);
+    return d!=null && d>=borteUker*7;
+  }).sort((a,b)=> uten(b) - uten(a));
 
   // --- Sluttet i perioden ---
   const dep=c.departed||null;
@@ -538,7 +549,7 @@ function buildRapportData(fra, til, ctx){
     okterForrige: okterF.length, oppmoterForrige: oppmoterF,
     snittForrige: medTallF.length ? oppmoterF/medTallF.length : 0,
     topp, fremgang, fremMin: FREM_MIN, forrigeDekket,
-    intro, stille, sluttet, sluttetFra,
+    intro, stille, borte, borteUker, refDato, sluttet, sluttetFra,
     striper, utenStriper,
     gradert, aktivitet, overTerskel, trendMnd,
     gradMinOppmote, gradMinMnd, stilleUker, introUker,
@@ -698,19 +709,22 @@ const MR_RENDER = {
     const rader=d.intro.map(m=>
       `<tr><td><strong>${mrEsc(mrNavn(m))}</strong></td><td class="dim">${mrEsc(m.kategori||'')}</td>` +
       `<td class="num dim">${mrEsc(mrSiden(m.oppmote && m.oppmote.sisteOppmote))}</td></tr>`).join('');
-    return mrSeksjon('Intro-oppfølging', `ikke møtt på ${d.introUker} uker eller mer · per i dag`,
+    return mrSeksjon('Intro-oppfølging', `ikke møtt på ${d.introUker} uker eller mer · målt mot siste registrerte oppmøte (${mrDagMnd(d.refDato)})`,
       rader? `<table><thead><tr><th>Navn</th><th>Kategori</th><th class="num">Sist sett</th></tr></thead><tbody>${rader}</tbody></table>`
            : mrTom('Ingen introdeltakere som trenger oppfølging.'), true);
   },
   stille(d){
-    const rader=d.stille.map(m=>
+    const rad = m =>
       `<tr><td><strong>${mrEsc(mrNavn(m))}</strong></td><td class="dim">${mrEsc(m.kategori||'')}</td>` +
       `<td class="dim">${mrEsc((m.grading&&m.grading.current&&m.grading.current.belt)||'')}</td>` +
-      `<td class="num dim">${mrEsc(mrSiden(m.oppmote.sisteOppmote))}</td></tr>`).join('');
-    return mrSeksjon('Stille medlemmer', `ikke sett på ${d.stilleUker} uker eller mer · per i dag`,
-      (rader? `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte</th><th class="num">Sist sett</th></tr></thead><tbody>${rader}</tbody></table>`
-            : mrTom('Ingen over terskelen — eller oppmøtedata mangler ennå.')) +
-      '<div class="note">Medlemmer uten registrert oppmøte i det hele tatt er utelatt: det er et hull i dataene, ikke et fravær.</div>');
+      `<td class="num dim">${mrEsc(mrSiden(m.oppmote.sisteOppmote))}</td></tr>`;
+    const tabell = l => `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte</th><th class="num">Sist sett</th></tr></thead><tbody>${l.map(rad).join('')}</tbody></table>`;
+    return mrSeksjon('Stille medlemmer',
+      `${d.stilleUker}–${d.borteUker} uker uten oppmøte · målt mot siste registrerte oppmøte (${mrDagMnd(d.refDato)})`,
+      (d.stille.length? tabell(d.stille) : mrTom('Ingen over terskelen — eller oppmøtedata mangler ennå.')) +
+      (d.borte.length? `<h3 style="margin-top:14px">Borte over ${d.borteUker} uker · ${d.borte.length}</h3>` + tabell(d.borte) : '') +
+      '<div class="note">Samme inndeling som «I dag» i dashboardet: stille er dem det fortsatt er lett å få tilbake, borte er medlemskap som bør avklares. ' +
+      'Medlemmer uten registrert oppmøte i det hele tatt er utelatt: det er et hull i dataene, ikke et fravær.</div>');
   },
   sluttet(d){
     const rader=d.sluttet.map(r=>
@@ -947,10 +961,11 @@ const MR_TABELL = {
     rader:d.intro.map(m=>[mrNavn(m), m.kategori||'', mrDato(mrSistSett(m)), mrDagerSiden(mrSistSett(m))]),
   }),
   stille: d => ({
-    kolonner:['Navn','Kategori','Belte','Sist sett','Dager siden sist sett'],
-    rader:d.stille.map(m=>[mrNavn(m), m.kategori||'',
-      (m.grading && m.grading.current && m.grading.current.belt) || '',
-      mrDato(mrSistSett(m)), mrDagerSiden(mrSistSett(m))]),
+    kolonner:['Liste','Navn','Kategori','Belte','Sist sett','Dager siden sist sett'],
+    rader:[['Stille', d.stille], [`Borte over ${d.borteUker} uker`, d.borte]].reduce((ut, [navn, l]) =>
+      ut.concat((l||[]).map(m=>[navn, mrNavn(m), m.kategori||'',
+        (m.grading && m.grading.current && m.grading.current.belt) || '',
+        mrDato(mrSistSett(m)), mrDagerSiden(mrSistSett(m))])), []),
   }),
   striper: d => ({
     kolonner:['Navn','Kategori','Belte','Striper','Sist stripe','Målt fra','Dager siden',

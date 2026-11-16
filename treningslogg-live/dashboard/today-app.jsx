@@ -310,6 +310,15 @@ function Today({ members, live, thresholds }){
       .then(() => setBusy(false));
   }
 
+  // «Uten oppmøte» måles mot siste dato det er registrert oppmøte for — ikke
+  // mot dagens dato. Er oppmøte-importen to uker gammel, er det ingen som har
+  // «vært borte» de to ukene; vi vet bare ikke. Uten dette så hele klubben
+  // stille ut hver gang importen ble liggende. (oppmoteRef i dashboard-shared,
+  // speilet av dashOppmoteRef_ i Code.gs for ukesnapshotet.)
+  const refDato = oppmoteRef(live);
+  const uten = m => dagerUtenOppmote(m.oppmote && m.oppmote.sisteOppmote, refDato);
+  const refEtterslep = tdDaysSince(refDato) || 0;
+
   // Introdeltakere har sin egen liste og sin egen samtale («kommer du
   // tilbake?», ikke «vi savner deg på matta»). De skal aldri dukke opp i
   // stille/borte/fallende i tillegg — ingen skal stå i to lister.
@@ -320,19 +329,19 @@ function Today({ members, live, thresholds }){
   //    Sortert med de ferskeste først: de er lettest å få tilbake.
   const stille = utenIntro
     .filter(m => {
-      const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote);
+      const d = uten(m);
       return d != null && d >= stilleUker*7 && d < TD_BORTE_UKER*7;
     })
-    .sort((a,b) => tdDaysSince(a.oppmote.sisteOppmote) - tdDaysSince(b.oppmote.sisteOppmote));
+    .sort((a,b) => uten(a) - uten(b));
 
   // 1b) Borte over åtte uker: ikke lenger et oppmøteproblem, men et
   //     medlemskap som må avklares.
   const borte = utenIntro
     .filter(m => {
-      const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote);
+      const d = uten(m);
       return d != null && d >= TD_BORTE_UKER*7;
     })
-    .sort((a,b) => tdDaysSince(b.oppmote.sisteOppmote) - tdDaysSince(a.oppmote.sisteOppmote));
+    .sort((a,b) => uten(b) - uten(a));
 
   // 2) Graderingsklare: nok oppmøter SIDEN SIST GRADERING + lenge nok siden.
   //    Tidligere talte den alle oppmøter noensinne, mens rapporten talte fra
@@ -352,14 +361,16 @@ function Today({ members, live, thresholds }){
   const intro = list
     .filter(m => {
       if(m.kategori !== 'Introkurs') return false;
-      const d = tdDaysSince(m.oppmote && m.oppmote.sisteOppmote);
+      const d = uten(m);
       return d == null || d >= introUker*7;
     })
-    .sort((a,b) => (tdDaysSince(b.oppmote && b.oppmote.sisteOppmote) || 9999) - (tdDaysSince(a.oppmote && a.oppmote.sisteOppmote) || 9999));
+    .sort((a,b) => (uten(b) == null ? 9999 : uten(b)) - (uten(a) == null ? 9999 : uten(a)));
 
-  // 4) Fallende oppmøte: samme «siste 4 uker vs. forrige 4» som Trend pr.
-  //    medlem (delt funksjon i dashboard-shared.jsx). Medlemmer som allerede
-  //    står under «Stille» vises ikke her — det er samme oppfølging to ganger.
+  // 4) Fallende oppmøte: siste 4 HELE uker med oppmøtedata mot de 4 før
+  //    (memberTrendRows i dashboard-shared.jsx). Inneværende uke er ikke med
+  //    — den er halvferdig og ga «fall» for nesten alle tidlig i uka.
+  //    Medlemmer som allerede står under «Stille» vises ikke her — det er
+  //    samme oppfølging to ganger.
   const iStilleEllerBorte = new Set(stille.concat(borte).map(m => m.id));
   const fallende = memberTrendRows(live, utenIntro)
     .filter(r => r.medlem && !iStilleEllerBorte.has(r.id) && r.last4 < r.prev4 && r.prev4 >= fallMinPrev4)
@@ -382,7 +393,7 @@ function Today({ members, live, thresholds }){
         <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`} accent="coral"/>
         <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"/>
         <KPI label="Intro-oppfølging" value={fmtN(synlige(intro, skjultIntro))} delta={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"/>
-        <KPI label="Fallende oppmøte" value={harTrend ? fmtN(synlige(fallende, skjultFall)) : '—'} delta={harTrend ? `siste 4 uker ned · fra ≥ ${fallMinPrev4}` : 'krever koblede oppmøter'} accent="blue"/>
+        <KPI label="Fallende oppmøte" value={harTrend ? fmtN(synlige(fallende, skjultFall)) : '—'} delta={harTrend ? `siste 4 hele uker ned · fra ≥ ${fallMinPrev4}` : 'krever koblede oppmøter'} accent="blue"/>
       </div>
 
       <div className="dim" style={{fontSize:11, margin:'6px 2px 0', lineHeight:1.6}}>
@@ -391,7 +402,15 @@ function Today({ members, live, thresholds }){
         «Kontaktet» skjuler den i {TD_KONTAKTET_DAGER} dager, «Utsett» i {TD_UTSETT_DAGER}.
         Ingen står i mer enn én liste: introdeltakere holdes til sin egen, og den som
         er borte over {TD_BORTE_UKER} uker står ikke også som stille.
+        {' '}Uker uten oppmøte regnes fram til siste registrerte oppmøte ({fmtDate(refDato)}), og
+        «fallende» sammenligner hele uker.
       </div>
+      {refEtterslep >= 10 && (
+        <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral)', fontWeight:600}}>
+          Oppmøte er ikke registrert på {refEtterslep} dager (sist {fmtDate(refDato)}). Listene viser situasjonen
+          per den datoen — importer nytt oppmøte under Data for å få dem oppdatert.
+        </div>
+      )}
       {feil && <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral)'}}>{feil}</div>}
 
       <TodayList
@@ -423,7 +442,7 @@ function Today({ members, live, thresholds }){
         skjulte={skjultIntro} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
-        title="Fallende oppmøte" hint={`siste 4 uker mot forrige 4 · fra ≥ ${fallMinPrev4} oppmøter`} accent="blue"
+        title="Fallende oppmøte" hint={`siste 4 hele uker mot de 4 før · fra ≥ ${fallMinPrev4} oppmøter`} accent="blue"
         liste="fallende" rows={fallende} meta={m => `${m.fall.prev4} → ${m.fall.last4} oppmøter`}
         empty={harTrend
           ? 'Ingen med markert fall i oppmøte akkurat nå.'
