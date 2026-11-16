@@ -957,12 +957,18 @@ function dashLiveOppmote() {
   let total = 0;
   let sessCount = 0;
   let maxDate = '';
+  // Siste dato det faktisk er registrert oppmøte for (ikke bare logget en
+  // økt). «Stille», «fallende» og periodene i Trender måles mot denne, så et
+  // oppmøte som ikke er importert på to uker ikke får hele klubben til å se
+  // stille ut.
+  let attTil = '';
   // Bare ekte ISO-datoer teller for maxDate/«sist». Uten dette kan en rusk-/
   // header-rad (f.eks. teksten «date») vinne, siden den sorteres etter ISO.
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   sessions.forEach(s => {
     if (!s.date) return;
     const names = namesBySession[s.id] || [];
+    const harTall = (s.attendance != null && s.attendance !== '') || names.length > 0;
     const cnt = (s.attendance != null && s.attendance !== '') ? Number(s.attendance) : names.length;
     if (cnt > 0) sessCount++;
     total += cnt;
@@ -974,10 +980,15 @@ function dashLiveOppmote() {
       // «grunnleggende» e.l. egne «grupper» og faller ut av gruppefilteret.
       const grp = dashNormGroup_(s.group, s.title);
       const gw = gruppeWeekly[grp] || (gruppeWeekly[grp] = {});
-      const cell = gw[wk] || (gw[wk] = { okter: 0, oppmote: 0 });
+      const cell = gw[wk] || (gw[wk] = { okter: 0, oppmote: 0, medTall: 0 });
       cell.okter++; cell.oppmote += cnt;
+      // medTall = økter der oppmøtet faktisk er registrert. Snitt pr. økt
+      // deles på denne — en logget økt uten oppmøte er ikke en økt med null
+      // deltakere, og skal ikke dra snittet ned. Samme regel som rapporten.
+      if (harTall) cell.medTall++;
     }
     if (ISO_DATE.test(s.date) && s.date > maxDate) maxDate = s.date;
+    if (ISO_DATE.test(s.date) && cnt > 0 && s.date > attTil) attTil = s.date;
   });
 
   // Per-medlem leaderboard på memberId (faller tilbake til navn der id mangler).
@@ -1090,7 +1101,7 @@ function dashLiveOppmote() {
     memberGruppeWeekly: memberGruppeWeekly, kategoriGruppeWeekly: kategoriGruppeWeekly,
     memberHistWeekly: memberHistWeekly,
     sessionWeekly: sessionWeekly, gruppeWeekly: gruppeWeekly,
-    memberMonthly: memberMonthly, attFrom: attFrom };
+    memberMonthly: memberMonthly, attFrom: attFrom, attTil: attTil };
 }
 
 // Nøkkel/verdi-metadata (import-tidspunkt o.l.).
@@ -1702,22 +1713,43 @@ function dashIsoWeek_(d) {
   return aar + '-W' + pad2(Math.ceil(((t - nyttaar) / 86400000 + 1) / 7));
 }
 
-// De n siste mandagene, eldst først — samme serie som lastMondays() i
-// dashboard-shared.jsx, så «siste 4 uker» betyr det samme her og der.
-function dashLastMondays_(n, naa) {
+// «Borte»-grensen i «I dag» — speiler TD_BORTE_UKER i today-app.jsx.
+const DASH_BORTE_UKER = 8;
+
+// Referansedato for «uten oppmøte»: siste dato det er registrert oppmøte for,
+// men aldri senere enn i dag. Speiler oppmoteRef() i dashboard-shared.jsx.
+function dashOppmoteRef_(live, naa) {
+  const t = naa || new Date();
+  const idag = t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+  const til = String((live && live.attTil) || '');
+  return (/^\d{4}-\d{2}-\d{2}$/.test(til) && til < idag) ? til : idag;
+}
+// Mandagen i siste HELE uke med oppmøtedata: uka før inneværende, eller uka
+// oppmøtet sist ble registrert i hvis den er eldre. Inneværende uke er aldri
+// med — den er halvferdig, og ville fått «siste 4 uker» til å se ut som et
+// fall hver gang. Speiler sisteHeleUke() i dashboard-shared.jsx.
+function dashSisteHeleUke_(live, naa) {
   const t = naa || new Date();
   const man = dashMonday(t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()));
+  if (!man) return '';
+  const d = new Date(man + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 7);
+  const forrige = d.toISOString().slice(0, 10);
+  const til = String((live && live.attTil) || '');
+  const dataUke = /^\d{4}-\d{2}-\d{2}$/.test(til) ? dashMonday(til) : '';
+  return (dataUke && dataUke < forrige) ? dataUke : forrige;
+}
+// De n siste mandagene til og med en gitt mandag, eldst først.
+function dashMondaysTil_(n, sisteMandag) {
   const out = [];
-  if (!man) return out;
+  if (!sisteMandag) return out;
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(man + 'T00:00:00Z');
+    const d = new Date(sisteMandag + 'T00:00:00Z');
     d.setUTCDate(d.getUTCDate() - 7 * i);
     out.push(d.toISOString().slice(0, 10));
   }
   return out;
 }
-// «Borte»-grensen i «I dag» — speiler TD_BORTE_UKER i today-app.jsx.
-const DASH_BORTE_UKER = 8;
 
 // Økter siden en dato, talt i hele kalendermåneder fra og med datoens måned.
 // Speiler okterSidenGradering() i dashboard-shared.jsx.
@@ -1761,6 +1793,9 @@ function dashKategoriFraType_(t) {
 //       i dashboard-shared.jsx, månedsbøtter), ikke alle oppmøter noensinne
 //     · fallende: uten introkurs, og uten dem som står i stille ELLER borte
 //   fallende → memberTrendRows() i dashboard-shared.jsx
+//   «uten oppmøte» måles mot siste dato med registrert oppmøte
+//     (dashOppmoteRef_ ↔ oppmoteRef), og ukeseriene slutter på siste hele
+//     uke med data (dashSisteHeleUke_ ↔ sisteHeleUke) — begge som i frontend.
 // Samme speiling som for gruppene (dashNormGroup_): endrer du én side,
 // endre den andre.
 function dashSnapshotCompute_(naa) {
@@ -1773,6 +1808,14 @@ function dashSnapshotCompute_(naa) {
     if (!v) return null;
     const t = new Date(v).getTime();
     return isNaN(t) ? null : Math.floor((na - t) / 86400000);
+  };
+  // «Uten oppmøte» måles mot siste dato med registrert oppmøte, ikke mot i
+  // dag — ellers blir alle stille så snart oppmøte-importen er noen uker gammel.
+  const refT = new Date(dashOppmoteRef_(live, nu)).getTime();
+  const dagerUten = v => {
+    if (!v) return null;
+    const t = new Date(v).getTime();
+    return isNaN(t) ? null : Math.max(0, Math.floor((refT - t) / 86400000));
   };
 
   const aktive = members.filter(m => !dashInactiveType_(m.medlemstype));
@@ -1787,7 +1830,7 @@ function dashSnapshotCompute_(naa) {
   });
 
   const utenIntro = members.filter(m => m.kategori !== 'Introkurs');
-  const sistSett = m => dagerSiden(m.oppmote && m.oppmote.sisteOppmote);
+  const sistSett = m => dagerUten(m.oppmote && m.oppmote.sisteOppmote);
   const stille = utenIntro.filter(m => {
     const d = sistSett(m);
     return d != null && d >= cfg.stilleUker * 7 && d < DASH_BORTE_UKER * 7;
@@ -1805,7 +1848,8 @@ function dashSnapshotCompute_(naa) {
     return dashOkterSiden_(mm[m.id], g.since) >= cfg.gradMinOppmote;
   });
 
-  const uker = dashLastMondays_(26, nu);
+  // Hele uker: serien slutter på siste hele uke med oppmøtedata.
+  const uker = dashMondaysTil_(26, dashSisteHeleUke_(live, nu));
   const mw = live.memberWeekly || {};
   const utelatt = {};
   stille.concat(borte).forEach(m => { utelatt[m.id] = true; });

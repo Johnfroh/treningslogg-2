@@ -92,7 +92,21 @@ sju i stedet for ni:
   Spond-historikken er gruppert på klassenavn, ikke gruppe, så den historiske
   klassepopulariteten ligger under «Om dataene» i Data — ikke i Trender.
 - **Snitt pr. økt** regnes med teller og nevner fra samme kilde, ellers deles
-  Spond-historikk på Sheets-økter.
+  Spond-historikk på Sheets-økter. Nevneren er økter MED registrert oppmøte
+  (`medTall` i `live.gruppeWeekly`) — en økt logget uten oppmøte er ikke en
+  økt med null deltakere. Samme regel som rapporten.
+- **Hele uker:** alle perioder slutter på søndagen i siste hele uke med
+  oppmøtedata (`sisteHeleUke()` i `dashboard-shared.jsx`, speilet av
+  `dashSisteHeleUke_()` i Code.gs). Inneværende uke er aldri med.
+  Sammenligningen er alltid like mange uker: «i fjor» er 52 uker tilbake, og
+  semester måles mot de samme semesterukene (uke 1–N), ikke et helt semester.
+- **«Uten oppmøte»** (stille, borte, intro-oppfølging) måles mot siste dato
+  med registrert oppmøte (`oppmoteRef()` ↔ `dashOppmoteRef_()`), ikke mot
+  dagens dato. «I dag», rapporten og ukesnapshotet bruker samme regel, og
+  «stille» er alle tre steder terskelen–8 uker.
+- **Nye / Intro → fast / funnel** har én kilde: `innmeldtStatus()` i
+  `trends-app.jsx`. Fast = står i registeret i dag med fast medlemskap;
+  de som har sluttet eller er parkert teller ikke.
 - **Mobil under 760 px:** sidefeltet byttes ut med bunnmeny (I dag · Trender ·
   Medlemmer · Kalender · Mer), KPI-ene går i to kolonner, kontrollstripa blir
   nedtrekk, og tabeller får egen vannrett scroll så siden aldri scroller

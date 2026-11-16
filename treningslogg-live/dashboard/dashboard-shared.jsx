@@ -81,26 +81,62 @@ function MemberLink({ id, children, style, title }) {
 }
 
 // =============== UKESTREND PR. MEDLEM (delt) ===============
-// Mandagsdatoene for de n siste ukene, eldst først.
-function lastMondays(n) {
-  const t = new Date();
-  const d = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // denne ukas mandag (lokal tid)
+// Lokal dato som 'YYYY-MM-DD' — toISOString() er UTC og bommer på «i dag».
+function isoLokal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function isoPluss(iso, n) {
+  const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoLokal(d);
+}
+function isoMandag(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return isoLokal(d);
+}
+const ISO_DATO = /^\d{4}-\d{2}-\d{2}$/;
+
+// Siste dato det faktisk er registrert oppmøte for. Eldre backend sender
+// ikke attTil — da er siste loggede økt det nærmeste vi kommer.
+function oppmoteTil(live) {
+  const t = String((live && (live.attTil || live.maxDate)) || '');
+  return ISO_DATO.test(t) ? t : '';
+}
+// Referansedato for «uten oppmøte»: siste dato med registrert oppmøte, men
+// aldri senere enn i dag. «Stille», «borte» og intro-oppfølging måles mot
+// denne. Uten det blir hele klubben «stille» så snart oppmøte-importen er
+// noen uker gammel. Speiles av dashOppmoteRef_() i Code.gs.
+function oppmoteRef(live) {
+  const idag = isoLokal(new Date());
+  const til = oppmoteTil(live);
+  return (til && til < idag) ? til : idag;
+}
+// Hele dager fra `iso` til referansedatoen (aldri negativt). null = ingen dato.
+function dagerUtenOppmote(iso, refIso) {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  const r = new Date(refIso || isoLokal(new Date())).getTime();
+  if (isNaN(t) || isNaN(r)) return null;
+  return Math.max(0, Math.floor((r - t) / 86400000));
+}
+// Mandagen i siste HELE uke med oppmøtedata: uka før inneværende, eller uka
+// oppmøtet sist ble registrert i hvis den er eldre. Inneværende uke er aldri
+// med — den er halvferdig, og «siste 4 uker» ville sett ut som et fall hver
+// gang man åpnet dashboardet tidlig i uka. Speiles av dashSisteHeleUke_().
+function sisteHeleUke(live) {
+  const forrige = isoPluss(isoMandag(isoLokal(new Date())), -7);
+  const til = oppmoteTil(live);
+  const dataUke = til ? isoMandag(til) : '';
+  return (dataUke && dataUke < forrige) ? dataUke : forrige;
+}
+// De n siste mandagene til og med `sisteMandag`, eldst først.
+function mandagerTil(n, sisteMandag) {
   const out = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const w = new Date(d); w.setDate(w.getDate() - 7 * i);
-    out.push(`${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}-${String(w.getDate()).padStart(2, '0')}`);
-  }
+  for (let i = n - 1; i >= 0; i--) out.push(isoPluss(sisteMandag, -7 * i));
   return out;
 }
 // Sum av fire uker som slutter endOffset uker før slutten av serien.
 const sum4 = (arr, endOffset) => arr.slice(arr.length - endOffset - 4, arr.length - endOffset).reduce((s, v) => s + v, 0);
 
-// Én kilde for «siste 4 uker vs. forrige 4» pr. medlem. Brukes både av
-// Trend pr. medlem (Oppmøte) og Fallende oppmøte (I dag) — tidligere regnet
-// bare det ene stedet dette ut, og et nytt sted ville fort ha regnet litt
-// annerledes. `medlem` er det maskerte registeret-objektet, eller null for
-// oppmøte som ikke er koblet til et medlem.
 // Én innmelding pr. PERSON: nåværende medlemmer + de som har sluttet
 // (dash_departed), med den FØRSTE innmeldingsdatoen vi kjenner. Spond gir ny
 // innmeldingsdato hver gang noen bytter eller fornyer medlemskap, så uten
@@ -122,10 +158,14 @@ function innmeldinger(members, departed) {
   return Object.values(per);
 }
 
+// «Siste 4 uker mot forrige 4» pr. medlem — brukes av Fallende oppmøte
+// (I dag). Serien slutter på siste hele uke med oppmøtedata, så de fire
+// siste ukene er fire hele uker. `medlem` er det maskerte register-objektet,
+// eller null for oppmøte som ikke er koblet til et medlem.
 function memberTrendRows(live, members, weeks) {
   const mw = (live && live.memberWeekly) || null;
   if (!mw) return [];
-  const uker = weeks || lastMondays(26);
+  const uker = weeks || mandagerTil(26, sisteHeleUke(live));
   const byId = {}; (members || []).forEach(m => { byId[m.id] = m; });
   return Object.keys(mw).map(id => {
     const series = uker.map(w => mw[id][w] || 0);
@@ -516,7 +556,14 @@ window.HENDELSE_TYPER = HENDELSE_TYPER;
 window.MemberOpenCtx = MemberOpenCtx;
 window.useMemberOpen = useMemberOpen;
 window.MemberLink = MemberLink;
-window.lastMondays = lastMondays;
+window.isoLokal = isoLokal;
+window.isoPluss = isoPluss;
+window.isoMandag = isoMandag;
+window.oppmoteTil = oppmoteTil;
+window.oppmoteRef = oppmoteRef;
+window.dagerUtenOppmote = dagerUtenOppmote;
+window.sisteHeleUke = sisteHeleUke;
+window.mandagerTil = mandagerTil;
 window.sum4 = sum4;
 window.innmeldinger = innmeldinger;
 window.memberTrendRows = memberTrendRows;

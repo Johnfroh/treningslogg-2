@@ -116,7 +116,10 @@ module.exports = [
         HBar: 'readonly', Spark: 'readonly', Donut: 'readonly',
         CohortBar: 'readonly',
         MemberOpenCtx: 'readonly', useMemberOpen: 'readonly', MemberLink: 'readonly',
-        lastMondays: 'readonly', sum4: 'readonly', memberTrendRows: 'readonly', innmeldinger: 'readonly',
+        sum4: 'readonly', memberTrendRows: 'readonly', innmeldinger: 'readonly',
+        isoLokal: 'readonly', isoPluss: 'readonly', isoMandag: 'readonly',
+        oppmoteTil: 'readonly', oppmoteRef: 'readonly', dagerUtenOppmote: 'readonly',
+        sisteHeleUke: 'readonly', mandagerTil: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
         okterSidenGradering: 'readonly', SPARK_SOYLE_GRENSE: 'readonly',
         DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',
@@ -169,7 +172,7 @@ module.exports = [
         // calendar-app.jsx
         Kalender: 'readonly', LogSessionModal: 'readonly',
         // today-app.jsx
-        Today: 'readonly', tdSkjulteIder: 'readonly',
+        Today: 'readonly', tdSkjulteIder: 'readonly', TD_BORTE_UKER: 'readonly',
         // settings-panels.jsx
         TerskelSkjema: 'readonly', SnapshotPanel: 'readonly', HendelsePanel: 'readonly',
         TERSKEL_FELT: 'readonly', tersklerFra: 'readonly',
@@ -177,6 +180,7 @@ module.exports = [
         Trender: 'readonly', periodeRange: 'readonly', sammenlignRange: 'readonly',
         semesterFor: 'readonly', aktiveVed: 'readonly', isoUkeNokkel: 'readonly',
         ukeserie: 'readonly', oktSerie: 'readonly', nyeSerie: 'readonly',
+        sumIPeriode: 'readonly', innmeldtStatus: 'readonly', INTRO_MIN_FOR_PROSENT: 'readonly',
         SemesterOverlay: 'readonly', Kontrollstripe: 'readonly', TrendKort: 'readonly',
         // data-tab.jsx
         DataFane: 'readonly',

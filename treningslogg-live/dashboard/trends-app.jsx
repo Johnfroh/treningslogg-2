@@ -42,7 +42,6 @@ function trIso(d) {
 }
 function trDato(iso) { return new Date(iso + 'T00:00:00'); }
 function trPlussDager(iso, n) { const d = trDato(iso); d.setDate(d.getDate() + n); return trIso(d); }
-function trPlussAar(iso, n) { const d = trDato(iso); d.setFullYear(d.getFullYear() + n); return trIso(d); }
 function trDagerMellom(fra, til) {
   return Math.round((trDato(til) - trDato(fra)) / 86400000);
 }
@@ -59,33 +58,77 @@ function semesterNavn(key) {
   return (key.slice(4) === 'V' ? 'Vår ' : 'Høst ') + key.slice(0, 4);
 }
 
+// Uke-nøklene er mandager, og en uke hører til en periode når mandagen
+// ligger i den. Dette er mandagen på eller etter en dato.
+function forsteMandag(iso) {
+  const m = isoMandag(iso);
+  return m < iso ? trPlussDager(m, 7) : m;
+}
+// Antall uker (mandager) i en periode.
+function antallUker(r) {
+  if (!r || !r.fra) return 0;
+  const f = forsteMandag(r.fra), t = isoMandag(r.til);
+  return t < f ? 0 : Math.round(trDagerMellom(f, t) / 7) + 1;
+}
+function semesterSpenn(key) {
+  const aar = key.slice(0, 4), sem = key.slice(4) === 'V' ? SEM_VAR : SEM_HOST;
+  return { fra: aar + '-' + sem.fra, til: aar + '-' + sem.til };
+}
+function forrigeSemester(key) {
+  const aar = Number(key.slice(0, 4));
+  return key.slice(4) === 'V' ? (aar - 1) + 'H' : aar + 'V';
+}
+
 // Perioden som {fra, til} (begge inklusive). 'alt' har tom fra = alt vi har.
-function periodeRange(p, naa) {
-  const d = naa || new Date();
-  const idag = trIso(d);
-  if (p === '4u') return { fra: trPlussDager(idag, -27), til: idag, navn: 'siste 4 uker' };
-  if (p === '12m') return { fra: trPlussDager(trPlussAar(idag, -1), 1), til: idag, navn: 'siste 12 måneder' };
+//
+// Alle perioder består av HELE uker og slutter på søndagen i siste hele uke
+// med oppmøtedata (`sisteMandag`, fra sisteHeleUke()). Før sluttet de på
+// dagens dato: da ble den påbegynte uka talt som en hel uke, og «siste 4
+// uker» var i praksis 3–4 uker målt mot 4 hele — nedgang nesten hver gang.
+function periodeRange(p, sisteMandag, naa) {
+  const idag = trIso(naa || new Date());
+  const sm = sisteMandag || trPlussDager(isoMandag(idag), -7);
+  const son = trPlussDager(sm, 6);
+  if (p === '4u') return { fra: trPlussDager(sm, -21), til: son, navn: 'siste 4 uker' };
+  if (p === '12m') return { fra: trPlussDager(sm, -51 * 7), til: son, navn: 'siste 12 måneder' };
   if (p === 'semester') {
     const s = semesterFor(idag);
     // I juli finnes ikke noe pågående semester — da viser vi vårsemesteret
     // som nettopp ble avsluttet, ikke et tomt diagram.
-    const bruk = s || { aar: idag.slice(0, 4), sem: SEM_VAR, key: idag.slice(0, 4) + 'V' };
-    return {
-      fra: bruk.aar + '-' + bruk.sem.fra,
-      til: bruk.aar + '-' + bruk.sem.til,
-      navn: semesterNavn(bruk.key).toLowerCase(),
-      semKey: bruk.key,
-    };
+    const key = s ? s.key : idag.slice(0, 4) + 'V';
+    const sp = semesterSpenn(key);
+    // Semesteret HITTIL — ikke til semesterslutt. Sammenligningen henter
+    // like mange uker fra semesteret det måles mot (sammenlignRange).
+    let til = son < sp.til ? son : sp.til;
+    // Har ikke semesteret rukket en hel uke ennå, vises det som finnes.
+    if (til < sp.fra) til = idag < sp.til ? idag : sp.til;
+    return { fra: sp.fra, til, navn: semesterNavn(key).toLowerCase(), semKey: key };
   }
-  return { fra: '', til: idag, navn: 'hele grunnlaget' };
+  return { fra: '', til: son, navn: 'hele grunnlaget' };
 }
 
 // Sammenligningsperioden. Returnerer null når den ikke gir mening — «Alt» har
 // ingen forrige periode, og da skal kortene vise «—», ikke 0.
+//
+// Alltid like mange uker som perioden selv. Semester måles mot de samme
+// semesterukene (uke 1–N) i forrige semester eller samme semester i fjor —
+// ikke mot et helt semester, som et påbegynt semester aldri kan slå.
 function sammenlignRange(p, c, r) {
   if (c === 'ingen' || !r.fra) return null;
+  if (p === 'semester' && r.semKey) {
+    const key = c === 'ifjor'
+      ? (Number(r.semKey.slice(0, 4)) - 1) + r.semKey.slice(4) : forrigeSemester(r.semKey);
+    const sp = semesterSpenn(key);
+    const n = antallUker(r);
+    let til = n > 0
+      ? trPlussDager(forsteMandag(sp.fra), 7 * (n - 1) + 6)
+      : trPlussDager(sp.fra, trDagerMellom(r.fra, r.til));
+    if (til > sp.til) til = sp.til;
+    return { fra: sp.fra, til, navn: semesterNavn(key).toLowerCase() + ', samme uker' };
+  }
+  // 52 uker tilbake, ikke ett kalenderår: da er det de samme hele ukene.
   if (c === 'ifjor') {
-    return { fra: trPlussAar(r.fra, -1), til: trPlussAar(r.til, -1), navn: 'samme periode i fjor' };
+    return { fra: trPlussDager(r.fra, -364), til: trPlussDager(r.til, -364), navn: 'samme uker i fjor' };
   }
   const dager = trDagerMellom(r.fra, r.til);
   const til = trPlussDager(r.fra, -1);
@@ -108,6 +151,8 @@ function ukeserie(kpis, live, r, gruppe) {
 }
 // Økter og oppmøte fra SAMME kilde, så snittet blir sant. Begge finnes bare
 // for økter som ligger i Sheets (logget i appen eller importert).
+// Snitt pr. økt = oppmøte / økter MED registrert oppmøte (medTall). En økt
+// som er logget uten oppmøte er ikke en økt med null deltakere.
 function oktSerie(live, r, gruppe) {
   const ut = {};
   const gw = (live && live.gruppeWeekly) || {};
@@ -115,8 +160,12 @@ function oktSerie(live, r, gruppe) {
     if (gruppe && gruppe !== 'alle' && g !== gruppe) return;
     Object.keys(gw[g]).forEach(wk => {
       if (!iRange(wk, r)) return;
-      const c = ut[wk] || (ut[wk] = { okter: 0, oppmote: 0 });
-      c.okter += gw[g][wk].okter; c.oppmote += gw[g][wk].oppmote;
+      const c = ut[wk] || (ut[wk] = { okter: 0, oppmote: 0, medTall: 0 });
+      const celle = gw[g][wk];
+      c.okter += celle.okter; c.oppmote += celle.oppmote;
+      // medTall = økter der oppmøtet er registrert — nevneren i snittet.
+      // Eldre backend sender den ikke; da regnes alle økter med, som før.
+      c.medTall += celle.medTall != null ? celle.medTall : celle.okter;
     });
   });
   return Object.keys(ut).sort().map(wk => [wk, ut[wk]]);
@@ -130,22 +179,17 @@ function sumIPeriode(obj, r) {
   if (!obj || !r) return 0;
   return Object.keys(obj).reduce((s, wk) => s + (iRange(wk, r) ? obj[wk] : 0), 0);
 }
-function trMandag(iso) {
-  const d = trDato(iso);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return trIso(d);
-}
 // Sammenhengende liste med mandager i perioden (også uker uten oppmøte, så
 // kurvene ikke hopper over hull). «Alt» starter på første uke vi har data for.
 function ukerFor(r, kilder) {
-  let fra = r.fra ? trMandag(r.fra) : '';
+  let fra = r.fra ? isoMandag(r.fra) : '';
   if (r.fra && fra < r.fra) fra = trPlussDager(fra, 7);
   if (!fra) {
     (kilder || []).forEach(src => Object.keys(src || {}).forEach(k => {
       Object.keys(src[k] || {}).forEach(wk => { if (/^\d{4}-\d{2}-\d{2}$/.test(wk) && (!fra || wk < fra)) fra = wk; });
     }));
   }
-  const til = trMandag(r.til);
+  const til = isoMandag(r.til);
   if (!fra || fra > til) return [til];
   const ut = [];
   for (let w = fra; w <= til; w = trPlussDager(w, 7)) ut.push(w);
@@ -206,6 +250,34 @@ function nyeSerie(members, r, departed) {
     per[k] = (per[k] || 0) + 1;
   });
   return Object.keys(per).sort().map(k => [k, per[k]]);
+}
+
+// Hva som har skjedd med dem som meldte seg inn i perioden. ÉN kilde for
+// kortene «Nye medlemmer» og «Intro → fast» og for funnelen nederst, så de
+// tre aldri kan vise ulike tall.
+//   fast    = står i registeret i dag med fast (ikke-intro) medlemskap
+//   intro   = står fortsatt på introkurs
+//   parkert = står i registeret med «Ikke aktiv»
+//   borte   = står ikke i registeret lenger
+// Før ble alle uten intro-kategori talt som faste — også de som har sluttet.
+// Under fem innmeldinger sier en prosent mer enn den vet: 1 av 2 blir
+// «50 %», og det leses som en trend. Da vises bare «a av b».
+const INTRO_MIN_FOR_PROSENT = 5;
+function innmeldtStatus(members, departed, r) {
+  if (!r) return null;
+  const iReg = {}; (members || []).forEach(m => { iReg[m.id] = m; });
+  const ut = { av: 0, fast: 0, intro: 0, parkert: 0, borte: 0 };
+  innmeldinger(members, departed).forEach(p => {
+    if (!iRange(p.innmeldingsdato, r)) return;
+    ut.av++;
+    const m = iReg[p.id];
+    if (!m) { ut.borte++; return; }
+    // Samme kategori- og aktiv-regel som mergeLiveKpis (sidefeltet).
+    if (isInactiveTypeImp(m.medlemstype)) { ut.parkert++; return; }
+    const kat = m.medlemstype ? deriveKategoriImp(m.medlemstype) : (m.kategori || 'Annet');
+    if (kat === 'Introkurs') ut.intro++; else ut.fast++;
+  });
+  return ut;
 }
 
 // Sjekker at snapshots faktisk kan brukes til sammenligning, og sier fra i
@@ -418,9 +490,11 @@ function SemesterOverlay({ entries, naaKey }) {
 }
 
 /* ---------- Fanen ---------- */
-function Trender({ kpis, charts, live, members, events, snapshots, isStyre, departed, onGotoReconcile, q, onEndreQ }) {
+function Trender({ kpis, charts, live, members, events, snapshots, departed, q, onEndreQ }) {
   const gruppe = q.g || 'alle';
-  const r = useTrMemo(() => periodeRange(q.p || '4u'), [q.p]);
+  // Periodene slutter på siste hele uke med oppmøtedata — se periodeRange.
+  const sisteUke = useTrMemo(() => sisteHeleUke(live), [live]);
+  const r = useTrMemo(() => periodeRange(q.p || '4u', sisteUke), [q.p, sisteUke]);
   const rc = useTrMemo(() => sammenlignRange(q.p || '4u', q.c || 'forrige', r), [q.p, q.c, r]);
 
   const serie = useTrMemo(() => ukeserie(kpis, live, r, gruppe), [kpis, live, r, gruppe]);
@@ -429,18 +503,9 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   const oktC = useTrMemo(() => (rc ? oktSerie(live, rc, gruppe) : null), [live, rc, gruppe]);
   const nye = useTrMemo(() => nyeSerie(members, r, departed), [members, r, departed]);
   const nyeC = useTrMemo(() => (rc ? nyeSerie(members, rc, departed) : null), [members, rc, departed]);
-  // Hva de nye består av: er de fortsatt på introkurs, eller allerede borte?
-  // Uten dette ser tallet høyt ut i introkurs-måneder.
-  const nyeSammensetning = useTrMemo(() => {
-    const iReg = {}; (members || []).forEach(m => { iReg[m.id] = m; });
-    let intro = 0, borte = 0;
-    innmeldinger(members, departed).filter(p => iRange(p.innmeldingsdato, r)).forEach(p => {
-      const m = iReg[p.id];
-      if (!m) borte++;
-      else if (m.kategori === 'Introkurs') intro++;
-    });
-    return { intro, borte };
-  }, [members, departed, r]);
+  // Hva som har skjedd med de nye: fast, fortsatt intro, parkert eller borte.
+  const statNa = useTrMemo(() => innmeldtStatus(members, departed, r), [members, departed, r]);
+  const statFor = useTrMemo(() => (rc ? innmeldtStatus(members, departed, rc) : null), [members, departed, rc]);
 
   const mu = useTrMemo(() => medlemsUker(live, gruppe), [live, gruppe]);
   const katU = useTrMemo(() => kategoriUker(live, gruppe), [live, gruppe]);
@@ -449,7 +514,14 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
 
   const sumOkt = s => s.reduce((a, e) => a + e[1].okter, 0);
   const sumOpp = s => s.reduce((a, e) => a + e[1].oppmote, 0);
-  const snitt = s => (sumOkt(s) ? sumOpp(s) / sumOkt(s) : null);
+  const sumTall = s => s.reduce((a, e) => a + e[1].medTall, 0);
+  const snitt = s => (sumTall(s) ? sumOpp(s) / sumTall(s) : null);
+  const utenTall = sumOkt(okt) - sumTall(okt);
+  // «Grupper»-flisa viser alle gruppene uansett gruppevalg.
+  const utenTallAlle = useTrMemo(() => {
+    const s = oktSerie(live, r, 'alle');
+    return s.reduce((a, e) => a + e[1].okter - e[1].medTall, 0);
+  }, [live, r]);
 
   // Aktive medlemmer NÅ regnes fra registeret — samme definisjon og samme
   // tall som sidefeltet (mergeLiveKpis filtrerer bort parkerte medlemskap).
@@ -470,19 +542,13 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
   // Intro → fast: av dem som meldte seg inn i perioden, hvor mange står med
   // fast (ikke-intro) medlemskap i dag. Spond oppretter nytt medlemskap når
   // en introdeltaker fortsetter, så dette er et gulv — ikke en fasit.
-  // Under fem innmeldinger sier en prosent mer enn den vet: 1 av 2 blir
-  // «50 %», og det leses som en trend. Da viser vi bare «a av b».
-  const INTRO_MIN_FOR_PROSENT = 5;
-  const introTall = (rr) => {
-    if (!rr) return null;
-    // Med dem som har sluttet: en introdeltaker som aldri fortsatte står
-    // ikke i registeret lenger, men skal telle i «av».
-    const inn = innmeldinger(members, departed).filter(m => iRange(m.innmeldingsdato, rr));
-    if (!inn.length) return null;
-    return { fast: inn.filter(m => m.kategori !== 'Introkurs').length, av: inn.length };
-  };
-  const introNa = introTall(r), introFor = introTall(rc);
+  const introNa = statNa && statNa.av ? statNa : null;
+  const introFor = statFor && statFor.av ? statFor : null;
   const introAndel = (t) => (t && t.av >= INTRO_MIN_FOR_PROSENT ? t.fast / t.av : null);
+
+  // Er oppmøtet eldre enn forrige uke, slutter periodene der dataene slutter.
+  const kalenderForrige = isoPluss(isoMandag(isoLokal(new Date())), -7);
+  const dataForsinket = sisteUke < kalenderForrige;
 
   const til = (id) => () => {
     const el = document.getElementById(id);
@@ -500,6 +566,8 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
         Viser <strong>{r.navn}</strong>{r.fra ? ` (${r.fra} → ${r.til})` : ''} for {gruppeNavn}
         {rc ? <> — sammenlignet med <strong>{rc.navn}</strong> ({rc.fra} → {rc.til}).</>
           : (q.p || '4u') === 'alt' ? ' — uten sammenligning (velg en kortere periode for å sammenligne).' : ' — uten sammenligning.'}
+        {' '}Periodene består av hele uker — inneværende uke kommer med når den er ferdig.
+        {dataForsinket && <strong style={{ color: 'var(--coral)' }}>{' '}Oppmøte er bare registrert til og med {fmtDate(oppmoteTil(live))}, så periodene slutter der.</strong>}
         {kunSheets && ' Gruppefiltrering finnes bare for økter som ligger i Sheets (logget i appen eller importert) — Spond-historikken er gruppert på klassenavn, ikke gruppe.'}
       </div>
 
@@ -510,19 +578,20 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
             ? snapshots.filter(s => !r.fra || s.uke >= isoUkeNokkel(r.fra)).map(s => [s.uke, s.aktive]) : null} />
         <TrendKort label="Snitt pr. økt" verdi={snitt(okt)} forrige={oktC ? snitt(oktC) : null} farge="blue"
           format={v => (Math.round(v * 10) / 10).toString().replace('.', ',')} enhet=" stk"
-          hint="Deltagere pr. økt. Teller og nevner fra samme kilde (økter i Sheets), så snittet ikke blander Spond-historikk med loggede økter."
+          hint="Deltagere pr. økt med registrert oppmøte. Økter som er logget uten oppmøte holdes utenfor, som i rapporten. Teller og nevner fra samme kilde (økter i Sheets), så snittet ikke blander Spond-historikk med loggede økter."
           onKlikk={til('tr-puls')}
-          serie={okt.map(e => [e[0], e[1].okter ? Math.round((e[1].oppmote / e[1].okter) * 10) / 10 : 0])} />
+          serie={okt.map(e => [e[0], e[1].medTall ? Math.round((e[1].oppmote / e[1].medTall) * 10) / 10 : 0])} />
         <TrendKort label="Økter holdt" verdi={okt.length ? sumOkt(okt) : null} forrige={oktC && oktC.length ? sumOkt(oktC) : null}
           farge="green" hint="Økter logget i trener-appen eller importert fra Spond-oppmøte. Finnes bare for Sheets-æraen."
+          under={utenTall > 0 ? `${utenTall} uten registrert oppmøte` : null}
           onKlikk={til('tr-gruppe')} serie={okt.map(e => [e[0], e[1].okter])} />
         <TrendKort label="Nye medlemmer" verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
           forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
           hint={'Personer som meldte seg inn for første gang i perioden — én gang pr. person, også om Spond har gitt dem nye medlemskap senere. '
             + (departed && departed.spond ? 'Tar med dem som har sluttet igjen (fra importen av tidligere medlemmer).'
               : 'Uten importerte tidligere medlemmer mangler de som meldte seg inn og sluttet før sporingen startet.')}
-          under={(nyeSammensetning.intro || nyeSammensetning.borte)
-            ? `${nyeSammensetning.intro} på introkurs nå · ${nyeSammensetning.borte} sluttet igjen` : null}
+          under={statNa && (statNa.intro || statNa.borte)
+            ? `${statNa.intro} på introkurs nå · ${statNa.borte} sluttet igjen` : null}
           onKlikk={til('tr-kohort')} serie={nye} />
         <TrendKort label="Intro → fast"
           verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}
@@ -531,7 +600,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
           under={introNa && introAndel(introNa) != null
             ? `${Math.round(introAndel(introNa) * 100)} % av innmeldingene`
             : introNa ? `for få innmeldinger til å regne prosent (< ${INTRO_MIN_FOR_PROSENT})` : ''}
-          hint="Av dem som meldte seg inn i perioden, hvor mange som i dag står med fast medlemskap. Spond oppretter nytt medlemskap når en introdeltaker fortsetter, så dette er et gulv — ikke en ekte konverteringsrate."
+          hint="Av dem som meldte seg inn i perioden, hvor mange som står i registeret i dag med fast medlemskap. De som har sluttet eller er parkert teller ikke som faste. Spond oppretter nytt medlemskap når en introdeltaker fortsetter, så dette er et gulv — ikke en ekte konverteringsrate."
           onKlikk={til('tr-funnel')} />
       </div>
 
@@ -556,8 +625,8 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
 
       <div className="section-h">Semester mot semester<span className="meta">oppmøte pr. semesteruke · hele grunnlaget</span></div>
       <Tile title="Semester mot semester" corner="uke 1 → N">
-        <SemesterOverlay entries={ukeserie(kpis, live, { fra: '', til: trIso(new Date()) }, gruppe)}
-          naaKey={periodeRange('semester').semKey} />
+        <SemesterOverlay entries={ukeserie(kpis, live, periodeRange('alt', sisteUke), gruppe)}
+          naaKey={periodeRange('semester', sisteUke).semKey} />
       </Tile>
 
       <div className="section-h" id="tr-gruppe" style={{ scrollMarginTop: 80 }}>Grupper
@@ -566,11 +635,20 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
         {(() => {
           const rader = DASH_GRUPPER.concat(['ukjent']).map(g => {
             const s = oktSerie(live, r, g);
-            return { navn: DASH_GRUPPE_LABEL[g] || g, okter: sumOkt(s), snitt: sumOkt(s) ? sumOpp(s) / sumOkt(s) : 0 };
-          }).filter(g => g.okter > 0).sort((a, b) => b.snitt - a.snitt);
-          if (!rader.length) return <div className="dim" style={{ fontSize: 12 }}>Ingen økter i perioden.</div>;
-          return <HBar data={rader.map(g => ({ label: `${g.navn} (${g.okter} økter)`, value: Math.round(g.snitt * 10) / 10 }))}
-            color="var(--green)" height={20} />;
+            return { navn: DASH_GRUPPE_LABEL[g] || g, okter: sumOkt(s), medTall: sumTall(s), snitt: sumTall(s) ? sumOpp(s) / sumTall(s) : 0 };
+          }).filter(g => g.medTall > 0).sort((a, b) => b.snitt - a.snitt);
+          if (!rader.length) return <div className="dim" style={{ fontSize: 12 }}>Ingen økter med registrert oppmøte i perioden.</div>;
+          return (
+            <>
+              <HBar data={rader.map(g => ({ label: `${g.navn} (${g.medTall} økter)`, value: Math.round(g.snitt * 10) / 10 }))}
+                color="var(--green)" height={20} />
+              {utenTallAlle > 0 && (
+                <div className="dim" style={{ fontSize: 11, marginTop: 10 }}>
+                  {utenTallAlle} {utenTallAlle === 1 ? 'økt' : 'økter'} uten registrert oppmøte er holdt utenfor snittet.
+                </div>
+              )}
+            </>
+          );
         })()}
       </Tile>
 
@@ -598,8 +676,8 @@ function Trender({ kpis, charts, live, members, events, snapshots, isStyre, depa
       <KohortSeksjon kpis={kpis} charts={charts} departed={departed} />
 
       <div className="section-h" id="tr-funnel" style={{ scrollMarginTop: 80 }}>Konverteringsfunnel
-        <span className="meta">intro-kurs → fast medlemskap · hele historikken · følger ikke filteret</span></div>
-      <Funnel kpis={kpis} live={live} isStyre={isStyre} onGotoReconcile={onGotoReconcile} />
+        <span className="meta">innmeldt {r.navn} · hva har skjedd siden · gjelder hele klubben</span></div>
+      <Funnel na={introNa} forrige={introFor} r={r} rc={rc} />
     </div>
   );
 }
@@ -620,6 +698,8 @@ window.ukeserie = ukeserie;
 window.oktSerie = oktSerie;
 window.nyeSerie = nyeSerie;
 window.sumIPeriode = sumIPeriode;
+window.innmeldtStatus = innmeldtStatus;
+window.INTRO_MIN_FOR_PROSENT = INTRO_MIN_FOR_PROSENT;
 window.ukerFor = ukerFor;
 window.medlemsUker = medlemsUker;
 window.kategoriUker = kategoriUker;

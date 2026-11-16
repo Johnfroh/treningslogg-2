@@ -78,12 +78,16 @@ function Register(){
 
   // derived header counts
   const stats = useM(()=>{
-    const list = members || [];
+    // Kortene teller AKTIVE medlemmer — samme definisjon som sidefeltet og
+    // Trender (parkerte «Ikke aktiv»-medlemskap holdes utenfor). Før sto det
+    // «aktive» under et tall som også talte de parkerte.
+    const alle = members || [];
+    const list = alle.filter(m=>!isInactiveTypeImp(m.medlemstype));
     const colored = list.filter(m=>m.grading.current.belt!=='Hvit').length;
     const cutoff = new Date(Date.now()-90*86400000).toISOString().slice(0,10);
     let recent=0; for(const m of list) for(const e of m.grading.history) if(e.kind!=='innmelding'&&e.date>=cutoff) recent++;
     const black = list.filter(m=>m.grading.current.belt==='Sort').length;
-    return { total:list.length, colored, recent, black };
+    return { total:list.length, parkert:alle.length-list.length, colored, recent, black };
   },[members]);
 
   if(!members) return <div style={{padding:30,color:'var(--muted)'}}>Laster medlemmer…</div>;
@@ -108,8 +112,9 @@ function Register(){
     <div>
       {/* KPI strip */}
       <div className="grid-4">
-        <KPI label="Medlemmer i register" value={stats.total} delta="aktive" accent="amber"/>
-        <KPI label="Fargebelter" value={stats.colored} delta={`av ${stats.total} (${fmtPct(stats.colored/stats.total)})`} accent="green"/>
+        <KPI label="Aktive medlemmer" value={stats.total}
+          delta={stats.parkert>0 ? `+ ${stats.parkert} parkert i registeret` : 'i registeret'} accent="amber"/>
+        <KPI label="Fargebelter" value={stats.colored} delta={stats.total ? `av ${stats.total} aktive (${fmtPct(stats.colored/stats.total)})` : '—'} accent="green"/>
         <KPI label="Sortbelter" value={stats.black} delta="instruktørnivå" accent="blue"/>
         <KPI label="Graderinger" value={stats.recent} delta="siste 90 dager" deltaClass="up" accent="coral"/>
       </div>
@@ -182,7 +187,7 @@ function Register(){
                   <td onClick={()=>setOpenId(m.id)} style={{cursor:'pointer'}}>
                     <strong>{m.navn}</strong>
                     {actions.isEdited(m.id) && <span className="dot-edit" title="Endret"/>}
-                    <div className="sub">{m.kategori}{m.alder!=null?` · ${m.alder} år`:''}</div>
+                    <div className="sub">{m.kategori}{m.alder!=null?` · ${m.alder} år`:''}{isInactiveTypeImp(m.medlemstype)?' · parkert':''}</div>
                   </td>
                   <td>
                     {isEdit
@@ -213,7 +218,7 @@ function Register(){
         </table>
       </div>
       <div className="muted" style={{fontSize:11,marginTop:8}}>
-        {filtered.length} av {members.length} medlemmer
+        {filtered.length} av {members.length} i registeret{stats.parkert>0 ? ` (${stats.total} aktive + ${stats.parkert} parkert)` : ''}
         {attFrom && <> · Oppmøtedata fra {fmtDate(attFrom)} — «≥» betyr gradert før det, så tallet er et minimum</>}
       </div>
 
