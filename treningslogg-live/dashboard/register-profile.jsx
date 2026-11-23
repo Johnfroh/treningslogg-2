@@ -188,6 +188,24 @@ function Timeline({ history, followup }){
 }
 
 /* ---------- Profile slide-over ---------- */
+// Fanger render-feil i én del av profilen. Uten denne tar React ned hele
+// siden (blank skjerm) når ett kort krasjer. Feilteksten vises, så den kan
+// meldes videre.
+class KortFeilgrense extends React.Component {
+  constructor(p){ super(p); this.state = { feil: null }; }
+  static getDerivedStateFromError(feil){ return { feil }; }
+  componentDidCatch(feil, info){ console.error('Medlemskort-feil:', feil, info && info.componentStack); }
+  render(){
+    if (!this.state.feil) return this.props.children;
+    return (
+      <div className="so-card" style={{fontSize:12.5, lineHeight:1.6}}>
+        <div className="so-card-h"><span>Trend og innhold</span></div>
+        <div className="muted">Denne delen feilet: <code>{String(this.state.feil && this.state.feil.message || this.state.feil)}</code></div>
+      </div>
+    );
+  }
+}
+
 function MemberProfile({ member, onClose }){
   const { actions, followup, live } = useMembers();
   // Oppfølgingshistorikken for dette medlemmet — logges fra «I dag».
@@ -283,8 +301,13 @@ function MemberProfile({ member, onClose }){
           )}
         </div>
 
-        {/* Personlig dashboard: trend, gruppemiks og innholdsprofil */}
-        <MemberDash member={member} live={live}/>
+        {/* Personlig dashboard: trend, gruppemiks og innholdsprofil. Bak en
+            feilgrense, så en feil her aldri blanker hele dashboardet. */}
+        <KortFeilgrense key={member.id}>
+          {typeof window.MemberDash === 'function'
+            ? <window.MemberDash member={member} live={live}/>
+            : <div className="so-card muted" style={{fontSize:12.5}}>Trend og innholdsprofil ble ikke lastet. Last siden på nytt (Ctrl/Cmd+Shift+R).</div>}
+        </KortFeilgrense>
 
         {/* Contact + guardians — skjult for mindreårige (personvern) */}
         {minor ? (
