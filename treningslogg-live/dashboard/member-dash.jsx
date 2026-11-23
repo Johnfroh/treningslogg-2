@@ -206,7 +206,11 @@ function Innholdsprofil({ member }) {
     let aktiv = true;
     setData(null); setFeil(null);
     DASH_API.memberInnhold(member.id)
-      .then(d => { if (aktiv) setData(d); })
+      .then(d => {
+        if (!aktiv) return;
+        if (!d || !Array.isArray(d.posisjon) || !Array.isArray(d.handling)) setFeil('uventet svar fra Apps Script');
+        else setData(d);
+      })
       .catch(e => { if (aktiv) setFeil(String((e && e.message) || e)); });
     return () => { aktiv = false; };
   }, [member.id]);
