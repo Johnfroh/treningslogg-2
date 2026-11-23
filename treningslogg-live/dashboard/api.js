@@ -224,6 +224,8 @@ window.DASH_API = (function () {
     importWeekAttendance(events) { return post({ action: 'dashImportWeekAttendance', events }); },
     // Opprydding etter feilimport: list økter i intervall, slett/nullstill valgte.
     cleanupList(from, to) { return get('dashCleanupList', { from, to }); },
+    // Innholdsprofil for ett medlem (medlemskortet) — hentes først når kortet åpnes.
+    memberInnhold(memberId) { return get('dashMemberInnhold', { memberId }); },
     cleanupApply(deleteIds, clearIds) { return post({ action: 'dashCleanupApply', deleteIds, clearIds }); },
     fetchThemes() { return get('dashThemes'); },
     // Innstillinger, snapshots, hendelser og oppfølging.

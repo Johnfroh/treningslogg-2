@@ -165,6 +165,8 @@ module.exports = [
         // okonomi-import.jsx
         parseOkonomiFile: 'readonly', OkonomiImportModal: 'readonly',
         monthLabel: 'readonly', MND_NO: 'readonly',
+        // member-dash.jsx
+        MemberDash: 'readonly',
         // register-profile.jsx
         GradeDialog: 'readonly', MemberProfile: 'readonly', Timeline: 'readonly',
         Stepper: 'readonly', fmtDate: 'readonly', tenure: 'readonly',
