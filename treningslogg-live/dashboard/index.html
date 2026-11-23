@@ -533,7 +533,10 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- Datalag: Sheets via Apps Script (med demo-fallback) -->
-<script src="api.js"></script>
+<!-- ?v= tvinger nettleseren til å hente ny api.js. Vanlige <script>-filer
+     har blitt liggende cachet etter deploy (se fetchWhoami i members-store).
+     Bump datoen når api.js får nye funksjoner. -->
+<script src="api.js?v=2026-11-23"></script>
 
 <!-- Design-komponenter -->
 <script type="text/babel" src="tweaks-panel.jsx"></script>

@@ -198,6 +198,19 @@ function InnholdSeksjon({ tittel, rader, modus, antallMed }) {
   );
 }
 
+// Henter innholdsprofilen. En gammel, cachet api.js mangler memberInnhold —
+// da går vi rett mot /api i stedet for å krasje. Promise.resolve().then
+// gjør at også en synkron feil havner i .catch og ikke tar ned siden.
+function mdHentInnhold(memberId) {
+  return Promise.resolve().then(() => {
+    if (window.DASH_API && typeof DASH_API.memberInnhold === 'function') return DASH_API.memberInnhold(memberId);
+    const url = '/api?action=dashMemberInnhold&memberId=' + encodeURIComponent(memberId) + '&_ts=' + Date.now();
+    return fetch(url, { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('GET dashMemberInnhold feilet: ' + r.status); return r.json(); })
+      .then(j => { if (!j.ok) throw new Error(j.error || 'ukjent feil'); return j.data; });
+  });
+}
+
 function Innholdsprofil({ member }) {
   const [data, setData] = useStateMD(null);
   const [feil, setFeil] = useStateMD(null);
@@ -205,7 +218,7 @@ function Innholdsprofil({ member }) {
   useEffectMD(() => {
     let aktiv = true;
     setData(null); setFeil(null);
-    DASH_API.memberInnhold(member.id)
+    mdHentInnhold(member.id)
       .then(d => {
         if (!aktiv) return;
         if (!d || !Array.isArray(d.posisjon) || !Array.isArray(d.handling)) setFeil('uventet svar fra Apps Script');

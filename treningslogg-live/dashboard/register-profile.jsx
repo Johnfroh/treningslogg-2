@@ -237,6 +237,14 @@ function MemberProfile({ member, onClose }){
           </div>
         </div>
 
+        {/* Personlig dashboard: trend, gruppemiks og innholdsprofil. Bak en
+            feilgrense, så en feil her aldri blanker hele dashboardet. */}
+        <KortFeilgrense key={member.id}>
+          {typeof window.MemberDash === 'function'
+            ? <window.MemberDash member={member} live={live}/>
+            : <div className="so-card muted" style={{fontSize:12.5}}>Trend og innholdsprofil ble ikke lastet. Last siden på nytt (Ctrl/Cmd+Shift+R).</div>}
+        </KortFeilgrense>
+
         {/* Belt panel */}
         <div className="so-card">
           <div className="so-card-h">
@@ -300,14 +308,6 @@ function MemberProfile({ member, onClose }){
             </div>
           )}
         </div>
-
-        {/* Personlig dashboard: trend, gruppemiks og innholdsprofil. Bak en
-            feilgrense, så en feil her aldri blanker hele dashboardet. */}
-        <KortFeilgrense key={member.id}>
-          {typeof window.MemberDash === 'function'
-            ? <window.MemberDash member={member} live={live}/>
-            : <div className="so-card muted" style={{fontSize:12.5}}>Trend og innholdsprofil ble ikke lastet. Last siden på nytt (Ctrl/Cmd+Shift+R).</div>}
-        </KortFeilgrense>
 
         {/* Contact + guardians — skjult for mindreårige (personvern) */}
         {minor ? (
