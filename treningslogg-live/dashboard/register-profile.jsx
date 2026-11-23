@@ -189,7 +189,7 @@ function Timeline({ history, followup }){
 
 /* ---------- Profile slide-over ---------- */
 function MemberProfile({ member, onClose }){
-  const { actions, followup } = useMembers();
+  const { actions, followup, live } = useMembers();
   // Oppfølgingshistorikken for dette medlemmet — logges fra «I dag».
   const fuMine = (followup || []).filter(f => f.memberId === member.id);
   const [dlg, setDlg] = useStateP(null); // 'stripe'|'belte'
@@ -282,6 +282,9 @@ function MemberProfile({ member, onClose }){
             </div>
           )}
         </div>
+
+        {/* Personlig dashboard: trend, gruppemiks og innholdsprofil */}
+        <MemberDash member={member} live={live}/>
 
         {/* Contact + guardians — skjult for mindreårige (personvern) */}
         {minor ? (

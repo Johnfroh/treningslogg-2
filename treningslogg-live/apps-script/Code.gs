@@ -201,6 +201,7 @@ function handle(e, method) {
       case 'dashCleanupApply':  return json({ ok: true, data: dashCleanupApply(body.deleteIds, body.clearIds) });
       case 'dashIgnoreName':    return json({ ok: true, data: dashIgnoreName(body.name, body.on) });
       case 'dashThemes':        return json({ ok: true, data: dashThemes() });
+      case 'dashMemberInnhold': return json({ ok: true, data: dashMemberInnhold(params.memberId || body.memberId) });
       case 'dashCalendar':      return json({ ok: true, data: dashCalendar() });
       // Økonomi — egen handling, skjermes av functions/dashboard/okonomi.js
       case 'dashOkonomiList':   return json({ ok: true, data: { okonomi: { months: dashReadOkonomi() } } });
@@ -694,6 +695,179 @@ function dashAttendanceByMember() {
     delete e._s;
   });
   return byId;
+}
+
+// ─── Innholdsprofil pr. medlem (medlemskortet) ─────────────────────
+// Kjernetagene fra app/data.js (TL_DATA.tags, core: true). Endres de der,
+// endre dem her også.
+const DASH_KJERNETAGS = [
+  { id: 'guard', label: 'Guard', kind: 'posisjon' },
+  { id: 'mount', label: 'Mount', kind: 'posisjon' },
+  { id: 'sidekontroll', label: 'Sidekontroll', kind: 'posisjon' },
+  { id: 'back', label: 'Back', kind: 'posisjon' },
+  { id: 'c2c', label: 'C2C', kind: 'posisjon' },
+  { id: 'c2b', label: 'C2B', kind: 'posisjon' },
+  { id: 'passing', label: 'Passing', kind: 'handling' },
+  { id: 'escapes', label: 'Escapes', kind: 'handling' },
+  { id: 'submissions', label: 'Submissions', kind: 'handling' },
+  { id: 'takedowns', label: 'Takedowns', kind: 'handling' },
+  { id: 'sweeps', label: 'Sweeps', kind: 'handling' },
+  { id: 'pins', label: 'Pins', kind: 'handling' },
+];
+// Fritekst-tags trenerne bruker om det samme. Bare åpenbare varianter —
+// alt annet holdes utenfor profilen i stedet for å gjettes inn.
+const DASH_TAG_ALIAS = {
+  'closed-guard': 'guard', 'half-guard': 'guard', 'open-guard': 'guard', 'guard-retention': 'guard',
+  'side-control': 'sidekontroll', 'side-kontroll': 'sidekontroll',
+  'back-control': 'back', 'rygg': 'back',
+  'pass': 'passing', 'guard-passing': 'passing',
+  'escape': 'escapes', 'submission': 'submissions', 'takedown': 'takedowns',
+  'sweep': 'sweeps', 'pin': 'pins',
+};
+// En økt for 90 dager siden teller halvparten av en økt i dag.
+const DASH_INNHOLD_HALVERING = 90;
+
+// Kjernetagene i én økt, gruppert på type: { posisjon: [id], handling: [id] }.
+function dashKjerneTagsI_(tags) {
+  const kind = {};
+  DASH_KJERNETAGS.forEach(t => { kind[t.id] = t.kind; });
+  const ut = { posisjon: [], handling: [] };
+  (tags || []).forEach(raw => {
+    const s = dashSlug(raw);
+    const id = kind[s] ? s : (DASH_TAG_ALIAS[s] || '');
+    if (!id || !kind[id]) return;
+    const liste = ut[kind[id]];
+    if (liste.indexOf(id) < 0) liste.push(id);
+  });
+  return ut;
+}
+
+// Hva ett medlem har trent, vektet, mot hva klubben har tilbudt i de samme
+// gruppene i samme periode. Hver økt gir 1 poeng pr. type (posisjon og
+// handling hver for seg), delt likt på øktas tags av den typen. «vektet»
+// lar ferske økter telle mest, «alle» teller alle likt.
+//
+// Klubbens tall er det medlemmet ville fått ved å gå på tilfeldige økter i
+// gruppene sine: hver gruppes fordeling, veid med hvor mye medlemmet trener
+// i gruppen. Uten den vektingen blir en no-gi-utøver sammenlignet med
+// juniorpartiet.
+//
+// Bare Sheets-æraen: Spond-historikken har verken tags eller gruppe.
+function dashMemberInnhold(memberId) {
+  const id = String(memberId || '').trim();
+  if (!id) throw new Error('memberId mangler');
+  const sessions = readSheet(SHEET_NAMES.sessions, SESSION_COLS, parseSessionRow);
+  const sById = {};
+  sessions.forEach(s => { sById[s.id] = s; });
+  const idx = dashMemberIndex();
+  const naa = new Date();
+  const idag = naa.getFullYear() + '-' + pad2(naa.getMonth() + 1) + '-' + pad2(naa.getDate());
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const vekt = (dato) => {
+    const alder = Math.max(0, (new Date(idag + 'T00:00:00Z') - new Date(dato + 'T00:00:00Z')) / 86400000);
+    return Math.pow(0.5, alder / DASH_INNHOLD_HALVERING);
+  };
+
+  // Medlemmets økter — samme regler som profilen: én pr. økt, bare økter som finnes.
+  const mine = [];
+  const sett = {};
+  readAttendance().forEach(a => {
+    const mid = a.memberId || dashResolveMemberId(a.memberName, idx);
+    if (mid !== id || sett[a.sessionId]) return;
+    const s = sById[a.sessionId];
+    if (!s || !ISO.test(String(s.date || '')) || s.date > idag) return;
+    sett[a.sessionId] = true;
+    mine.push(s);
+  });
+
+  const MODI = ['vektet', 'alle'];
+  const TYPER = ['posisjon', 'handling'];
+  const tomVektor = () => { const o = {}; DASH_KJERNETAGS.forEach(t => { o[t.id] = 0; }); return o; };
+  const vektFor = (modus, dato) => (modus === 'vektet' ? vekt(dato) : 1);
+
+  let fra = '';
+  mine.forEach(s => { if (!fra || s.date < fra) fra = s.date; });
+
+  // Medlemmet: tag-vektor pr. modus, og vekt pr. gruppe (hele oppmøtet).
+  const meg = {}, gruppeVekt = {};
+  const antall = tomVektor();
+  let medPosisjon = 0, medHandling = 0, medNoe = 0;
+  MODI.forEach(m => { meg[m] = tomVektor(); gruppeVekt[m] = {}; });
+  mine.forEach(s => {
+    const k = dashKjerneTagsI_(s.tags);
+    const g = dashNormGroup_(s.group, s.title);
+    if (k.posisjon.length) medPosisjon++;
+    if (k.handling.length) medHandling++;
+    if (k.posisjon.length || k.handling.length) medNoe++;
+    k.posisjon.concat(k.handling).forEach(t => { antall[t]++; });
+    MODI.forEach(m => {
+      const w = vektFor(m, s.date);
+      gruppeVekt[m][g] = (gruppeVekt[m][g] || 0) + w;
+      TYPER.forEach(ty => { k[ty].forEach(t => { meg[m][t] += w / k[ty].length; }); });
+    });
+  });
+
+  // Klubben: tag-vektor pr. gruppe pr. modus, fra medlemmets første økt til i dag.
+  const klubbG = {};
+  MODI.forEach(m => { klubbG[m] = {}; });
+  if (fra) {
+    sessions.forEach(s => {
+      if (!ISO.test(String(s.date || '')) || s.date < fra || s.date > idag) return;
+      const k = dashKjerneTagsI_(s.tags);
+      if (!k.posisjon.length && !k.handling.length) return;
+      const g = dashNormGroup_(s.group, s.title);
+      MODI.forEach(m => {
+        const w = vektFor(m, s.date);
+        const v = klubbG[m][g] || (klubbG[m][g] = tomVektor());
+        TYPER.forEach(ty => { k[ty].forEach(t => { v[t] += w / k[ty].length; }); });
+      });
+    });
+  }
+
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  // Andeler innen én type (posisjon eller handling) — summerer til 1.
+  const andeler = (vektor, ty) => {
+    const ids = DASH_KJERNETAGS.filter(t => t.kind === ty).map(t => t.id);
+    const sum = ids.reduce((a, t) => a + vektor[t], 0);
+    const o = {};
+    ids.forEach(t => { o[t] = sum > 0 ? vektor[t] / sum : 0; });
+    return { o: o, sum: sum };
+  };
+  const klubbAndeler = (m, ty) => {
+    const o = {};
+    DASH_KJERNETAGS.forEach(t => { if (t.kind === ty) o[t.id] = 0; });
+    let total = 0;
+    Object.keys(gruppeVekt[m]).forEach(g => {
+      const v = klubbG[m][g];
+      if (!v) return;
+      const a = andeler(v, ty);
+      if (!a.sum) return;
+      const alfa = gruppeVekt[m][g];
+      total += alfa;
+      Object.keys(o).forEach(t => { o[t] += alfa * a.o[t]; });
+    });
+    Object.keys(o).forEach(t => { o[t] = total > 0 ? o[t] / total : 0; });
+    return o;
+  };
+
+  const ut = { posisjon: [], handling: [] };
+  TYPER.forEach(ty => {
+    const megA = {}, klubbA = {};
+    MODI.forEach(m => { megA[m] = andeler(meg[m], ty).o; klubbA[m] = klubbAndeler(m, ty); });
+    DASH_KJERNETAGS.filter(t => t.kind === ty).forEach(t => {
+      ut[ty].push({
+        tag: t.id, label: t.label, antall: antall[t.id],
+        meg: { vektet: r3(megA.vektet[t.id]), alle: r3(megA.alle[t.id]) },
+        klubb: { vektet: r3(klubbA.vektet[t.id]), alle: r3(klubbA.alle[t.id]) },
+      });
+    });
+  });
+
+  return {
+    memberId: id, fra: fra, til: idag, halveringDager: DASH_INNHOLD_HALVERING,
+    okter: mine.length, medPosisjon: medPosisjon, medHandling: medHandling, medNoe: medNoe,
+    posisjon: ut.posisjon, handling: ut.handling,
+  };
 }
 
 // Ukentlig oppmøte-opplastning (Spond) — matcher mot loggede økter på
