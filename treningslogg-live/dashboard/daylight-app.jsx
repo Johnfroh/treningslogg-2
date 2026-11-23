@@ -53,7 +53,7 @@ const COLORS = ['#7B6EF6','#34B98C','#F2825F','#4F9BEA','#B06FD6','#A6A3BD'];
 // Innstillinger krasjet på første felt. Verdiene speiler SETTING_DEFAULTS i
 // api.js og DASH_SETTING_DEFAULTS i Code.gs.
 const TERSKEL_FALLBACK = (typeof DASH_API !== 'undefined' && DASH_API.SETTING_DEFAULTS)
-  || { stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3 };
+  || Object.assign({ stilleUker: 3, introUker: 2, fallendeMinPrev4: 3 }, GRAD_TERSKEL_STANDARD);
 
 // Fanen ligger i location.hash (#idag, #oversikt …), så en lenke eller en
 // oppfriskning lander på samme fane — og tilbake/frem i nettleseren bytter

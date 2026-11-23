@@ -303,8 +303,6 @@ function Today({ members, live, thresholds, q, onEndreQ }){
   const list = gm && !gm.mangler ? alle.filter(gm.har) : alle;
   const th = thresholds || {};
   const stilleUker = th.stilleUker || 3;
-  const gradMinOppmote = th.gradMinOppmote || 30;
-  const gradMinMnd = th.gradMinMnd || 6;
   const introUker = th.introUker || 2;
   const fallMinPrev4 = th.fallendeMinPrev4 || TD_FALL_MIN_PREV4;
 
@@ -348,19 +346,14 @@ function Today({ members, live, thresholds, q, onEndreQ }){
     })
     .sort((a,b) => uten(b) - uten(a));
 
-  // 2) Graderingsklare: nok oppmøter SIDEN SIST GRADERING + lenge nok siden.
-  //    Tidligere talte den alle oppmøter noensinne, mens rapporten talte fra
-  //    forrige gradering — to lister som pekte på hver sine medlemmer. Begge
-  //    bruker nå okterSidenGradering(). Sortbelte utelates (graderes i grader).
+  // 2) Graderingsklare: egne terskler for stripe og belte, voksne og barn
+  //    (graderingsKlar i dashboard-shared.jsx — samme regel som rapporten).
+  //    Belte går foran stripe. Belte øverst, så flest oppmøter.
   const grad = list
-    .filter(m => {
-      const g = m.grading && m.grading.current; if(!g || g.belt === 'Sort') return false;
-      const md = tdDaysSince(g.since); // dager siden sist gradert
-      if(md == null || md < gradMinMnd*30) return false;
-      return okterSidenGradering(live, m.id, g.since) >= gradMinOppmote;
-    })
-    .map(m => ({ ...m, siden: okterSidenGradering(live, m.id, m.grading.current.since) }))
-    .sort((a,b) => b.siden - a.siden);
+    .map(m => ({ ...m, klar: graderingsKlar(m, live, th) }))
+    .filter(m => m.klar)
+    .sort((a,b) => ((b.klar.type === 'belte') - (a.klar.type === 'belte')) || (b.klar.okter - a.klar.okter));
+  const gradBelte = grad.filter(m => m.klar.type === 'belte').length;
 
   // 3) Intro-oppfølging: introdeltakere som ikke har møtt nylig (eller aldri).
   const intro = list
@@ -408,7 +401,7 @@ function Today({ members, live, thresholds, q, onEndreQ }){
             tallet på 0, er kortet nøytralt — da er det ingenting å gjøre. */}
         <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`}
           status={synlige(stille, skjultStille) > 0 ? 'handling' : null}/>
-        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`}
+        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`${gradBelte} belte · ${grad.length - gradBelte} stripe · terskler i Innstillinger`}
           status={synlige(grad, skjultGrad) > 0 ? 'bra' : null}/>
         <KPI label="Intro-oppfølging" value={fmtN(synlige(intro, skjultIntro))} delta={`introkurs · ikke møtt ≥ ${introUker} uker`}
           status={synlige(intro, skjultIntro) > 0 ? 'handling' : null}/>
@@ -450,8 +443,10 @@ function Today({ members, live, thresholds, q, onEndreQ }){
         skjulte={skjultStille} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
-        title="Graderingsklare" hint={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"
-        liste="grad" rows={grad} meta={m => `${fmtN(m.siden||0)} oppmøter siden gradering · sist gradert ${tdRelSince(m.grading.current.since)}`}
+        title="Graderingsklare" hint="egne terskler for stripe og belte, voksne og barn · belte øverst" accent="green"
+        liste="grad" rows={grad}
+        meta={m => <><strong style={{color:'var(--ink)'}}>{m.klar.type === 'belte' ? 'Belte' : 'Stripe'}</strong>
+          {` · ${fmtN(m.klar.okter)} oppmøter siden ${m.klar.type === 'belte' ? 'beltet' : 'sist gradert'} · ${tdRelSince(m.klar.fra)}`}</>}
         empty="Ingen kandidater over terskelen akkurat nå."
         skjulte={skjultGrad} onHandling={handling} busy={busy} onOpen={openMember}/>
 

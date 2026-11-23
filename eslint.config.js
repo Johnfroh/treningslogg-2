@@ -124,6 +124,8 @@ module.exports = [
         GRUPPE_UKER_TILBAKE: 'readonly',
         HENDELSE_FARGE: 'readonly', HENDELSE_TYPER: 'readonly',
         okterSidenGradering: 'readonly', SPARK_SOYLE_GRENSE: 'readonly',
+        GRAD_TERSKEL_STANDARD: 'readonly', faarStriper: 'readonly', erBarnGradering: 'readonly',
+        sisteBeltedato: 'readonly', graderingsKlar: 'readonly',
         DASH_GRUPPER: 'readonly', DASH_GRUPPE_LABEL: 'readonly', DASH_GRUPPE_FARGE: 'readonly',
         SMAL_PX: 'readonly', useSmal: 'readonly',
         // belt-system.jsx

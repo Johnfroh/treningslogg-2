@@ -317,6 +317,69 @@ function okterSidenGradering(live, memberId, fraISO, tilYm) {
   return n;
 }
 
+// =============== GRADERINGSKLAR ===============
+// Egne terskler for stripe og belte, og for voksne og barn. Én kilde for
+// «I dag» og rapporten; speiles av dashGraderingsKlar_() i Code.gs (ukesnapshot).
+// Nøklene ligger i dash_settings — standardverdiene speiles i Code.gs
+// (DASH_SETTING_DEFAULTS), api.js og settings-panels.jsx.
+const GRAD_TERSKEL_STANDARD = {
+  stripeVoksenOppmote: 30, stripeVoksenMnd: 3, belteVoksenOppmote: 100, belteVoksenMnd: 12,
+  stripeBarnOppmote: 20, stripeBarnMnd: 3, belteBarnOppmote: 60, belteBarnMnd: 12,
+};
+// Klubbregel: striper gis på hvitt belte og juniorbelter. Voksne fargebelter
+// får ikke striper — der er det bare beltet som teller.
+function faarStriper(belt) { return !belt || belt === 'Hvit' || isJuniorBelt(belt); }
+// Barn = juniorbelte, eller hvitt belte og mindreårig. Hvitt er felles for
+// begge stigene, så der avgjør alder/kategori.
+function erBarnGradering(m) {
+  const belt = (m && m.grading && m.grading.current && m.grading.current.belt) || 'Hvit';
+  if (isJuniorBelt(belt)) return true;
+  if (belt !== 'Hvit') return false;
+  return m.minor === true || m.kategori === 'Junior' || m.kategori === 'Knøtte'
+    || (m.alder != null && m.alder !== '' && Number(m.alder) < 16);
+}
+// Datoen beltet ble oppnådd: siste beltegradering. Hvitt belte uten
+// beltegradering → innmeldingen. Ellers det beste vi har (gjeldende «siden»).
+function sisteBeltedato(m) {
+  const g = (m && m.grading) || {};
+  let best = '';
+  (g.history || []).forEach(e => { if (e.kind === 'belte' && ISO_DATO.test(e.date || '') && e.date > best) best = e.date; });
+  if (best) return best;
+  const cur = g.current || {};
+  if ((cur.belt || 'Hvit') === 'Hvit') {
+    const innm = (g.history || []).find(e => e.kind === 'innmelding' && ISO_DATO.test(e.date || ''));
+    if (innm) return innm.date;
+    if (ISO_DATO.test(m.innmeldingsdato || '')) return m.innmeldingsdato;
+  }
+  return ISO_DATO.test(cur.since || '') ? cur.since : '';
+}
+function gradDagerSiden(iso) {
+  if (!ISO_DATO.test(iso || '')) return null;
+  return Math.floor((new Date(isoLokal(new Date()) + 'T00:00:00') - new Date(iso + 'T00:00:00')) / 86400000);
+}
+// null = ikke klar. Ellers { type: 'belte'|'stripe', barn, okter, dager, fra,
+// kravOkter, kravMnd }. Belte går foran stripe: den som er klar for belte,
+// står ikke i tillegg som stripekandidat.
+function graderingsKlar(m, live, terskler) {
+  const g = m && m.grading && m.grading.current;
+  if (!g || g.belt === 'Sort') return null;
+  const th = Object.assign({}, GRAD_TERSKEL_STANDARD, terskler || {});
+  const barn = erBarnGradering(m);
+  const hvem = barn ? 'Barn' : 'Voksen';
+  const sjekk = (type, fra) => {
+    const kravOkter = Number(th[type + hvem + 'Oppmote']), kravMnd = Number(th[type + hvem + 'Mnd']);
+    const dager = gradDagerSiden(fra);
+    if (dager == null || dager < kravMnd * 30) return null;
+    const okter = okterSidenGradering(live, m.id, fra);
+    if (okter < kravOkter) return null;
+    return { type, barn, okter, dager, fra, kravOkter, kravMnd };
+  };
+  const belte = sjekk('belte', sisteBeltedato(m));
+  if (belte) return belte;
+  if (!faarStriper(g.belt) || Number(g.stripes || 0) >= maxStripes) return null;
+  return sjekk('stripe', g.since);
+}
+
 // =============== TINY CHART PRIMITIVES ===============
 // Bar chart (horizontal)
 function HBar({ data, valueKey='value', labelKey='label', max, color, showValue=true, height=18, gap=6 }) {
@@ -601,6 +664,7 @@ window.DASH_GRUPPE_FARGE = DASH_GRUPPE_FARGE;
 window.SMAL_PX = SMAL_PX;
 window.useSmal = useSmal;
 window.okterSidenGradering = okterSidenGradering;
+Object.assign(window, { GRAD_TERSKEL_STANDARD, faarStriper, erBarnGradering, sisteBeltedato, graderingsKlar });
 window.SPARK_SOYLE_GRENSE = SPARK_SOYLE_GRENSE;
 window.HENDELSE_FARGE = HENDELSE_FARGE;
 window.HENDELSE_TYPER = HENDELSE_TYPER;

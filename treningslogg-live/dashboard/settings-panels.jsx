@@ -16,26 +16,28 @@ const { useState: useSt, useEffect: useStEffect } = React;
 
 // Siste skanse hvis verken Sheets eller api.js svarer. Speiler
 // SETTING_DEFAULTS i api.js og DASH_SETTING_DEFAULTS i Code.gs.
-const TERSKEL_STANDARD = {
-  stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
-};
+const TERSKEL_STANDARD = Object.assign({
+  stilleUker: 3, introUker: 2, fallendeMinPrev4: 3,
+}, GRAD_TERSKEL_STANDARD);
+// Graderingstersklene vises som en tabell: stripe/belte × voksne/barn.
+const GRAD_RADER = [
+  { type: 'stripe', navn: 'Stripe', hint: 'regnes fra siste stripe eller belte · bare hvitt belte og juniorbelter' },
+  { type: 'belte', navn: 'Belte', hint: 'regnes fra siste beltegradering' },
+];
+const GRAD_KOLONNER = [{ hvem: 'Voksen', navn: 'Voksne' }, { hvem: 'Barn', navn: 'Barn' }];
+const GRAD_NOKLER = Object.keys(GRAD_TERSKEL_STANDARD);
 function tersklerFra(v) {
   const u = {};
-  TERSKEL_FELT.forEach(f => {
-    const n = Number((v || {})[f.key]);
-    u[f.key] = isNaN(n) || !n ? TERSKEL_STANDARD[f.key] : n;
+  TERSKEL_FELT.map(f => f.key).concat(GRAD_NOKLER).forEach(k => {
+    const n = Number((v || {})[k]);
+    u[k] = isNaN(n) || !n ? TERSKEL_STANDARD[k] : n;
   });
   return u;
 }
-
 // Felt-etikettene. Rekkefølgen her er rekkefølgen i skjemaet.
 const TERSKEL_FELT = [
   { key: 'stilleUker', label: 'Stille etter', unit: 'uker',
     hint: 'Medlem som ikke er sett på så lenge havner i «Stille medlemmer».' },
-  { key: 'gradMinOppmote', label: 'Graderingsklar — oppmøter', unit: 'oppmøter',
-    hint: 'Minste antall registrerte oppmøter før noen regnes som kandidat.' },
-  { key: 'gradMinMnd', label: 'Graderingsklar — tid', unit: 'mnd',
-    hint: 'Minste tid siden forrige gradering.' },
   { key: 'introUker', label: 'Intro-oppfølging etter', unit: 'uker',
     hint: 'Introdeltaker som ikke har møtt på så lenge trenger en telefon.' },
   { key: 'fallendeMinPrev4', label: 'Fallende oppmøte — fra', unit: 'oppmøter',
@@ -56,7 +58,9 @@ function TerskelSkjema({ isStyre, settings, brukerStandard }) {
   // standardverdier. Synk det når tersklene faktisk kommer inn (og etter
   // lagring, som også gir et nytt settings-objekt).
   useStEffect(() => { setUtkast(tersklerFra(verdier)); }, [settings]);
-  const endret = TERSKEL_FELT.some(f => Number(utkast[f.key]) !== Number(tersklerFra(verdier)[f.key]));
+  const lagret = tersklerFra(verdier);
+  const endret = TERSKEL_FELT.map(f => f.key).concat(GRAD_NOKLER).some(k => Number(utkast[k]) !== Number(lagret[k]));
+  const sett = (k, v) => setUtkast(u => ({ ...u, [k]: v === '' ? '' : Number(v) }));
 
   function lagre() {
     setLagrer(true); setMsg('');
@@ -83,10 +87,35 @@ function TerskelSkjema({ isStyre, settings, brukerStandard }) {
         <label className="fld" key={f.key}>
           <span>{f.label} <span className="opt">({f.unit})</span></span>
           <input type="number" min={1} value={utkast[f.key]} disabled={!isStyre}
-            onChange={e => setUtkast(u => ({ ...u, [f.key]: e.target.value === '' ? '' : Number(e.target.value) }))} />
+            onChange={e => sett(f.key, e.target.value)} />
           <span className="dim" style={{ fontSize: 11, lineHeight: 1.5 }}>{f.hint}</span>
         </label>
       ))}
+
+      <div className="fld" style={{ marginTop: 4 }}>
+        <span>Graderingsklar <span className="opt">(oppmøter og måneder siden forrige)</span></span>
+        <div className="grad-terskler">
+          <span />
+          {GRAD_KOLONNER.map(k => <span key={k.hvem} className="gt-kol">{k.navn}</span>)}
+          {GRAD_RADER.map(r => (
+            <React.Fragment key={r.type}>
+              <span className="gt-rad"><strong>{r.navn}</strong><span className="dim">{r.hint}</span></span>
+              {GRAD_KOLONNER.map(k => (
+                <span key={k.hvem} className="gt-celle">
+                  <label><input type="number" min={1} disabled={!isStyre} aria-label={`${r.navn} ${k.navn} oppmøter`}
+                    value={utkast[r.type + k.hvem + 'Oppmote']} onChange={e => sett(r.type + k.hvem + 'Oppmote', e.target.value)} /> oppmøter</label>
+                  <label><input type="number" min={1} disabled={!isStyre} aria-label={`${r.navn} ${k.navn} måneder`}
+                    value={utkast[r.type + k.hvem + 'Mnd']} onChange={e => sett(r.type + k.hvem + 'Mnd', e.target.value)} /> mnd</label>
+                </span>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+        <span className="dim" style={{ fontSize: 11, lineHeight: 1.5 }}>
+          Begge kravene må være oppfylt. Den som er klar for belte, vises ikke i tillegg som stripekandidat.
+          Barn = juniorbelte, eller hvitt belte og under 16 / junior / knøtte. Sortbelte er holdt utenfor.
+        </span>
+      </div>
       {isStyre ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn primary sm" disabled={lagrer || !endret} onClick={lagre}>Lagre terskler</button>
