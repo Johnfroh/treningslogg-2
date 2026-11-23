@@ -46,6 +46,8 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<!-- Henter appens egne skript ferske ved hver lasting (se laster.js) -->
+<script src="/laster.js?v=1"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -54,13 +56,13 @@
 <div id="root"></div>
 
 <!-- 1. Statisk konfig (grupper, tags, demo-data) -->
-<script src="app/data.js"></script>
+<script type="text/x-fersk" src="app/data.js"></script>
 
 <!-- 2. Backend-klient (Sheets via Apps Script) -->
-<script src="app/api.js"></script>
+<script type="text/x-fersk" src="app/api.js"></script>
 
 <!-- 3. Felles tema + utils + compute (delt med mobil) -->
-<script src="app/shared.js"></script>
+<script type="text/x-fersk" src="app/shared.js"></script>
 
 <!-- 4. Desktop-app -->
 <script type="text/babel" src="app/desktop.jsx"></script>

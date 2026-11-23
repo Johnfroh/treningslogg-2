@@ -26,6 +26,11 @@ Send gjerne fila med SendUserFile samtidig.
 
 - **Frontend**: statisk HTML + JSX (Babel standalone, ingen build-step)
   i `treningslogg-live/`. Cloudflare Pages deployer fra `main`.
+- **Skriptlasting**: `laster.js` henter appens egne skript med
+  `cache: 'no-cache'`, så brukere aldri får en blanding av gamle og nye filer
+  etter deploy. Nye skript i HTML: `type="text/babel"` (JSX) eller
+  `type="text/x-fersk"` (vanlig JS) — ikke en vanlig `<script src>`.
+  Endres `laster.js`, bump `?v=` i alle tre HTML-filene.
 - **Trener-app**: `index.html` (mobil-PWA) + `desktop.html` — React,
   Daylight-tema (lyst, lavendel, Plus Jakarta Sans). Tokens i
   `app/shared.js` (`M`-objektet).
