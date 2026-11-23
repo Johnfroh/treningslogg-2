@@ -70,7 +70,7 @@ function CleanupModal({ onClose, onDone }){
             <div className="import-done"><div className="big-check">✓</div>
               <div className="modal-title" style={{marginBottom:6}}>Ryddet</div>
               <div className="muted" style={{fontSize:13,lineHeight:1.7}}>
-                <strong style={{color:'var(--coral)'}}>{done.sessions}</strong> økter slettet · <strong style={{color:'var(--accent)'}}>{done.checkins}</strong> oppmøte-rader fjernet
+                <strong style={{color:'var(--coral-ink)'}}>{done.sessions}</strong> økter slettet · <strong style={{color:'var(--accent-ink)'}}>{done.checkins}</strong> oppmøte-rader fjernet
               </div>
             </div>
             <div className="modal-foot"><button className="btn primary" onClick={()=>{ if(onDone) onDone(); onClose(); }}>Ferdig</button></div>
@@ -89,7 +89,7 @@ function CleanupModal({ onClose, onDone }){
             {rows && rows.length>0 && (
               <>
                 <div className="import-note" style={{marginTop:14}}>
-                  Klikk en rad for å bytte: <strong style={{color:'var(--coral)'}}>Slett</strong> → <strong style={{color:'var(--accent)'}}>Fjern oppmøte</strong> → <span className="muted">Behold</span>.
+                  Klikk en rad for å bytte: <strong style={{color:'var(--coral-ink)'}}>Slett</strong> → <strong style={{color:'var(--accent-ink)'}}>Fjern oppmøte</strong> → <span className="muted">Behold</span>.
                   Økter importen selv laget er forhåndsvalgt for sletting. Økter med innhold fra trener er merket <span className="tag green">logget</span> og beholdes med mindre du velger noe annet.
                 </div>
                 <div className="ok-monthlist" style={{maxHeight:300,overflowY:'auto',marginTop:10}}>
@@ -119,7 +119,7 @@ function CleanupModal({ onClose, onDone }){
                   <div className="ist"><div className="n">{rows.length-nDel-nClr}</div><div className="l">Røres ikke</div></div>
                 </div>
                 {confirm && (
-                  <div className="import-err" style={{background:'var(--coral-bg)',color:'var(--coral)'}}>
+                  <div className="import-err" style={{background:'var(--coral-bg)',color:'var(--coral-ink)'}}>
                     Dette kan ikke angres. {nDel} økter og {cksDel+cksClr} oppmøte-rader fjernes. Klikk «Ja, rydd nå» for å bekrefte.
                   </div>
                 )}

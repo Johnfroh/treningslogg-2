@@ -18,6 +18,12 @@
 // Alle kjøres i dokumentrekkefølge, som før. type="text/x-fersk" gjør at
 // nettleseren selv ikke laster fila (ukjent type) — det gjør vi her.
 //
+// Oversatt kode lagres i nettleseren (IndexedDB), nøklet på et fingeravtrykk
+// av kildeteksten. Uendret fil → ferdig kode rett fra lageret, uten Babel.
+// Babel-oversettelsen tok ~3,5 s for dashboardet på en rask maskin, og må
+// ellers gjøres på nytt ved hver eneste sidelasting. Endret fil → nytt
+// fingeravtrykk → oversettes på nytt. Ingen versjonsnumre å huske på.
+//
 // Endrer du denne fila: bump ?v= i index.html, desktop.html og
 // dashboard/index.html, ellers kan nettleseren holde på den gamle.
 (function () {
@@ -34,6 +40,63 @@
       sourceMaps: 'inline',
       sourceFileName: filnavn,
     };
+  }
+
+  // Bumpes hvis babelValg() endres — da må all lagret kode oversettes på nytt.
+  var VALG_VERSJON = '1';
+
+  // cyrb53: rask 53-bits fingeravtrykk av en tekst. Ikke kryptografisk —
+  // skal bare oppdage at en fil er endret.
+  function avtrykk(str) {
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+  }
+
+  // Lageret. Alt her er «beste forsøk»: privat vindu, full disk eller
+  // blokkert lagring gir bare null — da oversettes alt som før.
+  var lager = new Promise(function (ok) {
+    try {
+      var req = window.indexedDB.open('tl-laster', 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore('kode'); };
+      req.onsuccess = function () { ok(req.result); };
+      req.onerror = req.onblocked = function () { ok(null); };
+    } catch (e) { ok(null); }
+  });
+  function lesLager(nokkel) {
+    return lager.then(function (db) {
+      if (!db) return null;
+      return new Promise(function (ok) {
+        try {
+          var r = db.transaction('kode', 'readonly').objectStore('kode').get(nokkel);
+          r.onsuccess = function () { ok(r.result || null); };
+          r.onerror = function () { ok(null); };
+        } catch (e) { ok(null); }
+      });
+    });
+  }
+  function skrivLager(nokkel, verdi) {
+    lager.then(function (db) {
+      if (!db) return;
+      try { db.transaction('kode', 'readwrite').objectStore('kode').put(verdi, nokkel); } catch (e) { /* ikke viktig */ }
+    });
+  }
+
+  // JSX → JS, fra lageret når kilden er uendret.
+  function oversett(kode, navn) {
+    var h = avtrykk(VALG_VERSJON + '|' + (window.Babel.version || '') + '|' + kode);
+    return lesLager(navn).then(function (lagret) {
+      if (lagret && lagret.h === h) return lagret.c;
+      var ut = window.Babel.transform(kode, babelValg(navn)).code;
+      skrivLager(navn, { h: h, c: ut });
+      return ut;
+    });
   }
 
   function hent(url) {
@@ -70,13 +133,16 @@
     // Alle filer hentes parallelt, men kjøres i rekkefølge.
     var jobber = tags.map(function (t, i) {
       var src = t.getAttribute('src');
-      var navn = src ? new URL(src, location.href).pathname : 'inline-' + (i + 1) + '.jsx';
+      // Inline-skript nøkles på siden de står i — index.html og desktop.html
+      // har hvert sitt.
+      var navn = src ? new URL(src, location.href).pathname : location.pathname + '#inline-' + (i + 1) + '.jsx';
       var innhold = src ? hent(src) : Promise.resolve(t.textContent);
       return { babel: t.type === 'text/babel', navn: navn, innhold: innhold };
     });
     jobber.reduce(function (forrige, j) {
       return forrige.then(function () { return j.innhold; }).then(function (kode) {
-        var ut = j.babel ? window.Babel.transform(kode, babelValg(j.navn)).code : kode;
+        return j.babel ? oversett(kode, j.navn) : kode;
+      }).then(function (ut) {
         kjor(ut, j.navn);
       }).catch(function (e) {
         // Én fil som feiler skal ikke stoppe resten — samme som Babel selv.

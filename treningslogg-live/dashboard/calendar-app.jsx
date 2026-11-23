@@ -125,7 +125,7 @@ function LogSessionModal({ initial, dateDefault, defaultType, trainers, onClose,
                   <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                     {cat.tags.map(t=>(
                       <button key={t} type="button" onClick={()=>toggleTag(t)} className="btn sm"
-                        style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.08em',
+                        style={{textTransform:'uppercase',fontSize:11,letterSpacing:'.08em',
                           background: tags.includes(t)?cat.color:'transparent', color: tags.includes(t)?'#fff':'var(--ink)', borderColor:cat.color}}>{t}</button>
                     ))}
                   </div>
@@ -135,7 +135,7 @@ function LogSessionModal({ initial, dateDefault, defaultType, trainers, onClose,
                 <span>Nivå / egne temaer</span>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
                   {tagSugg.map(t=>(
-                    <button key={t} type="button" onClick={()=>toggleTag(t)} className="btn sm" style={{textTransform:'uppercase',fontSize:10}}>+ {t}</button>
+                    <button key={t} type="button" onClick={()=>toggleTag(t)} className="btn sm" style={{textTransform:'uppercase',fontSize:11}}>+ {t}</button>
                   ))}
                 </div>
                 <div style={{display:'flex',gap:6}}>
@@ -157,7 +157,7 @@ function LogSessionModal({ initial, dateDefault, defaultType, trainers, onClose,
           <div className="modal-foot" style={{justifyContent:'space-between'}}>
             <div>
               {ex && (confirmDel
-                ? <button className="btn ghost sm" disabled={busy} style={{color:'var(--coral)'}} onClick={del}>Bekreft slett</button>
+                ? <button className="btn ghost sm" disabled={busy} style={{color:'var(--coral-ink)'}} onClick={del}>Bekreft slett</button>
                 : <button className="btn ghost sm" disabled={busy} onClick={()=>setConfirmDel(true)}>Slett</button>)}
             </div>
             <div style={{display:'flex',gap:8}}>
@@ -241,11 +241,11 @@ function Kalender({ q, onEndreQ }){
     <div>
       {onEndreQ && <Kontrollstripe q={{ g: gruppe }} onEndre={onEndreQ} vis={['g']} />}
       <div className="grid-4" style={{marginBottom:6}}>
-        <KPI label={`Økter · ${MND_FULL[m]}`} value={fmtN(mndSum.okter)} delta={gruppeNavnAv(gruppe)} accent="blue"/>
+        <KPI label={`Økter · ${MND_FULL[m]}`} value={fmtN(mndSum.okter)} delta={gruppeNavnAv(gruppe)}/>
         <KPI label="Snitt oppmøte" value={medTall.length ? (mndSum.oppmote/medTall.length).toFixed(1).replace('.',',') : '—'}
-          delta={`${fmtN(mndSum.oppmote)} oppmøter · ${medTall.length} økter med tall`} accent="green"/>
-        <KPI label="Mangler oppmøte" value={fmtN(mndSum.utenTall)} delta="loggede økter uten tall" accent="coral"/>
-        <KPI label="Mangler innhold" value={fmtN(mndSum.utenInnhold)} delta={`uten tekst eller temaer · ${mndSum.planlagt} planlagt`} accent="amber"/>
+          delta={`${fmtN(mndSum.oppmote)} oppmøter · ${medTall.length} økter med tall`}/>
+        <KPI label="Mangler oppmøte" value={fmtN(mndSum.utenTall)} delta="loggede økter uten tall" status={mndSum.utenTall > 0 ? 'handling' : null}/>
+        <KPI label="Mangler innhold" value={fmtN(mndSum.utenInnhold)} delta={`uten tekst eller temaer · ${mndSum.planlagt} planlagt`} status={mndSum.utenInnhold > 0 ? 'handling' : null}/>
       </div>
       <div className="section-h" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span>{MND_FULL[m]} {y}</span>
@@ -259,7 +259,7 @@ function Kalender({ q, onEndreQ }){
       <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,alignItems:'start'}}>
         <Tile title="Måned" corner="kalender">
           <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
-            {DAY_HDR.map(d=><div key={d} className="dim" style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.1em',textAlign:'center',padding:'4px 0'}}>{d}</div>)}
+            {DAY_HDR.map(d=><div key={d} className="dim" style={{fontSize:11,textTransform:'uppercase',letterSpacing:'.1em',textAlign:'center',padding:'4px 0'}}>{d}</div>)}
             {cells.map((ymd,i)=>{
               if(!ymd) return <div key={'e'+i}/>;
               const items = byDate[ymd] || [];
@@ -275,7 +275,7 @@ function Kalender({ q, onEndreQ }){
                       <span key={j} title={it.title||it.group} style={{width:7,height:7,borderRadius:2,
                         background:CAL_GROUP_COLOR[it.group]||'#999', opacity: it.kind==='planned'?0.45:1}}/>
                     ))}
-                    {items.length>4 && <span className="dim" style={{fontSize:9}}>+{items.length-4}</span>}
+                    {items.length>4 && <span className="dim" style={{fontSize:11}}>+{items.length-4}</span>}
                   </div>
                 </button>
               );
@@ -299,7 +299,7 @@ function Kalender({ q, onEndreQ }){
                 <span className="dim" style={{fontSize:11,whiteSpace:'nowrap'}}>{it.time||'—'}{it.kind==='planned'?' · planlagt':''}</span>
               </div>
               {it.content && <div className="dim" style={{fontSize:12,marginTop:4,lineHeight:1.5}}>{it.content}</div>}
-              {it.tags && it.tags.length>0 && <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:6}}>{it.tags.map(t=><span key={t} className="tag" style={{fontSize:10}}>{t}</span>)}</div>}
+              {it.tags && it.tags.length>0 && <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:6}}>{it.tags.map(t=><span key={t} className="tag" style={{fontSize:11}}>{t}</span>)}</div>}
               {it.kind==='logged' && it.attendance!=null && <div className="dim" style={{fontSize:11,marginTop:4}}>{it.attendance} oppmøtt</div>}
             </div>
           ))}

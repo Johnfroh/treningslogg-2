@@ -69,7 +69,7 @@ function TerskelSkjema({ isStyre, settings, brukerStandard }) {
   return (
     <>
       {brukerStandard && (
-        <div className="dim" style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 14, color: 'var(--coral)' }}>
+        <div className="dim" style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 14, color: 'var(--coral-ink)' }}>
           Fikk ikke lest tersklene fra Sheets — viser standardverdier. Kjør
           <code style={{ margin: '0 4px' }}>_setupDashSheets</code>
           i Apps Script hvis arket <code>dash_settings</code> mangler.

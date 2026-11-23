@@ -129,10 +129,10 @@ function Register({ kpis, q: hq, onEndreQ }){
       {/* KPI strip */}
       <div className="grid-4">
         <KPI label={erFiltrert ? 'Aktive i utvalget' : 'Aktive medlemmer'} value={stats.total}
-          delta={stats.parkert>0 ? `+ ${stats.parkert} parkert` : (erFiltrert ? `av ${members.length} i registeret` : 'i registeret')} accent="amber"/>
-        <KPI label="Fargebelter" value={stats.colored} delta={stats.total ? `av ${stats.total} aktive (${fmtPct(stats.colored/stats.total)})` : '—'} accent="green"/>
-        <KPI label="Sortbelter" value={stats.black} delta="instruktørnivå" accent="blue"/>
-        <KPI label="Graderinger" value={stats.recent} delta="siste 90 dager" deltaClass="up" accent="coral"/>
+          delta={stats.parkert>0 ? `+ ${stats.parkert} parkert` : (erFiltrert ? `av ${members.length} i registeret` : 'i registeret')}/>
+        <KPI label="Fargebelter" value={stats.colored} delta={stats.total ? `av ${stats.total} aktive (${fmtPct(stats.colored/stats.total)})` : '—'}/>
+        <KPI label="Sortbelter" value={stats.black} delta="instruktørnivå"/>
+        <KPI label="Graderinger" value={stats.recent} delta="siste 90 dager" deltaClass="up"/>
       </div>
 
       {/* Toolbar */}

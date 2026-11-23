@@ -442,7 +442,7 @@ function App() {
             return (
               <div style={{marginTop:8, fontSize:11, lineHeight:1.5}}>
                 {kilder.map(k => (
-                  <div key={k.navn} style={k.level==='old' ? {color:'var(--coral)'} : null}>
+                  <div key={k.navn} style={k.level==='old' ? {color:'var(--coral-ink)'} : null}>
                     {k.navn}: {k.ts==null ? 'aldri' : fmtDateTime(k.ts)}
                     {k.ts!=null && ekstra[k.navn] ? ` · ${ekstra[k.navn]}` : ''}
                   </div>
@@ -472,6 +472,8 @@ function App() {
             {(() => {
               const f = freshnessInfo(meta, live, kpis, isStyre);
               const color = f.level==='fresh' ? 'var(--green)' : f.level==='stale' ? 'var(--amber)' : 'var(--coral)';
+              // Teksten i merket trenger mørkere variant — de lyse er for prikken og kanten.
+              const tekstFarge = f.level==='fresh' ? 'var(--green-ink)' : f.level==='stale' ? 'var(--accent-ink)' : 'var(--coral-ink)';
               const txt = f.ts==null
                 ? 'Ingen import ennå'
                 : `Eldste: ${f.navn} · ${f.days} ${f.days===1?'dag':'dager'} siden`;
@@ -483,7 +485,7 @@ function App() {
                 + (periode ? `\n\nPeriode: ${periode}` : '')
                 + `\nCheck-ins: ${fmtN(kpis.totals.totalCheckins + liveSince(kpis, live).total)}`;
               return (
-                <span className="pill" title={tip} style={{borderColor:color, color, fontWeight:weight}}>
+                <span className="pill" title={tip} style={{borderColor:color, color:tekstFarge, fontWeight:weight}}>
                   <span className="sw" style={{background:color}}/>{txt}
                 </span>
               );
@@ -538,7 +540,7 @@ function HendelseTegnforklaring({ events }) {
   (events || []).forEach(e => { if (typer.indexOf(e.type) === -1) typer.push(e.type); });
   if (!typer.length) return null;
   return (
-    <div style={{display:'flex', gap:12, flexWrap:'wrap', marginTop:10, fontSize:10,
+    <div style={{display:'flex', gap:12, flexWrap:'wrap', marginTop:10, fontSize:11,
       color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.1em'}}>
       {typer.map(t => (
         <span key={t}>
@@ -550,9 +552,11 @@ function HendelseTegnforklaring({ events }) {
   );
 }
 
-function KPI({ label, value, unit, delta, deltaClass, accent='amber', corner }) {
+// status: 'handling' (oransje — noe bør gjøres) eller 'bra' (grønt).
+// Uten status er kortet nøytralt. Farge skal bety noe, ikke pynte.
+function KPI({ label, value, unit, delta, deltaClass, status }) {
   return (
-    <div className={'kpi-tile ' + accent}>
+    <div className={'kpi-tile' + (status ? ' ' + status : '')}>
       <div className="label">{label}</div>
       <div className="value">{value}{unit && <span className="unit">{unit}</span>}</div>
       {delta && <div className={'delta '+(deltaClass||'')}>{delta}</div>}
@@ -608,7 +612,7 @@ function LeaderboardTable({ live, rows: egneRader, limit, medals = false, emptyH
         <div className="dim" style={{fontSize:12}}>Ingen oppmøte-data ennå — {emptyHint}</div>
       )}
       {live && live.unmatched > 0 && (
-        <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+        <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral-ink)'}}>
           ⚠ {live.unmatched} oppmøter er ikke koblet til medlemmer ennå — listen kan være ufullstendig. {unmatchedHint}
         </div>
       )}
@@ -668,7 +672,7 @@ function Avstemming() {
       <Tile title="Identitetsbro" corner="avstemming">
         <div className="dim" style={{fontSize:12, lineHeight:1.6, marginBottom:12}}>
           Ukentlig oppmøte matches mot medlemmer på navn. Navn som ikke treffer kobles her én gang (huskes som alias) — eller merkes «Sluttet» hvis det er et tidligere medlem, så forsvinner det fra lista.
-          {liveUnmatched>0 && <> <strong style={{color:'var(--coral)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
+          {liveUnmatched>0 && <> <strong style={{color:'var(--coral-ink)'}}>{liveUnmatched} oppmøter</strong> mangler kobling akkurat nå.</>}
         </div>
         <div style={{display:'flex', gap:8, marginBottom:12, flexWrap:'wrap'}}>
           <button className="btn primary" disabled={busy} onClick={()=>setImportOpen(true)}>⤓ Importer ukesoppmøte</button>
@@ -726,7 +730,7 @@ function ThemeBars({ keys, antall, sist, color }){
         const v = antall[k] || 0;
         return (
           <div key={k} className="bar-row" style={{display:'grid',gridTemplateColumns:'120px 1fr auto',gap:10,alignItems:'center',padding:'5px 0'}}>
-            <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.12em'}}>{k}</span>
+            <span style={{textTransform:'uppercase',fontSize:11,letterSpacing:'.12em'}}>{k}</span>
             <div className="meter" style={{background:'var(--bar-bg)',height:14,borderRadius:7,overflow:'hidden'}}>
               <div style={{width:(v/max)*100+'%',background:color,height:'100%'}}/>
             </div>
@@ -784,11 +788,11 @@ function Innhold({ q, onEndreQ }){
         Viser <strong>{r.navn}</strong>{r.fra ? ` (${r.fra} → ${r.til})` : ''} for {gNavn}. Perioden går fram til i dag.
       </div>
       <div className="grid-4">
-        <KPI label="Økter" value={fmtN(okter.length)} delta={`loggede + importerte · ${gNavn}`} accent="blue"/>
+        <KPI label="Økter" value={fmtN(okter.length)} delta={`loggede + importerte · ${gNavn}`}/>
         <KPI label="Med innhold" value={fmtN(medInnhold.length)}
-          delta={okter.length ? `innholdstekst eller temaer · ${fmtPct(medInnhold.length/okter.length)}` : 'innholdstekst eller temaer'} accent="green"/>
-        <KPI label="Uten innhold" value={fmtN(okter.length - medInnhold.length)} delta="bør fylles ut i kalenderen" accent="amber"/>
-        <KPI label="Underdekket" value={fmtN(underdekket.length)} delta={`av ${CORE_POS.length + CORE_ACT.length} kjernetemaer · ingen økter i perioden`} accent="coral"/>
+          delta={okter.length ? `innholdstekst eller temaer · ${fmtPct(medInnhold.length/okter.length)}` : 'innholdstekst eller temaer'}/>
+        <KPI label="Uten innhold" value={fmtN(okter.length - medInnhold.length)} delta="bør fylles ut i kalenderen" status={okter.length - medInnhold.length > 0 ? 'handling' : null}/>
+        <KPI label="Underdekket" value={fmtN(underdekket.length)} delta={`av ${CORE_POS.length + CORE_ACT.length} kjernetemaer · ingen økter i perioden`} status={underdekket.length > 0 ? 'handling' : null}/>
       </div>
 
       {underdekket.length > 0 && (
@@ -808,7 +812,7 @@ function Innhold({ q, onEndreQ }){
       <Tile title="Grupper" corner="balanse">
         {groupData.length ? <HBar data={groupData} color="var(--accent)" height={20}/> : <div className="dim" style={{fontSize:12}}>Ingen økter i perioden.</div>}
         {perGruppe.ukjent > 0 && (
-          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral)'}}>
+          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral-ink)'}}>
             ⚠ {perGruppe.ukjent} økter har ukjent/ugyldig gruppe — rydd dem til en av de seks gruppene i kalenderen.
           </div>
         )}
@@ -858,7 +862,7 @@ function OktRad({ o }){
       {o.group === 'ukjent' && o.rawGroup && <div className="dim" style={{fontSize:11, marginTop:3}}>Registrert gruppe: «{o.rawGroup}»</div>}
       {apen && o.content && <div className="dim" style={{fontSize:12, marginTop:6, lineHeight:1.5, whiteSpace:'pre-wrap'}}>{o.content}</div>}
       {apen && o.tags && o.tags.length > 0 && (
-        <div style={{display:'flex', gap:4, flexWrap:'wrap', marginTop:6}}>{o.tags.map(t => <span key={t} className="tag" style={{fontSize:10}}>{t}</span>)}</div>
+        <div style={{display:'flex', gap:4, flexWrap:'wrap', marginTop:6}}>{o.tags.map(t => <span key={t} className="tag" style={{fontSize:11}}>{t}</span>)}</div>
       )}
     </div>
   );
@@ -1100,7 +1104,7 @@ function OmDataene({ kpis, live, meta, isStyre, checkins, okter, apen }) {
           <div className="h">Ferskhet pr. kilde</div>
           <ul>
             {kilder.map(k => (
-              <li key={k.navn} style={k.ts!=null && k.level==='old' ? {color:'var(--coral)'} : null}>
+              <li key={k.navn} style={k.ts!=null && k.level==='old' ? {color:'var(--coral-ink)'} : null}>
                 {k.navn}: {k.ts==null ? 'aldri importert' : `${fmtDateTime(k.ts)} · ${k.days} ${k.days===1?'dag':'dager'} siden`}
               </li>
             ))}
@@ -1166,10 +1170,10 @@ function Fordelinger({ kpis, members, filtrert }) {
       <summary>Fordelinger <span className="dim">· belte, alder, kjønn, medlemstype{filtrert ? ` · ${aktiveU.length} aktive i utvalget` : ''}</span></summary>
       <div className="grid-4" style={{marginTop:16}}>
         <KPI label={filtrert ? 'I utvalget' : 'I registeret'} value={alle}
-          delta={`${fmtN(aktiveU.length)} aktive · ${fmtN(parkert)} parkert`} accent="amber"/>
-        <KPI label="Junior + Knøtte" value={(fd.byKategori['Junior']||0)+(fd.byKategori['Knøtte']||0)} delta="9–14 år" accent="green"/>
-        <KPI label="Voksen + Student" value={(fd.byKategori['Voksen']||0)+(fd.byKategori['Student']||0)} delta="16+ år" accent="blue"/>
-        <KPI label="Kvinneandel" value={menn+kvinner ? fmtPct(kvinner/(menn+kvinner)) : '—'} delta={`${kvinner} av ${menn+kvinner}`} accent="coral"/>
+          delta={`${fmtN(aktiveU.length)} aktive · ${fmtN(parkert)} parkert`}/>
+        <KPI label="Junior + Knøtte" value={(fd.byKategori['Junior']||0)+(fd.byKategori['Knøtte']||0)} delta="9–14 år"/>
+        <KPI label="Voksen + Student" value={(fd.byKategori['Voksen']||0)+(fd.byKategori['Student']||0)} delta="16+ år"/>
+        <KPI label="Kvinneandel" value={menn+kvinner ? fmtPct(kvinner/(menn+kvinner)) : '—'} delta={`${kvinner} av ${menn+kvinner}`}/>
       </div>
 
       <div className="grid-3">
@@ -1228,7 +1232,7 @@ function Fordelinger({ kpis, members, filtrert }) {
                     <div key={i} className="bar-row">
                       <div className="name">
                         <span style={{width:10,height:10,background:b.color, border:'1px solid var(--border-strong)'}}/>
-                        <span style={{textTransform:'uppercase',fontSize:10,letterSpacing:'.14em'}}>{b.n}</span>
+                        <span style={{textTransform:'uppercase',fontSize:11,letterSpacing:'.14em'}}>{b.n}</span>
                         <div className="meter"><div style={{width:(b.c/max)*100+'%', background:b.color}}/></div>
                       </div>
                       <span className="tabular" style={{textAlign:'right'}}>{b.c}</span>
@@ -1252,17 +1256,17 @@ function Fordelinger({ kpis, members, filtrert }) {
               const max = Math.max(1, ...Object.values(kpis.signupsPerYear));
               return (
                 <div key={y} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4}}>
-                  <div className="dim" style={{fontSize:9}}>+{sUp}/-{c}</div>
+                  <div className="dim" style={{fontSize:11}}>+{sUp}/-{c}</div>
                   <div style={{position:'relative', width:'100%', height: 130, display:'flex', flexDirection:'column', justifyContent:'flex-end'}}>
                     <div style={{height:(sUp/max)*130, background:'var(--amber)'}}/>
                     <div style={{height:(c/max)*130, background:'var(--coral)', opacity:.7}}/>
                   </div>
-                  <div style={{fontSize:10, fontWeight:700}}>{y}</div>
+                  <div style={{fontSize:11, fontWeight:700}}>{y}</div>
                 </div>
               );
             })}
           </div>
-          <div style={{display:'flex', gap:12, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:8}}>
+          <div style={{display:'flex', gap:12, fontSize:11, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:8}}>
             <span><span style={{display:'inline-block',width:8,height:8,background:'var(--amber)',marginRight:5}}/>nye</span>
             <span><span style={{display:'inline-block',width:8,height:8,background:'var(--coral)',marginRight:5}}/>sluttet</span>
           </div>
@@ -1280,7 +1284,7 @@ function KohortSeksjon({ kpis, charts, departed }) {
     <>
       <Tile title="Kohort" corner="retention">
         <CohortBar cohorts={charts.cohorts} color1="#34B98C" color2="rgba(242,130,95,.35)"/>
-        <div style={{display:'flex', gap:14, fontSize:10, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:14}}>
+        <div style={{display:'flex', gap:14, fontSize:11, color:'var(--text-mut)', textTransform:'uppercase', letterSpacing:'.14em', marginTop:14}}>
           <span><span style={{display:'inline-block',width:8,height:8,background:'#34B98C',marginRight:6}}/>fortsatt aktive</span>
           <span><span style={{display:'inline-block',width:8,height:8,background:'rgba(242,130,95,.35)',marginRight:6}}/>sluttet</span>
         </div>
@@ -1299,9 +1303,9 @@ function KohortSeksjon({ kpis, charts, departed }) {
       </Tile>
 
       <div className="grid-3" style={{marginTop:16}}>
-        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.spond ? `personer · ${departed.holdtUtenfor||0} tilbake holdt utenfor` : departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down" accent="coral"/>
-        <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd" accent="amber"/>
-        <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up" accent="green"/>
+        <KPI label="Totalt deaktiverte" value={t.deactivated} delta={departed && departed.spond ? `personer · ${departed.holdtUtenfor||0} tilbake holdt utenfor` : departed && departed.total>0 ? `historisk + ${departed.total} sporet` : 'historisk grunnlag'} deltaClass="down"/>
+        <KPI label="Sluttet — snitt tid" value={(t.avgTenureDaysChurned/30).toFixed(1)} unit=" mnd"/>
+        <KPI label="Aktive — snitt tid" value={(t.avgTenureDaysActive/365).toFixed(1)} unit=" år" deltaClass="up"/>
       </div>
 
       <div className="section-h">Deaktiveringer pr. år</div>
@@ -1345,7 +1349,7 @@ function Funnel({ na, forrige, r, rc }) {
       <div style={{display:'flex', gap:24, padding:'10px 0', alignItems:'flex-start', flexWrap:'wrap'}}>
         {trinn.map(t => (
           <div key={t.lbl} style={{flex:1, minWidth:130}}>
-            <div className="muted" style={{fontSize:10, letterSpacing:'.18em', textTransform:'uppercase'}}>{t.lbl}</div>
+            <div className="muted" style={{fontSize:11, letterSpacing:'.18em', textTransform:'uppercase'}}>{t.lbl}</div>
             <div style={{fontSize:36, fontWeight:700, color: t.farge || 'var(--ink)'}}>{fmtN(t.v)}</div>
             <div className="dim" style={{fontSize:11}}>{t.sub}</div>
           </div>
@@ -1502,9 +1506,9 @@ function Okonomi({ kpis, charts }) {
             <div className={vareInfo.harTall ? 'grid-4' : 'grid-3'}>
               {vareInfo.harTall ? (
                 <>
-                  <KPI label="Samlet" value={fmtN(Math.round(totP))} unit=" kr" delta={perLabel} accent="green"/>
-                  <KPI label="Kontingent" value={fmtN(Math.round(kontP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="blue"/>
-                  <KPI label="Varesalg" value={fmtN(Math.round(butP+divP))} unit=" kr" delta={`butikk ${fmtN(Math.round(butP))} · diverse ${fmtN(Math.round(divP))}`} accent="coral"/>
+                  <KPI label="Samlet" value={fmtN(Math.round(totP))} unit=" kr" delta={perLabel}/>
+                  <KPI label="Kontingent" value={fmtN(Math.round(kontP))} unit=" kr" delta={`Spond · ${perLabel}`}/>
+                  <KPI label="Varesalg" value={fmtN(Math.round(butP+divP))} unit=" kr" delta={`butikk ${fmtN(Math.round(butP))} · diverse ${fmtN(Math.round(divP))}`}/>
                 </>
               ) : (
                 <>
@@ -1512,11 +1516,11 @@ function Okonomi({ kpis, charts }) {
                       tall to ganger. Da vises ett kort, og varesalget står som
                       «—» med grunnen — ikke som 0, som ville lest som «vi solgte
                       ingenting». */}
-                  <KPI label="Samlet (kun kontingent)" value={fmtN(Math.round(totP))} unit=" kr" delta={`Spond · ${perLabel}`} accent="green"/>
-                  <KPI label="Varesalg" value="—" delta={vareInfo.kort} accent="coral"/>
+                  <KPI label="Samlet (kun kontingent)" value={fmtN(Math.round(totP))} unit=" kr" delta={`Spond · ${perLabel}`}/>
+                  <KPI label="Varesalg" value="—" delta={vareInfo.kort}/>
                 </>
               )}
-              <KPI label="Snitt pr. måned" value={shown.length ? fmtN(Math.round(totP/shown.length)) : '—'} unit=" kr" delta={`${shown.length} mnd med data`} accent="amber"/>
+              <KPI label="Snitt pr. måned" value={shown.length ? fmtN(Math.round(totP/shown.length)) : '—'} unit=" kr" delta={`${shown.length} mnd med data`}/>
             </div>
             <Tile title="Samlet per måned" corner="stablet">
               <div className="okbars" ref={samletRef}>
@@ -1556,13 +1560,13 @@ function Okonomi({ kpis, charts }) {
       {!ok ? <Tile title="Laster">…</Tile> : (
       <>
       <div className="grid-4">
-        <KPI label={latest? 'Netto · '+monthLabel(latestKey):'Netto'} value={latest?fmtN(latest.netto):'—'} unit=" kr" delta={latest?`${latest.antall} betalinger`:'ingen data'} accent="green"/>
-        <KPI label="Brutto" value={latest?fmtN(latest.brutto):'—'} unit=" kr" delta="før avgifter" accent="amber"/>
-        <KPI label="Spond-avgifter" value={latest?fmtN(latest.avgifter):'—'} unit=" kr" delta={latest&&latest.brutto?fmtPct(latest.avgifter/latest.brutto,1):''} deltaClass="down" accent="coral"/>
+        <KPI label={latest? 'Netto · '+monthLabel(latestKey):'Netto'} value={latest?fmtN(latest.netto):'—'} unit=" kr" delta={latest?`${latest.antall} betalinger`:'ingen data'}/>
+        <KPI label="Brutto" value={latest?fmtN(latest.brutto):'—'} unit=" kr" delta="før avgifter"/>
+        <KPI label="Spond-avgifter" value={latest?fmtN(latest.avgifter):'—'} unit=" kr" delta={latest&&latest.brutto?fmtPct(latest.avgifter/latest.brutto,1):''} deltaClass="down"/>
         <KPI label="Netto pr. aktivt medlem" value={sisteHele && aktive ? fmtN(sisteHele.netto/aktive) : '—'}
           unit={sisteHele && aktive ? ' kr/mnd' : ''}
           delta={sisteHele && aktive ? `${monthLabel(forrigeYm)} · ${fmtN(aktive)} aktive`
-            : 'ingen tall for siste hele måned'} accent="blue"/>
+            : 'ingen tall for siste hele måned'}/>
       </div>
 
       {latest && Object.keys(latest.byKategori).length>0 && (
@@ -1609,10 +1613,10 @@ function Okonomi({ kpis, charts }) {
             ) : (
               <>
                 <div className="grid-4">
-                  <KPI label="Netto butikk" value={fmtN(Math.round(nettoYr))} unit=" kr" delta={`${antallYr} ordre · ${okPerLabel}`} accent="green"/>
-                  <KPI label="Vipps-gebyr" value={fmtN(Math.round(gebyrYr))} unit=" kr" delta={okPerLabel} deltaClass="down" accent="coral"/>
-                  <KPI label="Snitt pr. ordre" value={antallYr ? fmtN(Math.round(nettoYr/antallYr)) : '—'} unit=" kr" accent="blue"/>
-                  <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken · all historikk" accent="amber"/>
+                  <KPI label="Netto butikk" value={fmtN(Math.round(nettoYr))} unit=" kr" delta={`${antallYr} ordre · ${okPerLabel}`}/>
+                  <KPI label="Vipps-gebyr" value={fmtN(Math.round(gebyrYr))} unit=" kr" delta={okPerLabel} deltaClass="down"/>
+                  <KPI label="Snitt pr. ordre" value={antallYr ? fmtN(Math.round(nettoYr/antallYr)) : '—'} unit=" kr"/>
+                  <KPI label="Netto totalt" value={fmtN(Math.round(vm.filter(m=>m.stream==='butikk').reduce((s,m)=>s+m.netto,0)))} unit=" kr" delta="butikken · all historikk"/>
                 </div>
                 <Tile title={`Netto per måned · ${VIPPS_STREAM_LABEL[vStream].toLowerCase()}`} corner="vipps">
                   {shown.length > 0 ? (
@@ -1652,10 +1656,10 @@ function Okonomi({ kpis, charts }) {
         Beregnet ut fra antall aktive medlemmer × pris pr. medlemstype. Junior-semesterpris (1500,-) fordelt over 6 mnd. Tar ikke hensyn til intro-kurs, drop-in eller arrangementsinntekter.
       </div>
       <div className="grid-4">
-        <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta="månedlig kontingent" accent="amber"/>
-        <KPI label="Estimert ARR" value={fmtN(t.arr)} unit=" kr" delta="× 12" accent="green"/>
-        <KPI label="Snitt pr. medlem" value={t.activeMembers ? fmtN(t.mrr/t.activeMembers) : '—'} unit=" kr/mnd" accent="blue"/>
-        <KPI label="Betalende medlemmer" value={charts.pricing.filter(p=>p.monthly>0).reduce((s,p)=>s+p.count,0)} delta={`av ${t.activeMembers} aktive`} accent="coral"/>
+        <KPI label="Estimert MRR" value={fmtN(t.mrr)} unit=" kr" delta="månedlig kontingent"/>
+        <KPI label="Estimert ARR" value={fmtN(t.arr)} unit=" kr" delta="× 12"/>
+        <KPI label="Snitt pr. medlem" value={t.activeMembers ? fmtN(t.mrr/t.activeMembers) : '—'} unit=" kr/mnd"/>
+        <KPI label="Betalende medlemmer" value={charts.pricing.filter(p=>p.monthly>0).reduce((s,p)=>s+p.count,0)} delta={`av ${t.activeMembers} aktive`}/>
       </div>
       <div className="section-h">Inntekt pr. medlemstype</div>
       <Tile title="Inntekt per medlemstype" corner="mrr">

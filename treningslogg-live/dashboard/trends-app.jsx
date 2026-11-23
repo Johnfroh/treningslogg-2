@@ -389,27 +389,27 @@ function Kontrollstripe({ q, onEndre, vis, children }) {
 
 /* ---------- KPI-kort med sammenligning ---------- */
 // verdi/for: null betyr «vet ikke» og vises som «—». 0 er et ekte nulltall.
-function TrendKort({ label, verdi, forrige, format, enhet, serie, farge, hint, onKlikk, under }) {
+function TrendKort({ label, verdi, forrige, format, enhet, serie, hint, onKlikk, under }) {
   const vis = verdi == null ? '—' : (format ? format(verdi) : fmtN(verdi));
   const harDelta = verdi != null && forrige != null && forrige !== 0;
   const d = harDelta ? verdi - forrige : null;
   const pst = harDelta ? (d / Math.abs(forrige)) * 100 : null;
   const opp = d > 0, ned = d < 0;
   return (
-    <div className={'kpi-tile ' + (farge || 'amber') + (onKlikk ? ' klikkbar' : '')}
+    <div className={'kpi-tile' + (onKlikk ? ' klikkbar' : '')}
       onClick={onKlikk} title={hint || ''} role={onKlikk ? 'button' : undefined}>
       <div className="label">{label}</div>
       <div className="value">{vis}{enhet && verdi != null && <span className="unit">{enhet}</span>}</div>
-      <div className="delta" style={{ color: opp ? 'var(--green)' : ned ? 'var(--coral)' : 'var(--muted)' }}>
+      <div className="delta" style={{ color: opp ? 'var(--green-ink)' : ned ? 'var(--coral-ink)' : 'var(--muted)' }}>
         {harDelta
           ? `${opp ? '▲ +' : ned ? '▼ ' : '— '}${format ? format(d) : fmtN(d)}${pst != null && isFinite(pst) ? ` (${pst > 0 ? '+' : ''}${pst.toFixed(0)} %)` : ''}`
           : <span className="dim">ingen sammenligning</span>}
       </div>
-      {under && <div className="dim" style={{ fontSize: 10.5, marginTop: 2 }}>{under}</div>}
+      {under && <div className="dim" style={{ fontSize: 11, marginTop: 2 }}>{under}</div>}
       {serie && serie.length > 1 && (
         <div style={{ marginTop: 8, opacity: .9 }}>
           <Spark data={serie} accessor={d2 => d2[1]} height={28}
-            color={`var(--${farge || 'amber'})`} labelAccessor={d2 => ukeEtikett(d2[0])} />
+            color="var(--accent)" labelAccessor={d2 => ukeEtikett(d2[0])} />
         </div>
       )}
     </div>
@@ -483,7 +483,7 @@ function SemesterOverlay({ entries, naaKey }) {
         <path d={dAv(naaS)} fill="none" stroke="var(--accent)" strokeWidth={2.4}
           vectorEffect="non-scaling-stroke" />
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
         {akse.map(u => <span key={u}>uke {u}</span>)}
       </div>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontSize: 11 }}>
@@ -598,35 +598,34 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
         {rc ? <> — sammenlignet med <strong>{rc.navn}</strong> ({rc.fra} → {rc.til}).</>
           : (q.p || '4u') === 'alt' ? ' — uten sammenligning (velg en kortere periode for å sammenligne).' : ' — uten sammenligning.'}
         {' '}Periodene består av hele uker — inneværende uke kommer med når den er ferdig.
-        {dataForsinket && <strong style={{ color: 'var(--coral)' }}>{' '}Oppmøte er bare registrert til og med {fmtDate(oppmoteTil(live))}, så periodene slutter der.</strong>}
+        {dataForsinket && <strong style={{ color: 'var(--coral-ink)' }}>{' '}Oppmøte er bare registrert til og med {fmtDate(oppmoteTil(live))}, så periodene slutter der.</strong>}
         {kunSheets && ' Gruppefiltrering finnes bare for økter som ligger i Sheets (logget i appen eller importert) — Spond-historikken er gruppert på klassenavn, ikke gruppe. Innmeldinger og konvertering gjelder alltid hele klubben.'}
       </div>
 
       <div className="grid-5">
         {kunSheets ? (
-          <TrendKort label={`Utøvere · ${gruppeNavn}`} verdi={unikeNa} forrige={unikeFor} farge="amber"
+          <TrendKort label={`Utøvere · ${gruppeNavn}`} verdi={unikeNa} forrige={unikeFor}
             hint={'Forskjellige medlemmer som trente i gruppen minst én gang i perioden (register-koblet oppmøte). '
               + 'Aktive medlemmer finnes bare for hele klubben — registeret vet ikke hvilke partier folk går på.'}
             under={mu ? 'unike som trente i perioden' : 'krever oppdatert Code.gs'}
             onKlikk={til('tr-topp')} />
         ) : (
-          <TrendKort label="Aktive medlemmer" verdi={aktiveNa} forrige={aktiveFor} farge="amber"
+          <TrendKort label="Aktive medlemmer" verdi={aktiveNa} forrige={aktiveFor}
             hint={snapHint} onKlikk={til('tr-kohort')}
             under={aktiveTrente != null && aktiveNa ? `${aktiveTrente} av dem trente i perioden` : null}
             serie={snapshots && snapshots.length > 1
               ? snapshots.filter(s => !r.fra || s.uke >= isoUkeNokkel(r.fra)).map(s => [s.uke, s.aktive]) : null} />
         )}
-        <TrendKort label="Snitt pr. økt" verdi={snitt(okt)} forrige={oktC ? snitt(oktC) : null} farge="blue"
+        <TrendKort label="Snitt pr. økt" verdi={snitt(okt)} forrige={oktC ? snitt(oktC) : null}
           format={v => (Math.round(v * 10) / 10).toString().replace('.', ',')} enhet=" stk"
           hint="Deltagere pr. økt med registrert oppmøte. Økter som er logget uten oppmøte holdes utenfor, som i rapporten. Teller og nevner fra samme kilde (økter i Sheets), så snittet ikke blander Spond-historikk med loggede økter."
           onKlikk={til('tr-puls')}
           serie={okt.map(e => [e[0], e[1].medTall ? Math.round((e[1].oppmote / e[1].medTall) * 10) / 10 : 0])} />
-        <TrendKort label="Økter holdt" verdi={okt.length ? sumOkt(okt) : null} forrige={oktC && oktC.length ? sumOkt(oktC) : null}
-          farge="green" hint="Økter logget i trener-appen eller importert fra Spond-oppmøte. Finnes bare for Sheets-æraen."
+        <TrendKort label="Økter holdt" verdi={okt.length ? sumOkt(okt) : null} forrige={oktC && oktC.length ? sumOkt(oktC) : null} hint="Økter logget i trener-appen eller importert fra Spond-oppmøte. Finnes bare for Sheets-æraen."
           under={utenTall > 0 ? `${utenTall} uten registrert oppmøte` : null}
           onKlikk={til('tr-gruppe')} serie={okt.map(e => [e[0], e[1].okter])} />
         <TrendKort label={kunSheets ? 'Nye medlemmer · hele klubben' : 'Nye medlemmer'} verdi={nye.length ? sumSerie(nye) : (r.fra ? 0 : null)}
-          forrige={nyeC ? sumSerie(nyeC) : null} farge="coral"
+          forrige={nyeC ? sumSerie(nyeC) : null}
           hint={'Personer som meldte seg inn for første gang i perioden — én gang pr. person, også om Spond har gitt dem nye medlemskap senere. '
             + (departed && departed.spond ? 'Tar med dem som har sluttet igjen (fra importen av tidligere medlemmer).'
               : 'Uten importerte tidligere medlemmer mangler de som meldte seg inn og sluttet før sporingen startet.')}
@@ -634,8 +633,7 @@ function Trender({ kpis, charts, live, members, events, snapshots, departed, q, 
             ? `${statNa.intro} på introkurs nå · ${statNa.borte} sluttet igjen` : null}
           onKlikk={til('tr-kohort')} serie={nye} />
         <TrendKort label={kunSheets ? 'Intro → fast · hele klubben' : 'Intro → fast'}
-          verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null}
-          farge="green" format={v => fmtN(v)}
+          verdi={introNa ? introNa.fast : null} forrige={introFor ? introFor.fast : null} format={v => fmtN(v)}
           enhet={introNa ? ` av ${introNa.av}` : ''}
           under={introNa && introAndel(introNa) != null
             ? `${Math.round(introAndel(introNa) * 100)} % av innmeldingene`
