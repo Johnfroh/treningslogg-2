@@ -430,6 +430,13 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .fld { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
 .fld > span { font-size:12px; font-weight:600; color:var(--ink-soft); }
 .fld .opt { font-style:normal; color:var(--muted); font-weight:400; }
+.grad-terskler { display:grid; grid-template-columns: minmax(120px,1.3fr) 1fr 1fr; gap:8px 12px; align-items:center; }
+.grad-terskler .gt-kol { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+.grad-terskler .gt-rad { display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.grad-terskler .gt-rad .dim { font-size:11px; line-height:1.4; }
+.grad-terskler .gt-celle { display:flex; flex-direction:column; gap:6px; }
+.grad-terskler .gt-celle label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
+.grad-terskler .gt-celle input { width:72px; }
 .fld select, .fld input { border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:10px 12px; font:inherit; font-size:13px; background:var(--card); color:var(--ink); }
 .fld select:focus, .fld input:focus { outline:none; border-color:var(--accent); }
 .preview-row { display:flex; align-items:center; gap:14px; background:var(--bg); padding:14px; border-radius:var(--r-md); margin-top:4px; }

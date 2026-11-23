@@ -75,6 +75,9 @@ function mrSistGradert(m){
   const cur=m.grading && m.grading.current;
   return (cur && MR_ISO.test(cur.since||'')) ? cur.since : '';
 }
+// Sortering av «Klar for»: belte (2) før stripe (1) før ingen (0).
+function mrKlarRang(r){ return r.klar ? (r.klar.type==='belte' ? 2 : 1) : 0; }
+function mrKlarTekst(r){ return r.klar ? (r.klar.type==='belte' ? 'Belte' : 'Stripe') + (r.klar.barn ? ' · barn' : '') : ''; }
 function mrBelteTekst(m){
   const c=(m.grading && m.grading.current) || {};
   const st=Number(c.stripes||0);
@@ -354,7 +357,6 @@ function buildRapportData(fra, til, ctx){
   const c=ctx||{};
   const th=c.terskler||{};
   const stilleUker=th.stilleUker||3, introUker=th.introUker||2;
-  const gradMinOppmote=th.gradMinOppmote||30, gradMinMnd=th.gradMinMnd||6;
   const list=c.members||[];
   const live=c.live||null;
   const kpis=c.kpis||null;
@@ -502,11 +504,14 @@ function buildRapportData(fra, til, ctx){
       okterSiden: mrOkterSiden(live, m.id, sist, til),
       trend: trendMnd.map(t => mrMnd(live, m.id, t)),
       sortBelte, avkortet,
+      // Samme regel som «I dag» (graderingsKlar i dashboard-shared.jsx):
+      // egne terskler for stripe/belte og voksne/barn.
+      klar: graderingsKlar(m, live, th),
     };
   }).filter(r => r.okterSiden>0 && !r.sortBelte)
-    .sort((a,b)=> b.okterSiden - a.okterSiden);
-  const overTerskel=aktivitet.filter(r =>
-    r.okterSiden>=gradMinOppmote && mrDagerSiden(r.sistGradert)!=null && mrDagerSiden(r.sistGradert)>=gradMinMnd*30).length;
+    // Klare øverst (belte før stripe), så flest økter.
+    .sort((a,b)=> (mrKlarRang(b)-mrKlarRang(a)) || (b.okterSiden - a.okterSiden));
+  const overTerskel=aktivitet.filter(r => r.klar).length;
 
   // --- Striper: komplett liste over alle som får striper etter klubbregelen ---
   let utenStriper=0;
@@ -552,7 +557,7 @@ function buildRapportData(fra, til, ctx){
     intro, stille, borte, borteUker, refDato, sluttet, sluttetFra,
     striper, utenStriper,
     gradert, aktivitet, overTerskel, trendMnd,
-    gradMinOppmote, gradMinMnd, stilleUker, introUker,
+    stilleUker, introUker,
     attFrom, umatchede: (live && live.unmatched) || 0,
     okRader, okSum, harOkonomi: Object.keys(okM).length>0 || vipps.length>0,
     kpis,
@@ -761,17 +766,18 @@ const MR_RENDER = {
     let rader='';
     d.aktivitet.slice(0, vis).forEach((r,i)=>{
       if(i===d.overTerskel && d.overTerskel>0){
-        rader+=`<tr class="terskel"><td colspan="${5+d.trendMnd.length}">Terskel: ${d.gradMinOppmote} økter og ${d.gradMinMnd} mnd siden sist gradering — en referanselinje, ikke en anbefaling</td></tr>`;
+        rader+=`<tr class="terskel"><td colspan="${6+d.trendMnd.length}">Over linja: klare for stripe eller belte etter klubbens terskler (Innstillinger) — en referanselinje, ikke en anbefaling</td></tr>`;
       }
       rader+=`<tr><td><strong>${mrEsc(r.navn)}</strong></td><td class="dim">${mrEsc(r.kategori||'')}</td>` +
         `<td>${mrEsc(r.belte)}</td><td class="dim">${mrEsc(r.sidenTekst)}</td>` +
         `<td class="num">${r.avkortet?'<span class="gulv" title="Gradert før oppmøtedataene starter — minst så mange">≥</span> ':''}${mrNf(r.okterSiden)}</td>` +
+        `<td>${r.klar?`<strong>${mrEsc(mrKlarTekst(r))}</strong>`:''}</td>` +
         r.trend.map(v=>`<td class="num dim">${v||'–'}</td>`).join('') + '</tr>';
     });
     const gulv=d.attFrom? ` (tidligst ${MR_MND_K[parseInt(d.attFrom.slice(5,7),10)-1]} ${d.attFrom.slice(0,4)})` : '';
-    return mrSeksjon('Aktivitet siden sist gradering','sortert på flest økter',
+    return mrSeksjon('Aktivitet siden sist gradering','klare øverst · så flest økter',
       `<table><thead><tr><th>Navn</th><th>Kategori</th><th>Belte nå</th><th>Sist gradert</th>` +
-      `<th class="num">Økter siden${mrEsc(gulv)}</th>${trendHead}</tr></thead><tbody>${rader}</tbody></table>` +
+      `<th class="num">Økter siden${mrEsc(gulv)}</th><th>Klar for</th>${trendHead}</tr></thead><tbody>${rader}</tbody></table>` +
       (rest>0? `<div class="note">Viser de ${vis} mest aktive. ${rest} medlemmer med færre økter er utelatt.</div>`:'') +
       `<div class="note">De siste kolonnene er oppmøte pr. måned — trenden bak totalen. 60 økter med kurven opp er noe annet enn 60 med kurven ned.
         ${d.attFrom? `Oppmøtedataene starter ${mrEsc(mrDagMnd(d.attFrom))} ${mrEsc(d.attFrom.slice(0,4))}. Rader merket <strong>≥</strong> ble gradert før det: tallet er alt vi har data for, ikke alt de har trent — det ekte tallet er høyere.`:''}
@@ -938,10 +944,10 @@ const MR_TABELL = {
   }),
   aktivitet: d => ({
     kolonner:['Navn','Kategori','Belte','Striper','Sist gradert','Dager siden gradering',
-      'Økter siden','Er minimum'].concat(d.trendMnd.map(t=>'Økter '+t)),
+      'Økter siden','Er minimum','Klar for'].concat(d.trendMnd.map(t=>'Økter '+t)),
     rader:d.aktivitet.map(r=>[r.navn, r.kategori||'', (r.belte||'').replace(/[●○]/g,'').trim(),
       (String(r.belte||'').match(/●/g)||[]).length, mrDato(r.sistGradert),
-      mrDagerSiden(r.sistGradert), r.okterSiden, r.avkortet?'ja':'nei'].concat(r.trend)),
+      mrDagerSiden(r.sistGradert), r.okterSiden, r.avkortet?'ja':'nei', mrKlarTekst(r)].concat(r.trend)),
   }),
   sluttet: d => ({
     kolonner:['Registrert sluttet','Navn','Kategori','Innmeldt','Dager som medlem','Meldt seg inn igjen'],

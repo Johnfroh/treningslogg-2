@@ -1817,14 +1817,23 @@ function dashImportOkonomi(months) {
 // Sheets. Standardverdiene under speiles i DASH_SETTING_DEFAULTS i
 // dashboard/api.js, som er det frontend faller tilbake på når Sheets ikke
 // svarer — endrer du dem her, endre dem der også.
+// Graderingsklar: egne terskler for stripe og belte, voksne og barn
+// (speiles av GRAD_TERSKEL_STANDARD i dashboard-shared.jsx).
 const DASH_SETTING_DEFAULTS = {
-  stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
+  stilleUker: 3, introUker: 2, fallendeMinPrev4: 3,
+  stripeVoksenOppmote: 30, stripeVoksenMnd: 3, belteVoksenOppmote: 100, belteVoksenMnd: 12,
+  stripeBarnOppmote: 20, stripeBarnMnd: 3, belteBarnOppmote: 60, belteBarnMnd: 12,
 };
+// Før stripe/belte ble skilt fantes én felles terskel. Er den lagret og de
+// nye ikke, brukes den som startverdi for belte (voksne) — så det man har
+// stilt inn, ikke forsvinner ved oppgraderingen.
+const DASH_SETTING_ARV = { gradMinOppmote: 'belteVoksenOppmote', gradMinMnd: 'belteVoksenMnd' };
 // Grenser. En terskel på 0 eller 9999 gir lister som ikke er til å jobbe i,
 // og en tastefeil i et tallfelt skal ikke kunne tømme «I dag».
 const DASH_SETTING_LIMITS = {
-  stilleUker: [1, 26], gradMinOppmote: [1, 300], gradMinMnd: [1, 36],
-  introUker: [1, 26], fallendeMinPrev4: [1, 40],
+  stilleUker: [1, 26], introUker: [1, 26], fallendeMinPrev4: [1, 40],
+  stripeVoksenOppmote: [1, 500], stripeVoksenMnd: [1, 60], belteVoksenOppmote: [1, 500], belteVoksenMnd: [1, 60],
+  stripeBarnOppmote: [1, 500], stripeBarnMnd: [1, 60], belteBarnOppmote: [1, 500], belteBarnMnd: [1, 60],
 };
 
 function dashClampSetting_(key, n) {
@@ -1837,7 +1846,16 @@ function dashSettingsGet() {
   const values = {};
   Object.keys(DASH_SETTING_DEFAULTS).forEach(k => { values[k] = DASH_SETTING_DEFAULTS[k]; });
   const meta = {};
-  dashRows(SHEET_NAMES.dashSettings, DASH_SETTINGS_COLS).forEach(r => {
+  const rader = dashRows(SHEET_NAMES.dashSettings, DASH_SETTINGS_COLS);
+  const finnes = {};
+  rader.forEach(r => { finnes[String(r.key || '')] = true; });
+  // Gamle nøkler → nye, bare når den nye ikke er lagret ennå.
+  rader.forEach(r => {
+    const ny = DASH_SETTING_ARV[String(r.key || '')];
+    const n = Number(r.value);
+    if (ny && !finnes[ny] && r.value !== '' && !isNaN(n)) values[ny] = dashClampSetting_(ny, n);
+  });
+  rader.forEach(r => {
     const k = String(r.key || '');
     if (!Object.prototype.hasOwnProperty.call(DASH_SETTING_DEFAULTS, k)) return; // ukjente nøkler ignoreres
     const n = Number(r.value);
@@ -1923,6 +1941,39 @@ function dashMondaysTil_(n, sisteMandag) {
     out.push(d.toISOString().slice(0, 10));
   }
   return out;
+}
+
+// Graderingsklar — speiler graderingsKlar() i dashboard-shared.jsx.
+// Belte (fra siste beltegradering) går foran stripe (fra siste gradering).
+// Striper bare på hvitt belte og juniorbelter (klubbregel). Barn =
+// juniorbelte, eller hvitt belte og mindreårig.
+const DASH_JUNIOR_BELTER = ['Grå/Hvit', 'Grå', 'Grå/Sort', 'Gul/Hvit', 'Gul', 'Gul/Sort',
+  'Oransje/Hvit', 'Oransje', 'Oransje/Sort', 'Grønn/Hvit', 'Grønn', 'Grønn/Sort'];
+const DASH_MAKS_STRIPER = 4;
+function dashGraderingsKlar_(m, mnd, cfg, dagerSiden) {
+  const g = m.grading && m.grading.current;
+  if (!g || g.belt === 'Sort') return null;
+  const belt = g.belt || 'Hvit';
+  const junior = DASH_JUNIOR_BELTER.indexOf(belt) >= 0;
+  const barn = junior || (belt === 'Hvit' && dashIsMinor_(m));
+  const hvem = barn ? 'Barn' : 'Voksen';
+  const hist = (m.grading && m.grading.history) || [];
+  let beltDato = '';
+  hist.forEach(e => { if (e.kind === 'belte' && /^\d{4}-\d{2}-\d{2}$/.test(e.date || '') && e.date > beltDato) beltDato = e.date; });
+  if (!beltDato && belt === 'Hvit') {
+    const innm = hist.filter(e => e.kind === 'innmelding')[0];
+    beltDato = (innm && innm.date) || m.innmeldingsdato || '';
+  }
+  if (!beltDato) beltDato = g.since || '';
+  const sjekk = (type, fra) => {
+    const d = dagerSiden(fra);
+    if (d == null || d < cfg[type + hvem + 'Mnd'] * 30) return null;
+    return dashOkterSiden_(mnd, fra) >= cfg[type + hvem + 'Oppmote'] ? type : null;
+  };
+  const b = sjekk('belte', beltDato);
+  if (b) return b;
+  if (!(belt === 'Hvit' || junior) || Number(g.stripes || 0) >= DASH_MAKS_STRIPER) return null;
+  return sjekk('stripe', g.since);
 }
 
 // Økter siden en dato, talt i hele kalendermåneder fra og med datoens måned.
@@ -2014,13 +2065,7 @@ function dashSnapshotCompute_(naa) {
     return d != null && d >= DASH_BORTE_UKER * 7;
   });
   const mm = live.memberMonthly || {};
-  const graderingsklare = members.filter(m => {
-    const g = m.grading && m.grading.current;
-    if (!g || g.belt === 'Sort') return false;
-    const md = dagerSiden(g.since);
-    if (md == null || md < cfg.gradMinMnd * 30) return false;
-    return dashOkterSiden_(mm[m.id], g.since) >= cfg.gradMinOppmote;
-  });
+  const graderingsklare = members.filter(m => dashGraderingsKlar_(m, mm[m.id], cfg, dagerSiden));
 
   // Hele uker: serien slutter på siste hele uke med oppmøtedata.
   const uker = dashMondaysTil_(26, dashSisteHeleUke_(live, nu));

@@ -21,7 +21,9 @@ window.DASH_API = (function () {
   // svarer. Verdiene speiler DASH_SETTING_DEFAULTS i apps-script/Code.gs —
   // endrer du dem der, endre dem her også.
   const SETTING_DEFAULTS = {
-    stilleUker: 3, gradMinOppmote: 30, gradMinMnd: 6, introUker: 2, fallendeMinPrev4: 3,
+    stilleUker: 3, introUker: 2, fallendeMinPrev4: 3,
+    stripeVoksenOppmote: 30, stripeVoksenMnd: 3, belteVoksenOppmote: 100, belteVoksenMnd: 12,
+    stripeBarnOppmote: 20, stripeBarnMnd: 3, belteBarnOppmote: 60, belteBarnMnd: 12,
   };
 
   // Statuskoden alene sier ikke HVEM som svarte. En 404 fra Cloudflare Pages
