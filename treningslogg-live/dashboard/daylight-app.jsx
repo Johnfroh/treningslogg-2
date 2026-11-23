@@ -722,26 +722,6 @@ const CORE_ACT = ['passing','escapes','submissions','takedowns','sweeps','pins']
 // hadde sin egen kopi av de samme seks gruppene.
 const GROUP_LABEL = DASH_GRUPPE_LABEL;
 
-function ThemeBars({ keys, antall, sist, color }){
-  const max = Math.max(1, ...keys.map(k => antall[k] || 0));
-  return (
-    <div>
-      {keys.map(k => {
-        const v = antall[k] || 0;
-        return (
-          <div key={k} className="bar-row" style={{display:'grid',gridTemplateColumns:'120px 1fr auto',gap:10,alignItems:'center',padding:'5px 0'}}>
-            <span style={{textTransform:'uppercase',fontSize:11,letterSpacing:'.12em'}}>{k}</span>
-            <div className="meter" style={{background:'var(--bar-bg)',height:14,borderRadius:7,overflow:'hidden'}}>
-              <div style={{width:(v/max)*100+'%',background:color,height:'100%'}}/>
-            </div>
-            <span className="tabular" style={{fontSize:12,minWidth:110,textAlign:'right'}}>{v} <span className="dim">· {sist[k] ? 'sist ' + fmtDate(sist[k]) : 'aldri'}</span></span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // Innhold følger det felles filteret: periode (fram til i dag) og gruppe
 // styrer kortene, temabalansen og øktlista. «Sist trent» pr. tema ser
 // alltid på hele historikken for gruppen — det er den som sier hvor lenge
@@ -750,6 +730,13 @@ function Innhold({ q, onEndreQ }){
   const { actions } = useMembers();
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
+  // Søket i øktlista styres herfra, så et klikk i ordskyen kan fylle det.
+  const [sok, setSok] = useState('');
+  const listeRef = React.useRef(null);
+  const velgOrd = (ord) => {
+    setSok(ord);
+    if (listeRef.current) listeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   React.useEffect(() => { actions.fetchThemes().then(setData).catch(e => setErr(e.message || 'feil')); }, []);
   const p = (q && q.p) || '4u';
   const gruppe = (q && q.g) || 'alle';
@@ -767,18 +754,13 @@ function Innhold({ q, onEndreQ }){
   const iGruppe = data.okter.filter(o => gruppe === 'alle' || o.group === gruppe);
   const okter = iGruppe.filter(o => (!r.fra || o.date >= r.fra) && o.date <= r.til);
   const medInnhold = okter.filter(oktHarInnhold);
-  // Temaer: antall økter i perioden + siste gang temaet ble trent (hele
-  // historikken for gruppen).
-  const antall = {}, sist = {};
+  // Antall økter pr. tema i perioden (til «Underdekket»). «Sist trent» og
+  // ukerytmen regnes i TemaUkekart (innhold-grafer.jsx).
+  const antall = {};
   okter.forEach(o => (o.tags || []).forEach(t => { antall[t] = (antall[t] || 0) + 1; }));
-  iGruppe.forEach(o => (o.tags || []).forEach(t => { if (!sist[t] || o.date > sist[t]) sist[t] = o.date; }));
   const underdekket = CORE_POS.concat(CORE_ACT).filter(k => !(antall[k] > 0));
-  // Gruppebalanse: økter pr. gruppe i perioden (uavhengig av gruppevalget).
-  const perGruppe = {};
-  data.okter.filter(o => (!r.fra || o.date >= r.fra) && o.date <= r.til)
-    .forEach(o => { perGruppe[o.group] = (perGruppe[o.group] || 0) + 1; });
-  const groupData = DASH_GRUPPER.filter(g => perGruppe[g])
-    .map(g => ({ label: GROUP_LABEL[g] || g, value: perGruppe[g] }));
+  // Logging pr. gruppe ser på alle grupper i perioden (uavhengig av gruppevalget).
+  const alleIPerioden = data.okter.filter(o => (!r.fra || o.date >= r.fra) && o.date <= r.til);
   const gNavn = gruppeNavnAv(gruppe);
 
   return (
@@ -795,41 +777,17 @@ function Innhold({ q, onEndreQ }){
         <KPI label="Underdekket" value={fmtN(underdekket.length)} delta={`av ${CORE_POS.length + CORE_ACT.length} kjernetemaer · ingen økter i perioden`} status={underdekket.length > 0 ? 'handling' : null}/>
       </div>
 
-      {underdekket.length > 0 && (
-        <>
-        <div className="section-h">Underdekket<span className="meta">kjernetemaer uten økter · {r.navn} · {gNavn}</span></div>
-        <Tile title="Bør prioriteres" corner="balanse">
-          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-            {underdekket.map(k => <span key={k} className="tag coral" style={{textTransform:'uppercase',letterSpacing:'.1em'}}
-              title={sist[k] ? `Sist trent ${fmtDate(sist[k])}` : 'Aldri registrert'}>{k}{sist[k] ? ` · ${fmtDate(sist[k])}` : ''}</span>)}
-          </div>
-          <div className="dim" style={{fontSize:11,marginTop:10}}>Disse kjernetemaene har ingen loggede økter i perioden. Datoen er sist de ble trent.</div>
-        </Tile>
-        </>
-      )}
+      <div className="section-h">Temaer uke for uke<span className="meta">kjernetemaer · siste 12 uker · {gNavn} · lengst siden øverst</span></div>
+      <TemaUkekart okter={iGruppe}/>
 
-      <div className="section-h">Gruppebalanse<span className="meta">økter pr. gruppe · {r.navn} · alle grupper</span></div>
-      <Tile title="Grupper" corner="balanse">
-        {groupData.length ? <HBar data={groupData} color="var(--accent)" height={20}/> : <div className="dim" style={{fontSize:12}}>Ingen økter i perioden.</div>}
-        {perGruppe.ukjent > 0 && (
-          <div className="dim" style={{fontSize:11, marginTop:10, color:'var(--coral-ink)'}}>
-            ⚠ {perGruppe.ukjent} økter har ukjent/ugyldig gruppe — rydd dem til en av de seks gruppene i kalenderen.
-          </div>
-        )}
-      </Tile>
+      <div className="section-h">Kommentarer og egne tags<span className="meta">{r.navn} · {gNavn}</span></div>
+      <Ordsky okter={okter} onVelg={velgOrd}/>
 
-      <div className="section-h">Posisjoner<span className="meta">økter pr. tema i perioden · sist trent</span></div>
-      <Tile title="Posisjon" corner="position">
-        <ThemeBars keys={CORE_POS} antall={antall} sist={sist} color="#34B98C"/>
-      </Tile>
+      <div className="section-h">Logging pr. gruppe<span className="meta">{r.navn} · alle grupper</span></div>
+      <LoggingPerGruppe okter={alleIPerioden} harInnhold={oktHarInnhold}/>
 
-      <div className="section-h">Handlinger<span className="meta">økter pr. tema i perioden · sist trent</span></div>
-      <Tile title="Handling" corner="action">
-        <ThemeBars keys={CORE_ACT} antall={antall} sist={sist} color="#F2825F"/>
-      </Tile>
-
-      <div className="section-h">Registrerte økter<span className="meta">{r.navn} · {gNavn}</span></div>
-      <OktOversikt okter={okter} totalt={data.okter.length}/>
+      <div className="section-h" ref={listeRef} style={{scrollMarginTop:16}}>Registrerte økter<span className="meta">{r.navn} · {gNavn}</span></div>
+      <OktOversikt okter={okter} totalt={data.okter.length} sok={sok} onSok={setSok}/>
     </div>
   );
 }
@@ -870,9 +828,12 @@ function OktRad({ o }){
 
 // Periode og gruppe kommer fra det felles filteret (Innhold sender ferdig
 // filtrerte økter). Her velges bare økttype, søk og innhold.
-function OktOversikt({ okter, totalt }){
+function OktOversikt({ okter, totalt, sok: sokUte, onSok }){
   const [type, setType] = useState('alle');
-  const [sok, setSok] = useState('');
+  const [sokInne, setSokInne] = useState('');
+  // Innhold-fanen styrer søket (ordskyen fyller det); ellers eget søk.
+  const sok = onSok ? (sokUte || '') : sokInne;
+  const setSok = onSok || setSokInne;
   const [perType, setPerType] = useState(false);
   const [kunInnhold, setKunInnhold] = useState(false);
   const [antall, setAntall] = useState(OKT_SIDE);

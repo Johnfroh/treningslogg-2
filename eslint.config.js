@@ -187,6 +187,8 @@ module.exports = [
         sumIPeriode: 'readonly', innmeldtStatus: 'readonly', INTRO_MIN_FOR_PROSENT: 'readonly',
         SemesterOverlay: 'readonly', Kontrollstripe: 'readonly', TrendKort: 'readonly',
         periodeTilIdag: 'readonly', PERIODER: 'readonly',
+        // innhold-grafer.jsx
+        TemaUkekart: 'readonly', Ordsky: 'readonly', LoggingPerGruppe: 'readonly',
         // data-tab.jsx
         DataFane: 'readonly',
         // daylight-app.jsx — eksportert for trends-app.jsx og data-tab.jsx

@@ -183,6 +183,7 @@ dashboardet enten utilgjengelig eller utilstrekkelig beskyttet.
 | `members-store.jsx` | Medlems-/økonomi-state, gradering, import-actions, CSV |
 | `register-app.jsx` | Medlemsfane: søk, inline belte-redigering, bulk-gradering |
 | `register-profile.jsx` | Medlemsprofil, graderingsdialog, tidslinje |
+| `innhold-grafer.jsx` | Innhold-fanen: tema-ukekart, ordsky, logging pr. gruppe |
 | `member-dash.jsx` | Personlig dashboard på medlemskortet: oppmøtetrend, gruppemiks, innholdsprofil (`dashMemberInnhold`) |
 | `xlsx-import.jsx` / `import-ui.jsx` | Månedlig medlemsimport (Spond) |
 | `okonomi-import.jsx` | Månedlig økonomiimport (Spond-betalinger) |
