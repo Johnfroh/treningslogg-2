@@ -495,7 +495,7 @@ function Spark({ data, height=60, color, fill, accessor=(d)=>d, showAxis=false, 
               <span key={i} style={{
                 position:'absolute', left: mx(i) + 'px', top: 0,
                 transform: k === 0 ? 'none' : k === aksePunkter.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
-                fontSize: 9.5, color:'var(--muted)', whiteSpace:'nowrap',
+                fontSize: 11, color:'var(--muted)', whiteSpace:'nowrap',
               }}>{etikett(i)}</span>
             ))}
           </div>
@@ -553,7 +553,7 @@ function Donut({ data, size=140, thickness=22, colors, centerLabel, centerValue 
       {(centerLabel !== undefined || centerValue !== undefined) && (
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', lineHeight:1.1 }}>
           {centerValue && <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric:'tabular-nums' }}>{centerValue}</div>}
-          {centerLabel && <div style={{ fontSize: 10, letterSpacing:'.12em', textTransform:'uppercase', opacity:.7 }}>{centerLabel}</div>}
+          {centerLabel && <div style={{ fontSize: 11, letterSpacing:'.12em', textTransform:'uppercase', opacity:.7 }}>{centerLabel}</div>}
         </div>
       )}
     </div>
@@ -580,7 +580,7 @@ function CohortBar({ cohorts, color1, color2 }) {
               <div style={{ width:'100%', height: activeH, background: color1 }}></div>
             </div>
             <div style={{ fontSize:11, fontWeight:700 }}>{c.year}</div>
-            <div style={{ fontSize:10, opacity:.6 }}>{fmtPct(c.retention)}</div>
+            <div style={{ fontSize:11, opacity:.6 }}>{fmtPct(c.retention)}</div>
           </div>
         );
       })}

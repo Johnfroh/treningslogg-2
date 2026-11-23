@@ -52,7 +52,7 @@ function UkeSoyler({ serie, snitt }) {
             strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" opacity={.7} />
         )}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--muted)', marginTop: 5 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
         <span>{mdKortDato(serie[0].uke)}</span>
         <span>stiplet linje = snitt</span>
         <span>uka fra {mdKortDato(serie[n - 1].uke)}</span>
@@ -81,8 +81,8 @@ function OppmoteTrend({ member, live }) {
   const aktiveUker = serie.filter(d => d.n > 0).length;
   const diff = siste4 - forrige4;
   const pil = serie.length < 8 ? null
-    : diff > 0 ? { t: `↑ ${diff} fra forrige 4`, c: 'var(--green, #34B98C)' }
-    : diff < 0 ? { t: `↓ ${-diff} fra forrige 4`, c: 'var(--coral, #F2825F)' }
+    : diff > 0 ? { t: `↑ ${diff} fra forrige 4`, c: 'var(--green-ink)' }
+    : diff < 0 ? { t: `↓ ${-diff} fra forrige 4`, c: 'var(--coral-ink)' }
     : { t: 'som forrige 4', c: 'var(--ink-soft)' };
 
   return (

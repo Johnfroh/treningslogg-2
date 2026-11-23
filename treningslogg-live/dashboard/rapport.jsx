@@ -1068,7 +1068,8 @@ function buildRapportHTML(d, valgte, tittel){
   return `<!DOCTYPE html><html lang="nb"><head><meta charset="utf-8">
 <title>${mrEsc(navn)} ${mrEsc(undertittel)} — Bodø Jiu Jitsu</title>
 <style>
-  :root{ --accent:#7B6EF6; --green:#34B98C; --coral:#F2825F; --blue:#4F9BEA; --ink:#232136; --mut:#8A86A0; --rule:#ECEAF4; }
+  :root{ --accent:#7B6EF6; --green:#34B98C; --coral:#F2825F; --blue:#4F9BEA; --ink:#232136; --mut:#6B6782; --rule:#ECEAF4;
+    --green-ink:#1B7A5A; --coral-ink:#A84A28; --accent-ink:#5A4BD8; }
   *{ margin:0; padding:0; box-sizing:border-box; }
   body{ font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color:var(--ink); padding:72px 52px 44px; max-width:900px; margin:0 auto; }
   header{ display:flex; justify-content:space-between; align-items:flex-end; gap:18px; border-bottom:3px solid var(--accent); padding-bottom:18px; }
@@ -1083,14 +1084,14 @@ function buildRapportHTML(d, valgte, tittel){
   .kpi{ border:1px solid var(--rule); border-radius:12px; padding:14px 16px; }
   .kv{ font-size:24px; font-weight:800; } .kl{ font-size:10.5px; color:var(--mut); text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }
   .kd{ font-size:10.5px; margin-top:6px; font-weight:700; }
-  .up{ color:var(--green); } .down{ color:var(--coral); } .flat{ color:var(--mut); font-weight:600; }
+  .up{ color:var(--green-ink); } .down{ color:var(--coral-ink); } .flat{ color:var(--mut); font-weight:600; }
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   th{ text-align:left; font-size:10px; color:var(--mut); text-transform:uppercase; letter-spacing:.1em; padding:6px 8px; border-bottom:1px solid var(--rule); }
   td{ padding:6px 8px; border-bottom:1px solid var(--rule); } .num{ text-align:right; font-weight:700; } .dim{ color:var(--mut); font-weight:400; }
   tfoot td{ border-top:2px solid var(--rule); border-bottom:none; font-weight:800; }
-  tr.mangler td{ background:#FFF8F4; } .mangel{ color:var(--coral); font-weight:700; font-size:11px; }
-  tr.terskel td{ background:#F7F6FD; color:var(--accent); font-size:10.5px; font-weight:700; text-align:center; letter-spacing:.04em; padding:7px; }
-  .gulv{ color:var(--accent); font-weight:800; }
+  tr.mangler td{ background:#FFF8F4; } .mangel{ color:var(--coral-ink); font-weight:700; font-size:11px; }
+  tr.terskel td{ background:#F7F6FD; color:var(--accent-ink); font-size:10.5px; font-weight:700; text-align:center; letter-spacing:.04em; padding:7px; }
+  .gulv{ color:var(--accent-ink); font-weight:800; }
   .prikk{ letter-spacing:2px; font-size:13px; }
   .fra{ font-size:10px; }
   .brow{ display:flex; align-items:center; gap:10px; margin:7px 0; font-size:12.5px; }
@@ -1100,7 +1101,7 @@ function buildRapportHTML(d, valgte, tittel){
   .two{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
   .note{ font-size:11px; color:var(--mut); line-height:1.65; margin-top:10px; }
   .varsel{ border:1px solid #F2C9B5; background:#FFF8F4; border-radius:10px; padding:12px 14px; font-size:11.5px; line-height:1.7; margin-top:14px; }
-  .varsel strong{ color:var(--coral); }
+  .varsel strong{ color:var(--coral-ink); }
   .tom{ font-size:12px; color:var(--mut); padding:10px 0; }
   footer{ margin-top:36px; padding-top:12px; border-top:1px solid var(--rule); font-size:10.5px; color:var(--mut); display:flex; justify-content:space-between; }
   .printbtn{ position:fixed; top:16px; right:16px; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:11px 18px; font:700 13px 'Plus Jakarta Sans',system-ui; cursor:pointer; }

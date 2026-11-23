@@ -119,9 +119,9 @@ function AttendanceImportModal({ onClose }){
               <div className="big-check">✓</div>
               <div className="modal-title" style={{marginBottom:6}}>Oppmøte importert</div>
               <div className="muted" style={{fontSize:13, lineHeight:1.7}}>
-                <strong style={{color:'var(--blue)'}}>{done.matched}</strong> matchet mot loggede økter · <strong style={{color:'var(--green)'}}>{done.created}</strong> nye økter opprettet<br/>
-                <strong style={{color:'var(--accent)'}}>{done.checkins}</strong> oppmøter registrert
-                {done.unmatchedMembers>0 && <> · <strong style={{color:'var(--coral)'}}>{done.unmatchedMembers}</strong> navn uten kobling (avstem nedenfor)</>}
+                <strong style={{color:'var(--blue-ink)'}}>{done.matched}</strong> matchet mot loggede økter · <strong style={{color:'var(--green-ink)'}}>{done.created}</strong> nye økter opprettet<br/>
+                <strong style={{color:'var(--accent-ink)'}}>{done.checkins}</strong> oppmøter registrert
+                {done.unmatchedMembers>0 && <> · <strong style={{color:'var(--coral-ink)'}}>{done.unmatchedMembers}</strong> navn uten kobling (avstem nedenfor)</>}
               </div>
             </div>
             <div className="modal-foot"><button className="btn primary" onClick={onClose}>Ferdig</button></div>

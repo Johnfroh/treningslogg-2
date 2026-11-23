@@ -59,7 +59,7 @@ function ImportModal({ onClose }){
               <div className="big-check">✓</div>
               <div className="modal-title" style={{marginBottom:6}}>Import fullført</div>
               <div className="muted" style={{fontSize:13, lineHeight:1.7}}>
-                <strong style={{color:'var(--green)'}}>{done.added}</strong> nye · <strong style={{color:'var(--blue)'}}>{done.updated}</strong> oppdatert · <strong style={{color:'var(--coral)'}}>{done.removed}</strong> fjernet<br/>
+                <strong style={{color:'var(--green-ink)'}}>{done.added}</strong> nye · <strong style={{color:'var(--blue-ink)'}}>{done.updated}</strong> oppdatert · <strong style={{color:'var(--coral-ink)'}}>{done.removed}</strong> fjernet<br/>
                 Registeret har nå <strong>{done.total}</strong> medlemmer.
                 {done.gjeninnmeldt>0 && <><br/><strong>{done.gjeninnmeldt}</strong> har meldt seg inn igjen
                   {done.beltGjenopprettet>0 && <> — belte og graderingshistorikk hentet tilbake for {done.beltGjenopprettet}</>}.</>}

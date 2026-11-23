@@ -287,7 +287,7 @@ function MemberProfile({ member, onClose }){
         <div className="so-card">
           <div className="so-card-h"><span>Oppmøte & deltagelse</span></div>
           <dl className="kv">
-            <div><dt>Registrerte oppmøter</dt><dd><strong style={{color:'var(--accent)'}}>{fmtN(member.oppmote.checkins)}</strong></dd></div>
+            <div><dt>Registrerte oppmøter</dt><dd><strong style={{color:'var(--accent-ink)'}}>{fmtN(member.oppmote.checkins)}</strong></dd></div>
             {member.oppmote.pct!=null && <div><dt>Oppmøteandel</dt><dd>{fmtPct(member.oppmote.pct)}</dd></div>}
             <div><dt>Sist sett</dt><dd>{fmtDate(member.oppmote.sisteOppmote)}</dd></div>
           </dl>

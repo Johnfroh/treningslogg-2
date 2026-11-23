@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Figtree:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700;800&display=swap">
 <style>
 #__tl_boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: #F4F3FB; color: #8A86A0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #F4F3FB; color: #6B6782; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 12px; letter-spacing: 0.16em; z-index: 9999; }
 #__tl_boot.hidden { display: none; }
 :root {
@@ -27,7 +27,7 @@
 
   --ink: #232136;
   --ink-soft: #54506A;
-  --muted: #8A86A0;
+  --muted: #6B6782;   /* 4,6–5,4 i kontrast mot alle flater (min. 4,5) */
   --dim: #B4B0C6;
 
   --line: #ECEAF4;
@@ -43,6 +43,11 @@
   --blue:#4F9BEA;  --blue-bg:#E9F1FC;
   --coral:#F2825F; --coral-bg:#FCEBE3;
   --purple:#B06FD6; --purple-bg:#F4EAFB;
+
+  /* Tekstvarianter: de lyse fargene over er for fyll (søyler, prikker,
+     flater). Som TEKST er de for svake (2,3–3,9 i kontrast). Bruk -ink for
+     tekst — alle holder minst 4,5 mot hvit, bakgrunn og de fargede flatene. */
+  --green-ink:#1B7A5A; --coral-ink:#A84A28; --blue-ink:#2F6DB5; --accent-ink:#5A4BD8;
 
   /* aliases used by shared JSX */
   --amber: var(--accent);
@@ -88,7 +93,7 @@ a { color: inherit; text-decoration: none; }
 .brand { display: flex; gap: 12px; align-items: center; padding-bottom: 22px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
 .brand-badge {
   width: 46px; height: 46px; border-radius: 15px; flex: none;
-  background: var(--accent-bg); color: var(--accent);
+  background: var(--accent-bg); color: var(--accent-ink);
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 15px; letter-spacing: .02em;
 }
@@ -106,7 +111,7 @@ a { color: inherit; text-decoration: none; }
 }
 .nav button .dot { width: 7px; height: 7px; border-radius: 3px; background: var(--dim); transition: background .15s ease; }
 .nav button:hover { background: var(--bg); color: var(--ink); }
-.nav button.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+.nav button.active { background: var(--accent-bg); color: var(--accent-ink); font-weight: 700; }
 .nav button.active .dot { background: var(--accent); }
 
 /* live */
@@ -154,19 +159,21 @@ a { color: inherit; text-decoration: none; }
 .kpi-tile .value { font-size: 34px; font-weight: 700; line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 6px; color: var(--ink); }
 .kpi-tile .unit { font-size: 14px; color: var(--muted); margin-left: 3px; font-weight: 500; }
 .kpi-tile .delta { font-size: 12px; font-weight: 500; margin-top: auto; padding-top: 10px; display: flex; gap: 8px; align-items: center; color: var(--ink-soft); }
-.kpi-tile.amber { background: var(--accent-bg); }
-.kpi-tile.green { background: var(--green-bg); }
-.kpi-tile.coral { background: var(--coral-bg); }
-.kpi-tile.blue  { background: var(--blue-bg); }
-.delta.up { color: var(--green); font-weight: 600; }
-.delta.down { color: var(--coral); font-weight: 600; }
-.delta.amber { color: var(--accent); font-weight: 600; }
+.kpi-tile { background: var(--accent-bg); }
+/* Farge betyr noe: oransje = trenger handling, grønt = bra. Alt annet er
+   nøytralt. Settes med status-prop på KPI (daylight-app.jsx). Stripa til
+   venstre gjør forskjellen synlig også uten fargesyn. */
+.kpi-tile.handling { background: var(--coral-bg); box-shadow: var(--shadow-sm), inset 4px 0 0 var(--coral); }
+.kpi-tile.bra      { background: var(--green-bg); box-shadow: var(--shadow-sm), inset 4px 0 0 var(--green); }
+.delta.up { color: var(--green-ink); font-weight: 600; }
+.delta.down { color: var(--coral-ink); font-weight: 600; }
+.delta.amber { color: var(--accent-ink); font-weight: 600; }
 
 /* tag */
 .tag { display: inline-flex; align-items: center; padding: 3px 10px; font-size: 11px; font-weight: 600; border-radius: 999px; }
-.tag.amber { color: var(--accent); background: var(--accent-bg); }
-.tag.green { color: var(--green); background: var(--green-bg); }
-.tag.coral { color: var(--coral); background: var(--coral-bg); }
+.tag.amber { color: var(--accent-ink); background: var(--accent-bg); }
+.tag.green { color: var(--green-ink); background: var(--green-bg); }
+.tag.coral { color: var(--coral-ink); background: var(--coral-bg); }
 
 /* pill */
 .pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; background: var(--card); box-shadow: var(--shadow-sm); border-radius: 999px; font-size: 11.5px; font-weight: 500; color: var(--ink-soft); }
@@ -187,7 +194,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 
 /* misc */
 .muted { color: var(--muted); }
-.dim { color: var(--dim); }
+.dim { color: var(--muted); }  /* --dim er for svak til tekst (1,9–2,1) */
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* bar row */
@@ -221,10 +228,10 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 
 /* merke på en fane i sidefeltet (umatchede navn) */
 .nav-merke { margin-left:auto; min-width:18px; height:18px; padding:0 5px; border-radius:999px;
-  background:var(--coral); color:#fff; font-size:10.5px; font-weight:700; line-height:18px; text-align:center; }
+  background:var(--coral-ink); color:#fff; font-size:11px; font-weight:700; line-height:18px; text-align:center; }
 
 /* min/maks på y-aksen i Spark */
-.spark-y { position:absolute; left:0; font-size:9.5px; color:var(--muted); line-height:1;
+.spark-y { position:absolute; left:0; font-size:11px; color:var(--muted); line-height:1;
   background:var(--card); padding:1px 3px; border-radius:3px; pointer-events:none; }
 
 /* klikkbart medlemsnavn — åpner medlemsprofilen */
@@ -258,7 +265,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .kstripe { display:flex; flex-wrap:wrap; gap:18px 26px; align-items:flex-start;
   background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-sm); padding:14px 18px; margin-bottom:14px; }
 .kstripe-felt { display:flex; flex-direction:column; gap:7px; min-width:0; }
-.kstripe-lbl { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.kstripe-lbl { font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
 .kstripe select { border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:9px 12px;
   font:inherit; font-size:13px; background:var(--card); color:var(--ink); max-width:100%; }
 
@@ -315,7 +322,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
     border-radius: var(--r-sm); cursor: pointer; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .bunnmeny button.active { color: var(--accent); background: var(--accent-bg); }
+  .bunnmeny button.active { color: var(--accent-ink); background: var(--accent-bg); }
   .mer-ark { display: block; position: fixed; inset: 0; z-index: 91; background: rgba(35,33,54,.42); }
   .mer-liste {
     position: absolute; left: 0; right: 0; bottom: 0; background: var(--card);
@@ -327,7 +334,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
     font-weight: 600; color: var(--ink-soft); text-align: left; padding: 13px 14px;
     border-radius: var(--r-sm); cursor: pointer;
   }
-  .mer-liste button.active { color: var(--accent); background: var(--accent-bg); }
+  .mer-liste button.active { color: var(--accent-ink); background: var(--accent-bg); }
 }
 
 /* ============ REGISTER ============ */
@@ -353,15 +360,15 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .export-menu button { text-align:left; border:none; background:transparent; font:inherit; font-size:12.5px; color:var(--ink-soft);
   padding:9px 11px; border-radius:var(--r-sm); cursor:pointer; }
 .export-menu button:hover { background:var(--bg); color:var(--ink); }
-.export-menu button.danger { color:var(--coral); }
-.export-note { font-size:10.5px; color:var(--muted); padding:8px 11px; line-height:1.5; border-top:1px solid var(--line); margin-top:2px; }
+.export-menu button.danger { color:var(--coral-ink); }
+.export-note { font-size:11px; color:var(--muted); padding:8px 11px; line-height:1.5; border-top:1px solid var(--line); margin-top:2px; }
 
 /* register table */
 .reg-table th { padding:11px 12px; }
 .reg-table th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
 .reg-table th.sortable:hover, .reg-table th.sortable.on { color:var(--ink, inherit); }
 .reg-table th .sort-arrow { margin-left:4px; font-size:9px; opacity:.35; }
-.reg-table th.sortable.on .sort-arrow { opacity:1; color:var(--accent); }
+.reg-table th.sortable.on .sort-arrow { opacity:1; color:var(--accent-ink); }
 .reg-table td { padding:9px 12px; vertical-align:middle; }
 .reg-table input[type=checkbox] { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
 .reg-table tr.rowsel td { background:var(--accent-bg); }
@@ -370,8 +377,8 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .belt-cell { display:flex; align-items:center; gap:10px; cursor:pointer; }
 .belt-cell .bc-name { font-weight:600; font-size:12.5px; }
 .belt-cell .bc-str { font-size:11px; color:var(--muted); }
-.pencil { border:none; background:transparent; color:var(--dim); cursor:pointer; font-size:14px; padding:4px 6px; border-radius:7px; }
-.pencil:hover { background:var(--accent-bg); color:var(--accent); }
+.pencil { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:4px 6px; border-radius:7px; }
+.pencil:hover { background:var(--accent-bg); color:var(--accent-ink); }
 .inline-edit { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .inline-edit select, .inline-edit input[type=date] { border:1px solid var(--line-strong); border-radius:9px; padding:6px 8px; font:inherit; font-size:12px; background:var(--card); color:var(--ink); }
 .inline-edit select:focus, .inline-edit input:focus { outline:none; border-color:var(--accent); }
@@ -397,13 +404,13 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .btn.primary:hover { filter:brightness(1.05); }
 .btn.primary:disabled { background:var(--line-strong); color:var(--muted); cursor:default; }
 .btn.outline { background:var(--card); border-color:var(--line-strong); color:var(--ink); }
-.btn.outline:hover { border-color:var(--accent); color:var(--accent); }
+.btn.outline:hover { border-color:var(--accent); color:var(--accent-ink); }
 .btn.ghost { background:transparent; color:var(--ink-soft); }
 .btn.ghost:hover { background:var(--bg); }
 .btn:disabled { opacity:.55; cursor:default; }
 .icon-btn { border:none; background:var(--bg); color:var(--ink-soft); width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:13px; }
 .icon-btn:hover { background:var(--line-strong); }
-.mini-link { border:none; background:transparent; color:var(--accent); font:inherit; font-size:11.5px; cursor:pointer; }
+.mini-link { border:none; background:transparent; color:var(--accent-ink); font:inherit; font-size:11.5px; cursor:pointer; }
 
 /* ============ MODAL (grading dialog) ============ */
 .modal-backdrop { position:fixed; inset:0; z-index:100; background:rgba(35,33,54,.42); backdrop-filter:blur(2px);
@@ -411,12 +418,12 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .modal { width:440px; max-width:100%; max-height:90vh; overflow:auto; background:var(--card); border-radius:var(--r-lg);
   box-shadow:0 30px 80px rgba(40,30,80,.3); padding:24px; }
 .modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
-.modal-kicker { font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); font-weight:700; }
+.modal-kicker { font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--accent-ink); font-weight:700; }
 .modal-title { font-size:19px; font-weight:700; letter-spacing:-.01em; margin-top:3px; }
 .seg { display:flex; gap:4px; background:var(--bg); padding:4px; border-radius:var(--r-sm); margin-bottom:18px; }
 .seg button { flex:1; border:none; background:transparent; font:inherit; font-size:13px; font-weight:600; color:var(--ink-soft);
   padding:9px; border-radius:10px; cursor:pointer; }
-.seg button.on { background:var(--card); color:var(--accent); box-shadow:var(--shadow-sm); }
+.seg button.on { background:var(--card); color:var(--accent-ink); box-shadow:var(--shadow-sm); }
 .seg button:disabled { color:var(--dim); cursor:default; }
 .dlg-body { margin-bottom:14px; }
 .dlg-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -477,10 +484,10 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .dropzone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center;
   border:2px dashed var(--line-strong); border-radius:var(--r-md); padding:36px 24px; cursor:pointer; transition:all .15s; background:var(--bg); }
 .dropzone:hover, .dropzone.over { border-color:var(--accent); background:var(--accent-bg); }
-.dz-icon { font-size:30px; color:var(--accent); line-height:1; }
+.dz-icon { font-size:30px; color:var(--accent-ink); line-height:1; }
 .dz-main { font-size:14px; font-weight:600; color:var(--ink); }
 .dz-sub { font-size:12px; color:var(--muted); }
-.import-err { margin-top:12px; font-size:12.5px; color:var(--coral); background:var(--coral-bg); padding:11px 14px; border-radius:var(--r-sm); }
+.import-err { margin-top:12px; font-size:12.5px; color:var(--coral-ink); background:var(--coral-bg); padding:11px 14px; border-radius:var(--r-sm); }
 .import-howto { margin-top:18px; }
 .import-howto ul { margin:0; padding-left:18px; font-size:12.5px; color:var(--ink-soft); line-height:1.8; }
 .import-format { display:flex; align-items:center; gap:10px; margin-bottom:16px; font-size:12px; }
@@ -488,9 +495,9 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .ist { border-radius:var(--r-md); padding:16px; text-align:center; }
 .ist .n { font-size:30px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
 .ist .l { font-size:11.5px; margin-top:6px; font-weight:500; }
-.ist.green { background:var(--green-bg); } .ist.green .n { color:var(--green); }
-.ist.blue { background:var(--blue-bg); } .ist.blue .n { color:var(--blue); }
-.ist.coral { background:var(--coral-bg); } .ist.coral .n { color:var(--coral); }
+.ist.green { background:var(--green-bg); } .ist.green .n { color:var(--green-ink); }
+.ist.blue { background:var(--blue-bg); } .ist.blue .n { color:var(--blue-ink); }
+.ist.coral { background:var(--coral-bg); } .ist.coral .n { color:var(--coral-ink); }
 .import-list { margin-bottom:10px; }
 .il-head { width:100%; text-align:left; border:none; background:transparent; font:inherit; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; padding:6px 0; }
 .il-body { display:flex; flex-wrap:wrap; gap:6px; padding:6px 0 4px; max-height:140px; overflow:auto; }
@@ -500,7 +507,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .import-note { font-size:12.5px; color:var(--ink-soft); background:var(--bg); padding:13px 15px; border-radius:var(--r-md); line-height:1.6; margin:6px 0 4px; }
 .import-note.belt { background:var(--accent-bg); }
 .import-done { text-align:center; padding:18px 10px 24px; }
-.big-check { width:56px; height:56px; border-radius:50%; background:var(--green-bg); color:var(--green); font-size:28px;
+.big-check { width:56px; height:56px; border-radius:50%; background:var(--green-bg); color:var(--green-ink); font-size:28px;
   display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
 
 /* økonomi month list (in modal) */
@@ -514,7 +521,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 .okbar-v { font-size:11px; color:var(--ink-soft); font-weight:600; margin-bottom:6px; }
 .okbar-track { width:100%; max-width:46px; flex:1; background:var(--bar-bg); border-radius:8px 8px 4px 4px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; }
 .okbar-fill { width:100%; background:linear-gradient(180deg, var(--green), #2a9d77); border-radius:8px 8px 0 0; min-height:3px; transition:height .3s ease; }
-.okbar-l { font-size:10.5px; color:var(--muted); margin-top:8px; white-space:nowrap; }
+.okbar-l { font-size:11px; color:var(--muted); margin-top:8px; white-space:nowrap; }
 /* Samlet inntekt: stablede segmenter i samme track (kontingent/butikk/diverse) */
 .okbar-seg { width:100%; }
 .oklegend { display:flex; gap:16px; margin-top:14px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
@@ -532,7 +539,7 @@ table.t tbody tr:hover td:last-child { border-top-right-radius: 10px; border-bot
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <!-- Henter appens egne skript ferske ved hver lasting (se laster.js) -->
-<script src="/laster.js?v=1"></script>
+<script src="/laster.js?v=2"></script>
 
 <!-- Datalag: Sheets via Apps Script (med demo-fallback) -->
 <script type="text/x-fersk" src="api.js"></script>

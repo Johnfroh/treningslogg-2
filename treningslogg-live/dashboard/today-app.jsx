@@ -404,10 +404,16 @@ function Today({ members, live, thresholds, q, onEndreQ }){
         </div>
       )}
       <div className="grid-4">
-        <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`} accent="coral"/>
-        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`} accent="green"/>
-        <KPI label="Intro-oppfølging" value={fmtN(synlige(intro, skjultIntro))} delta={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"/>
-        <KPI label="Fallende oppmøte" value={harTrend ? fmtN(synlige(fallende, skjultFall)) : '—'} delta={harTrend ? `siste 4 hele uker ned · fra ≥ ${fallMinPrev4}` : 'krever koblede oppmøter'} accent="blue"/>
+        {/* Oransje = noen bør kontaktes, grønt = klar for gradering. Står
+            tallet på 0, er kortet nøytralt — da er det ingenting å gjøre. */}
+        <KPI label="Stille medlemmer" value={fmtN(synlige(stille, skjultStille))} delta={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte`}
+          status={synlige(stille, skjultStille) > 0 ? 'handling' : null}/>
+        <KPI label="Graderingsklare" value={fmtN(synlige(grad, skjultGrad))} delta={`≥ ${gradMinOppmote} oppmøter siden gradering · ≥ ${gradMinMnd} mnd`}
+          status={synlige(grad, skjultGrad) > 0 ? 'bra' : null}/>
+        <KPI label="Intro-oppfølging" value={fmtN(synlige(intro, skjultIntro))} delta={`introkurs · ikke møtt ≥ ${introUker} uker`}
+          status={synlige(intro, skjultIntro) > 0 ? 'handling' : null}/>
+        <KPI label="Fallende oppmøte" value={harTrend ? fmtN(synlige(fallende, skjultFall)) : '—'} delta={harTrend ? `siste 4 hele uker ned · fra ≥ ${fallMinPrev4}` : 'krever koblede oppmøter'}
+          status={harTrend && synlige(fallende, skjultFall) > 0 ? 'handling' : null}/>
       </div>
 
       <div className="dim" style={{fontSize:11, margin:'6px 2px 0', lineHeight:1.6}}>
@@ -420,12 +426,12 @@ function Today({ members, live, thresholds, q, onEndreQ }){
         «fallende» sammenligner hele uker.
       </div>
       {refEtterslep >= 10 && (
-        <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral)', fontWeight:600}}>
+        <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral-ink)', fontWeight:600}}>
           Oppmøte er ikke registrert på {refEtterslep} dager (sist {fmtDate(refDato)}). Listene viser situasjonen
           per den datoen — importer nytt oppmøte under Data for å få dem oppdatert.
         </div>
       )}
-      {feil && <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral)'}}>{feil}</div>}
+      {feil && <div style={{fontSize:12, margin:'8px 2px 0', color:'var(--coral-ink)'}}>{feil}</div>}
 
       <TodayList
         title="Stille medlemmer" hint={`${stilleUker}–${TD_BORTE_UKER} uker uten oppmøte · ferskeste først`} accent="coral"
@@ -450,13 +456,13 @@ function Today({ members, live, thresholds, q, onEndreQ }){
         skjulte={skjultGrad} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
-        title="Intro-oppfølging" hint={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="amber"
+        title="Intro-oppfølging" hint={`introkurs · ikke møtt ≥ ${introUker} uker`} accent="coral"
         liste="intro" rows={intro} meta={m => tdRelSince(m.oppmote && m.oppmote.sisteOppmote)}
         empty="Ingen intro-deltakere som trenger oppfølging."
         skjulte={skjultIntro} onHandling={handling} busy={busy} onOpen={openMember}/>
 
       <TodayList
-        title="Fallende oppmøte" hint={`siste 4 hele uker mot de 4 før · fra ≥ ${fallMinPrev4} oppmøter`} accent="blue"
+        title="Fallende oppmøte" hint={`siste 4 hele uker mot de 4 før · fra ≥ ${fallMinPrev4} oppmøter`} accent="coral"
         liste="fallende" rows={fallende} meta={m => `${m.fall.prev4} → ${m.fall.last4} oppmøter`}
         empty={harTrend
           ? 'Ingen med markert fall i oppmøte akkurat nå.'

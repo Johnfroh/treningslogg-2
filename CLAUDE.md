@@ -34,6 +34,12 @@ Send gjerne fila med SendUserFile samtidig.
 - **Trener-app**: `index.html` (mobil-PWA) + `desktop.html` — React,
   Daylight-tema (lyst, lavendel, Plus Jakarta Sans). Tokens i
   `app/shared.js` (`M`-objektet).
+- **Farger i dashboardet**: lyse farger (`--green`, `--coral`, `--blue`,
+  `--accent`) er for fyll — søyler, prikker, flater. Tekst bruker
+  `--green-ink` / `--coral-ink` / `--blue-ink` / `--accent-ink` og
+  `--muted` (alle ≥ 4,5 i kontrast). Minste skrift 11 px. Tallkort (`KPI`)
+  er nøytrale; `status="handling"` (oransje) eller `status="bra"` (grønn)
+  bare når fargen betyr noe.
 - **Fotball-app**: `fotball/` — vanilla JS, egen visuell identitet
   (kremfarget, Spectral/Bricolage). Egen API-rute `/fotball/api`.
 - **Backend**: Google Sheets + Apps Script Web App (`apps-script/Code.gs`),

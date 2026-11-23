@@ -90,7 +90,7 @@ function ImportOversikt({ meta, isStyre }){
                 <td className="dim" style={{fontSize:11, whiteSpace:'nowrap'}}>
                   {v ? <>{new Date(v).toLocaleDateString('nb-NO',{day:'numeric',month:'short'})}
                         {' · '}{d===0?'i dag':d+' dager siden'}{ant?` · ${ant}`:''}</>
-                     : <span style={{color:'var(--coral)'}}>aldri importert</span>}
+                     : <span style={{color:'var(--coral-ink)'}}>aldri importert</span>}
                 </td>
                 <td style={{textAlign:'right', whiteSpace:'nowrap'}}>
                   {k.skriveStyre && !isStyre
@@ -194,7 +194,7 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
 
   return (
     <div className="dlg-body">
-      {feil && <div style={{fontSize:12, color:'var(--coral)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
+      {feil && <div style={{fontSize:12, color:'var(--coral-ink)', marginBottom:12, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap'}}>
         <span>{feil}</span>
         <button className="btn ghost" style={{fontSize:12, padding:'4px 10px'}} onClick={()=>setHentForsok(n=>n+1)}>Prøv igjen</button>
       </div>}
@@ -225,7 +225,7 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
         {gyldig
           ? <>Rapporten dekker <strong>{mrMndNavn(p.fra)}</strong>{p.fra!==p.til && <> til <strong>{mrMndNavn(p.til)}</strong></>}.
               Perioden regnes i hele måneder — økonomi og oppmøte pr. medlem lagres månedsvis, så en dag-presis periode ville gitt tall som ikke summerer opp. Øktlista er dag-eksakt.</>
-          : <span style={{color:'var(--coral)'}}>Fra-måneden må være før eller lik til-måneden.</span>}
+          : <span style={{color:'var(--coral-ink)'}}>Fra-måneden må være før eller lik til-måneden.</span>}
       </div>
 
       <div className="two-col" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:22}}>
@@ -236,7 +236,7 @@ function Rapportbygger({ members, live, departed, okonomi, kpis, isStyre, terskl
         <div>
           <div style={{fontSize:11, textTransform:'uppercase', letterSpacing:'.12em', color:'var(--text-mut)', marginBottom:5}}>Slik det ser ut i dag</div>
           {naaSeksjoner.map(rute)}
-          <div className="dim" style={{fontSize:10.5, marginTop:8, lineHeight:1.6}}>
+          <div className="dim" style={{fontSize:11, marginTop:8, lineHeight:1.6}}>
             Disse er øyeblikksbilder. Registeret overskrives ved hver import, så vi kan ikke vite
             hvordan beltefordelingen så ut i mars — datovalget over gjelder dem ikke.
           </div>

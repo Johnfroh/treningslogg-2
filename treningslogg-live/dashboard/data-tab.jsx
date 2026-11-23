@@ -59,7 +59,7 @@ function DataFane({ kpis, charts, live, meta, isStyre, terskler, brukerStandard,
                 <Tile title="Identitetsbro" corner="styre">
                   <div className="dim" style={{ fontSize: 12, lineHeight: 1.6 }}>
                     Koblingen mellom oppmøte-navn og medlemsregisteret gjøres av styret.
-                    {live && live.unmatched > 0 && <> Akkurat nå mangler <strong style={{ color: 'var(--coral)' }}>{fmtN(live.unmatched)} oppmøter</strong> kobling.</>}
+                    {live && live.unmatched > 0 && <> Akkurat nå mangler <strong style={{ color: 'var(--coral-ink)' }}>{fmtN(live.unmatched)} oppmøter</strong> kobling.</>}
                   </div>
                 </Tile>
               </>
